@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global rules for all documents unless overridden:
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow read, list: if request.auth != null &&
+                        (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null &&
+                   (request.auth.uid == userId || isAdmin());
+    }
+
+    // POINT TRANSACTIONS
+    match /point_transactions/{docId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null;
+      allow update, delete: if false;  // no edits or deletes allowed by users
+    }
+
+    // ARTIFACTS COLLECTION (example from your rules)
+    match /artifacts/{appId}/public/data/reports/{reportId} {
+      allow read, write: if request.auth != null;
+      // Consider refining as needed
+    }
+
+    // REDEMPTIONS COLLECTION
+    match /redemptions/{docId} {
+      allow read: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null;
+
+      // Allow admins or users cancelling pending redemptions
+      allow update: if isAdmin() ||
+                    (request.auth != null && request.auth.uid == resource.data.userId &&
+                     resource.data.status == "pending" &&
+                     request.resource.data.status == "cancelled");
+
+      allow delete: if isAdmin();
+    }
+
+    // REWARDS COLLECTION
+    match /rewards/{rewardId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // POSTS COLLECTION
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+                            (request.auth.uid == resource.data.authorId || isAdmin());
+    }
+
+    // VIOLATION REPORTS COLLECTION
+    match /violation_reports/{reportId} {
+      allow read, create, update: if request.auth != null;
+      allow delete: if isAdmin();
+    }
+
+    // WASTE SUBMISSIONS COLLECTION
+    match /waste_submissions/{submissionId} {
+      allow create: if request.auth != null;
+
+      allow read, list: if request.auth != null &&
+                        (resource.data.userId == request.auth.uid || isAdmin());
+
+      allow update: if request.auth != null && (
+        isAdmin() ||
+        (resource.data.userId == request.auth.uid &&
+         !("status" in request.resource.data) &&
+         !("confirmedAt" in request.resource.data) &&
+         !("rejectedAt" in request.resource.data))
+      );
+
+      allow delete: if isAdmin();
+    }
+
+    // NOTIFICATIONS SUBCOLLECTION
+    match /notifications/{userId}/userNotifications/{notifId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Helper function: check if requester is admin
+    function isAdmin() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+  }
+}
