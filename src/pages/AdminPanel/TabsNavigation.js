@@ -1,4 +1,5 @@
 import React from "react";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function TabsNavigation({
   activeTab,
@@ -7,6 +8,8 @@ export default function TabsNavigation({
   redemptionPendingCount = 0,
   reportsPendingCount = 0,
 }) {
+  const { isDark } = useTheme();
+
   const tabs = [
     { 
       id: 'pendingSubmissions', 
@@ -72,19 +75,24 @@ export default function TabsNavigation({
     },
   ];
 
+  const desktopBg = isDark ? "bg-gray-800 bg-opacity-80 border-gray-700 text-gray-300" : "bg-white/80 border-slate-200 text-slate-600";
+  const desktopActiveText = isDark ? "text-indigo-400 bg-indigo-900 border-indigo-600" : "text-indigo-600 bg-indigo-50 border-indigo-600";
+  const desktopInactiveTextHover = isDark ? "hover:text-gray-100 hover:bg-gray-700 border-transparent" : "hover:text-slate-800 hover:bg-slate-50 border-transparent";
+
+  const mobileActiveBg = "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md";
+  const mobileInactiveTextHover = isDark ? "text-gray-300 hover:text-white hover:bg-gray-700" : "text-slate-600 hover:text-slate-800 hover:bg-slate-100";
+
   return (
     <div className="w-full">
       {/* Desktop Navigation */}
-      <div className="hidden lg:block border-b border-slate-200 bg-white/80 backdrop-blur-sm rounded-t-2xl overflow-hidden">
+      <div className={`hidden lg:block border-b rounded-t-2xl overflow-hidden backdrop-blur-sm ${desktopBg}`}>
         <nav className="flex">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`relative px-4 py-3 font-semibold transition-all duration-200 whitespace-nowrap flex items-center gap-2 text-sm border-b-2 ${
-                activeTab === tab.id
-                  ? "text-indigo-600 bg-indigo-50 border-indigo-600"
-                  : "text-slate-600 hover:text-slate-800 hover:bg-slate-50 border-transparent"
+                activeTab === tab.id ? desktopActiveText : desktopInactiveTextHover
               }`}
               aria-current={activeTab === tab.id ? "page" : undefined}
               aria-label={tab.label}
@@ -109,7 +117,7 @@ export default function TabsNavigation({
       </div>
 
       {/* Mobile Navigation - Horizontal Scroll */}
-      <div className="lg:hidden border-b border-slate-200 bg-white/80 backdrop-blur-sm rounded-t-2xl overflow-hidden">
+      <div className={`lg:hidden border-b rounded-t-2xl overflow-hidden backdrop-blur-sm ${desktopBg}`}>
         <div className="overflow-x-auto scrollbar-hide">
           <nav className="flex space-x-1 p-2 min-w-max">
             {tabs.map((tab) => (
@@ -117,9 +125,7 @@ export default function TabsNavigation({
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`relative flex flex-col items-center justify-center min-w-[64px] px-2 py-2 font-medium rounded-lg transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? "bg-gradient-to-br from-indigo-500 to-purple-600 text-white shadow-md"
-                    : "text-slate-600 hover:text-slate-800 hover:bg-slate-100"
+                  activeTab === tab.id ? mobileActiveBg : mobileInactiveTextHover
                 }`}
                 aria-current={activeTab === tab.id ? "page" : undefined}
                 aria-label={tab.label}
@@ -133,13 +139,11 @@ export default function TabsNavigation({
                   <span className="hidden sm:inline">{tab.shortLabel}</span>
                 </span>
                 
-                {/* Mobile count badge - positioned absolutely to prevent cutoff */}
+                {/* Mobile count badge */}
                 {tab.count !== null && tab.count > 0 && (
                   <span 
-                    className={`absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-4 px-1 text-xs font-bold leading-none text-white rounded-full shadow-sm ${
-                      activeTab === tab.id 
-                        ? 'bg-white/90 text-indigo-600' 
-                        : tab.countColor || 'bg-red-500'
+                    className={`absolute -top-1 -right-1 inline-flex items-center justify-center min-w-[18px] h-4 px-1 text-xs font-bold leading-none rounded-full shadow-sm ${
+                      activeTab === tab.id ? 'bg-white/90 text-indigo-600' : tab.countColor || 'bg-red-500'
                     }`}
                     aria-label={`${tab.count} ${tab.countLabel || 'items'}`}
                   >

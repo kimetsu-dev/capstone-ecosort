@@ -39,8 +39,12 @@ import {
   FiAward,
   FiTrendingUp,
 } from "react-icons/fi";
+import { useTheme } from "../contexts/ThemeContext";
 
 export default function Profile() {
+  const { isDark } = useTheme() || {};
+  const navigate = useNavigate();
+
   const [user, setUser] = useState(null);
   const [isEmailUser, setIsEmailUser] = useState(false);
   const [username, setUsername] = useState("");
@@ -61,7 +65,6 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [currentPasswordError, setCurrentPasswordError] = useState("");
-  const navigate = useNavigate();
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
@@ -69,7 +72,6 @@ export default function Profile() {
       setUser(currentUser);
       setEmail(currentUser.email);
 
-      // Detect if user signed in with email/password
       const emailProviderPresent = currentUser.providerData.some(
         (provider) => provider.providerId === "password"
       );
@@ -107,14 +109,13 @@ export default function Profile() {
   };
 
   const validatePassword = (pwd) => {
-    if (!pwd) return true; // Empty means no change
+    if (!pwd) return true;
     if (pwd.length < 8) return false;
     if (!/[A-Z]/.test(pwd)) return false;
     if (!/[0-9]/.test(pwd)) return false;
     return true;
   };
 
-  // Retry helper: upload file with retries & exponential backoff
   const uploadWithRetry = async (fileRef, file, retries = 3, delay = 1000) => {
     try {
       console.log(`Uploading file, attempts left: ${retries}`);
@@ -136,7 +137,6 @@ export default function Profile() {
 
   const performReauthentication = async () => {
     if (isEmailUser) {
-      // Email/password user: use email + current password
       if (!currentPassword) {
         setCurrentPasswordError("Current password is required to change password or email.");
         throw new Error("Current password missing");
@@ -144,7 +144,6 @@ export default function Profile() {
       const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
     } else {
-      // Google (or other OAuth) user: use popup reauth
       const googleProvider = new GoogleAuthProvider();
       await reauthenticateWithPopup(user, googleProvider);
     }
@@ -173,38 +172,41 @@ export default function Profile() {
     setSaving(true);
 
     try {
-      // Re-authenticate only if changing email or password
       const emailChanged = email && email !== user.email;
       const passwordChanging = !!password;
       if (emailChanged || passwordChanging) {
         await performReauthentication();
       }
 
-      // Upload profile picture if changed
-      let uploadedUrl = profileUrl;
+      // Prepare the update fields object
+      const updateFields = {};
       if (profilePicFile) {
-        uploadedUrl = await uploadProfilePicture(profilePicFile);
+        const uploadedUrl = await uploadProfilePicture(profilePicFile);
         setProfileUrl(uploadedUrl);
-        await updateDoc(doc(db, "users", user.uid), { profileUrl: uploadedUrl });
+        updateFields.profileUrl = uploadedUrl;
       }
 
-      // Update username
+      if (username.trim() && username !== user.displayName) {
+        updateFields.username = username.trim();
+      }
+
+      if (Object.keys(updateFields).length > 0) {
+        console.log("Updating user document with fields:", updateFields);
+        await updateDoc(doc(db, "users", user.uid), updateFields);
+      }
+
       if (username.trim() && username !== user.displayName) {
         await updateProfile(user, { displayName: username.trim() });
-        await updateDoc(doc(db, "users", user.uid), { username: username.trim() });
       }
 
-      // Update email
       if (emailChanged) {
         await updateEmail(user, email);
       }
 
-      // Update password
       if (passwordChanging) {
         await updatePassword(user, password);
       }
 
-      // Clear sensitive fields
       setIsEditing(false);
       setPassword("");
       setConfirmPassword("");
@@ -274,18 +276,32 @@ export default function Profile() {
     (isEmailUser && (password || (email !== user?.email)) && !currentPassword);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 relative overflow-hidden">
+    <div
+      className={`min-h-screen transition-colors duration-500 ${
+        isDark
+          ? "bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 text-gray-200"
+          : "bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 text-gray-900"
+      } relative overflow-hidden`}
+    >
       <div className="relative z-10 px-4 py-6 max-w-4xl mx-auto">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-y-4 sm:gap-y-0 animate-slide-down">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+            className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${
+              isDark ? "bg-gray-800 text-gray-300" : "bg-white text-gray-700"
+            }`}
           >
-            <FiArrowLeft className="text-gray-700" />
-            <span className="text-gray-700 font-medium">Dashboard</span>
+            <FiArrowLeft />
+            <span>Dashboard</span>
           </button>
-          <h1 className="text-3xl font-bold text-gray-800 text-center">My Profile</h1>
+          <h1
+            className={`text-3xl font-bold ${
+              isDark ? "text-gray-200" : "text-gray-800"
+            } text-center`}
+          >
+            My Profile
+          </h1>
           <button
             onClick={() => {
               setIsEditing(!isEditing);
@@ -301,19 +317,29 @@ export default function Profile() {
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 ${
               isEditing
-                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                ? isDark
+                  ? "bg-red-700 text-red-300 hover:bg-red-600"
+                  : "bg-red-100 text-red-700 hover:bg-red-200"
+                : isDark
+                ? "bg-blue-700 text-blue-300 hover:bg-blue-600"
                 : "bg-blue-100 text-blue-700 hover:bg-blue-200"
             }`}
           >
             <FiEdit3 />
-            <span className="font-medium">{isEditing ? "Cancel" : "Edit"}</span>
+            <span>{isEditing ? "Cancel" : "Edit"}</span>
           </button>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Profile Card */}
-          <div className="lg:col-span-1">
-            <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-xl border border-white/30 animate-fade-in">
+          <div>
+            <div
+              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 text-gray-200"
+                  : "bg-white border-gray-200 text-gray-900"
+              }`}
+            >
               {/* Profile Picture */}
               <div className="flex flex-col items-center mb-6">
                 <div className="relative group">
@@ -346,13 +372,17 @@ export default function Profile() {
                 <h2 className="text-2xl font-bold text-gray-800 text-center mt-3">{username || "Anonymous User"}</h2>
                 <p className="text-gray-600 text-center">{email}</p>
               </div>
+
               {/* Badge */}
               <div className="text-center mb-6">
-                <div className={`inline-flex items-center space-x-2 bg-gradient-to-r ${currentBadge.color} text-white px-6 py-3 rounded-2xl shadow-lg`}>
+                <div
+                  className={`inline-flex items-center space-x-2 px-6 py-3 rounded-2xl shadow-lg bg-gradient-to-r ${currentBadge.color} text-white`}
+                >
                   <span className="text-2xl">{currentBadge.icon}</span>
                   <span className="font-bold">{currentBadge.name}</span>
                 </div>
               </div>
+
               {/* Stats */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-emerald-100 to-green-200 rounded-2xl p-4 text-center">
@@ -364,6 +394,7 @@ export default function Profile() {
                   <div className="text-sm text-blue-600">Rank</div>
                 </div>
               </div>
+
               {/* Progress to Next Level */}
               <div className="bg-gray-50 rounded-2xl p-4 mb-8">
                 <div className="flex items-center justify-between mb-2">
@@ -377,6 +408,7 @@ export default function Profile() {
                   ></div>
                 </div>
               </div>
+
               {/* Link to My Redemptions */}
               <div className="mt-4 text-center">
                 <Link
@@ -388,13 +420,21 @@ export default function Profile() {
               </div>
             </div>
           </div>
+
           {/* Main Content */}
           <div className="lg:col-span-2 flex flex-col gap-8">
             {/* Profile Form */}
-            <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-xl border border-white/30 animate-fade-in-up">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <div
+              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 text-gray-200"
+                  : "bg-white border-gray-200 text-gray-900"
+              }`}
+            >
+              <h3 className={`text-2xl font-bold mb-6 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
                 <FiUser className="mr-3" /> Profile Information
               </h3>
+
               <div className="space-y-6">
                 <div>
                   <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
@@ -419,6 +459,7 @@ export default function Profile() {
                     />
                   </div>
                 </div>
+
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                     Email Address
@@ -443,7 +484,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* Re-auth fields only show if editing */}
                 {isEditing && (
                   <>
                     {isEmailUser && (
@@ -572,9 +612,16 @@ export default function Profile() {
                 )}
               </div>
             </div>
+
             {/* Achievements */}
-            <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-xl border border-white/30 animate-fade-in-up">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+            <div
+              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 text-gray-200"
+                  : "bg-white border-gray-200 text-gray-900"
+              }`}
+            >
+              <h3 className={`text-2xl font-bold mb-6 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
                 <FiAward className="mr-3" /> Achievements
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -582,28 +629,37 @@ export default function Profile() {
                   achievements.map((achievement, index) => (
                     <div
                       key={index}
-                      className="bg-gradient-to-br from-yellow-50 to-amber-100 rounded-2xl p-6 border border-amber-200"
+                      className={`rounded-2xl p-6 border ${
+                        isDark ? "bg-yellow-800 border-yellow-600" : "bg-yellow-50 border-amber-200"
+                      }`}
                     >
                       <div className="flex items-center space-x-3">
                         <div className="text-3xl">{achievement.icon}</div>
                         <div>
-                          <h4 className="font-bold text-amber-800">{achievement.name}</h4>
-                          <p className="text-sm text-amber-600">{achievement.description}</p>
+                          <h4 className={`font-bold ${isDark ? "text-yellow-300" : "text-amber-800"}`}>{achievement.name}</h4>
+                          <p className={`text-sm ${isDark ? "text-yellow-400" : "text-amber-600"}`}>{achievement.description}</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div className="col-span-2 text-center py-8 text-gray-500">
+                  <div className={`col-span-2 text-center py-8 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                     <FiTrendingUp className="mx-auto text-4xl mb-4 opacity-50" />
                     <p>Start earning points to unlock achievements!</p>
                   </div>
                 )}
               </div>
             </div>
+
             {/* Account Actions */}
-            <div className="bg-white/90 backdrop-blur rounded-3xl p-8 shadow-xl border border-white/30 animate-fade-in-up">
-              <h3 className="text-2xl font-bold text-gray-800 mb-6">Account Actions</h3>
+            <div
+              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
+                isDark
+                  ? "bg-gray-800 border-gray-700 text-gray-200"
+                  : "bg-white border-gray-200 text-gray-900"
+              }`}
+            >
+              <h3 className="text-2xl font-bold mb-6">Account Actions</h3>
               <div className="flex flex-col sm:flex-row gap-4">
                 <button
                   onClick={handleLogout}
@@ -624,35 +680,6 @@ export default function Profile() {
           </div>
         </div>
       </div>
-
-      {/* Animations */}
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(-20px) rotate(2deg); }
-        }
-        @keyframes float-reverse {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          50% { transform: translateY(15px) rotate(-1deg); }
-        }
-        @keyframes slide-down {
-          from { opacity: 0; transform: translateY(-30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes fade-in-up {
-          from { opacity: 0; transform: translateY(30px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-float { animation: float 6s ease-in-out infinite; }
-        .animate-float-reverse { animation: float-reverse 8s ease-in-out infinite; }
-        .animate-slide-down { animation: slide-down 0.8s ease-out; }
-        .animate-fade-in { animation: fade-in 1s ease-out 0.2s both; }
-        .animate-fade-in-up { animation: fade-in-up 0.8s ease-out 0.4s both; }
-      `}</style>
     </div>
   );
 }

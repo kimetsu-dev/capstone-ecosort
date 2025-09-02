@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
 import {
+  getStorage,
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+} from "firebase/storage";
+import {
+  addDoc,
+  collection,
+  serverTimestamp,
   doc,
   getDocs,
   onSnapshot,
@@ -12,21 +18,22 @@ import {
   runTransaction,
   startAfter,
 } from "firebase/firestore";
+import { db } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../contexts/ThemeContext";
+
 const storage = getStorage();
 
 async function addRewardWithImage(file, rewardData) {
   try {
     let imageUrl = "";
     if (file) {
-      // Upload image file to Firebase Storage (adjust path as you like)
       const fileRef = storageRef(storage, `reward_images/${file.name}_${Date.now()}`);
       await uploadBytes(fileRef, file);
       imageUrl = await getDownloadURL(fileRef);
     }
 
-    // Save reward in Firestore including the imageUrl field
     const newReward = {
       ...rewardData,
       imageUrl,
@@ -41,6 +48,8 @@ async function addRewardWithImage(file, rewardData) {
     throw error;
   }
 }
+
+// SVG Icon Components
 const Gift = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -85,7 +94,7 @@ const AlertCircle = ({ className = "w-4 h-4" }) => (
     />
   </svg>
 );
-// Simple function to generate a short unique redemption code
+
 function generateRedemptionCode(length = 8) {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -95,34 +104,46 @@ function generateRedemptionCode(length = 8) {
   return code;
 }
 
-// Toast Component
 function Toast({ visible, message, type }) {
+  const { styles } = useTheme(); // Hook used at top level here, safe.
   if (!visible) return null;
-  const bgColors = { success: "bg-green-600", error: "bg-red-600", info: "bg-blue-600" };
+  const bgColors = {
+    success: "bg-green-600",
+    error: "bg-red-600",
+    info: "bg-blue-600",
+  };
+  const bgClass = bgColors[type] || bgColors.info;
   return (
     <div
-      className={`fixed bottom-6 right-6 px-6 py-3 rounded shadow-lg text-white z-50 ${bgColors[type] || bgColors.info}`}
+      className={`fixed bottom-6 right-6 px-6 py-3 rounded shadow-lg text-white z-50 ${bgClass}`}
       role="alert"
       aria-live="assertive"
+      style={{ minWidth: "200px" }}
     >
       {message}
     </div>
   );
 }
 
-// Confirmation Modal Component
 function ConfirmModal({ visible, message, onConfirm, onCancel, loading }) {
+  const { styles, isDark } = useTheme();
   if (!visible) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
+      <div
+        className={`${
+          isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+        } rounded-2xl p-6 max-w-md w-full shadow-lg`}
+      >
         <h3 className="text-lg font-semibold mb-4">Please Confirm</h3>
-        <p className="mb-6 text-gray-700 whitespace-pre-line">{message}</p>
+        <p className="mb-6 whitespace-pre-line">{message}</p>
         <div className="flex justify-end space-x-4">
           <button
             onClick={onCancel}
             disabled={loading}
-            className="px-4 py-2 rounded-lg border border-gray-300 hover:bg-gray-100 transition disabled:opacity-50"
+            className={`px-4 py-2 rounded-lg border transition disabled:opacity-50 ${
+              isDark ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-100"
+            }`}
           >
             Cancel
           </button>
@@ -139,26 +160,29 @@ function ConfirmModal({ visible, message, onConfirm, onCancel, loading }) {
   );
 }
 
-// Reward Card Component
 function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
+  const { styles, isDark } = useTheme();
+
   const getStockStatus = () => {
     const qty = reward.stock || 0;
-    if (qty === 0) return { text: "Out of Stock", color: "text-red-600 bg-red-50" };
-    if (qty <= 5) return { text: "Low Stock", color: "text-orange-600 bg-orange-50" };
-    return { text: "In Stock", color: "text-green-600 bg-green-50" };
+    if (qty === 0) return { text: "Out of Stock", color: "text-red-600 bg-red-50 dark:bg-red-900 dark:text-red-400" };
+    if (qty <= 5) return { text: "Low Stock", color: "text-orange-600 bg-orange-50 dark:bg-orange-900 dark:text-orange-400" };
+    return { text: "In Stock", color: "text-green-600 bg-green-50 dark:bg-green-900 dark:text-green-400" };
   };
 
   const stockStatus = getStockStatus();
 
   return (
-    <div className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2">
+    <div
+      className={`${isDark ? "bg-gray-900 text-white" : "bg-white text-gray-900"} group relative rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden transform hover:-translate-y-2`}
+    >
       {/* Stock badge */}
       <div className={`absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-xs font-semibold ${stockStatus.color}`}>
         {stockStatus.text}
       </div>
 
       {/* Image */}
-      <div className="relative overflow-hidden h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+      <div className={`relative overflow-hidden h-48 ${isDark ? "bg-gray-800" : "bg-gray-200"}`}>
         {reward.imageUrl ? (
           <img
             src={reward.imageUrl}
@@ -167,7 +191,7 @@ function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <Gift className="w-16 h-16 text-gray-400" />
+            <Gift className={`w-16 h-16 ${isDark ? "text-gray-400" : "text-gray-500"}`} />
           </div>
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -175,16 +199,22 @@ function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
 
       {/* Content */}
       <div className="p-6">
-        <h3 className="font-bold text-lg text-gray-800 mb-2 group-hover:text-purple-600 transition-colors">{reward.name}</h3>
-        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{reward.description}</p>
+        <h3
+          className={`font-bold text-lg mb-2 group-hover:text-purple-600 transition-colors ${
+            isDark ? "text-white" : "text-gray-800"
+          }`}
+        >
+          {reward.name}
+        </h3>
+        <p className={`mb-4 line-clamp-2 ${isDark ? "text-gray-300" : "text-gray-600"}`}>{reward.description}</p>
 
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Coins className="w-4 h-4 text-amber-500" />
-            <span className="font-bold text-lg text-gray-800">{reward.cost}</span>
-            <span className="text-sm text-gray-500">points</span>
+            <span className={`font-bold text-lg ${isDark ? "text-white" : "text-gray-800"}`}>{reward.cost}</span>
+            <span className={`${isDark ? "text-gray-400" : "text-gray-500"} text-sm`}>points</span>
           </div>
-          <div className="text-sm text-gray-500">
+          <div className={`${isDark ? "text-gray-400" : "text-gray-500"} text-sm`}>
             Stock: <span className="font-medium">{reward.stock}</span>
           </div>
         </div>
@@ -195,14 +225,17 @@ function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
             disabled={disabled}
             className={`w-full py-3 rounded-xl font-semibold transition duration-200 ${
               disabled
-                ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                ? `${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-300 text-gray-500"} cursor-not-allowed`
                 : "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-lg transform hover:scale-105"
             }`}
           >
             {disabled ? "Processing..." : "Redeem Now"}
           </button>
         ) : (
-          <button disabled className="w-full py-3 bg-gray-300 text-gray-500 rounded-xl font-semibold cursor-not-allowed">
+          <button
+            disabled
+            className="w-full py-3 rounded-xl font-semibold cursor-not-allowed bg-gray-300 text-gray-500"
+          >
             {reward.stock === 0 ? "Out of Stock" : "Insufficient Points"}
           </button>
         )}
@@ -212,6 +245,14 @@ function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
 }
 
 export default function Rewards() {
+  const { currentUser } = useAuth();
+  const navigate = useNavigate();
+
+  // Always call hooks at top level
+  const { styles, isDark } = useTheme();
+
+  const PAGE_SIZE = 8;
+
   const [rewards, setRewards] = useState([]);
   const [userPoints, setUserPoints] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -228,10 +269,6 @@ export default function Rewards() {
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [rewardPendingConfirmation, setRewardPendingConfirmation] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
-
-  const { currentUser } = useAuth();
-  const navigate = useNavigate();
-  const PAGE_SIZE = 8;
 
   const showToast = (msg, type = "info") => {
     setToast({ visible: true, message: msg, type });
@@ -340,7 +377,6 @@ export default function Rewards() {
         transaction.update(userRef, { totalPoints: newPoints });
         transaction.update(rewardRef, { stock: newStock });
 
-        // Create redemption doc with status "pending" and redemption code
         transaction.set(doc(redemptionsRef), {
           userId: currentUser.uid,
           rewardId: reward.id,
@@ -375,20 +411,29 @@ export default function Rewards() {
   const canRedeem = (reward) => currentUser && userPoints >= reward.cost && reward.stock > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-100">
+    <div className={`min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
+
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
+      <div
+        className={`${
+          isDark ? "bg-gray-800/90 border-gray-700" : ""
+        } backdrop-blur-sm border-b sticky top-0 z-40`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/dashboard")}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className={`bg-transparent ${
+              isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
+            } flex items-center gap-2 transition-colors`}
             aria-label="Back to Dashboard"
           >
             <ArrowLeft />
             <span className="font-medium">Dashboard</span>
           </button>
+
+
           {currentUser && (
-            <div className="flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-3 rounded-full shadow-lg">
+            <div className="flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-3 rounded-full shadow-lg select-none">
               <Coins className="w-5 h-5" />
               <span className="font-bold text-lg">{userPoints.toLocaleString()}</span>
               <span className="text-amber-100 text-sm font-medium">points</span>
@@ -404,7 +449,11 @@ export default function Rewards() {
           className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all ${
             selectedCategory === "all"
               ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg transform scale-105"
-              : "bg-white/80 text-gray-700 hover:bg-white hover:shadow-md hover:scale-105"
+              : `${
+                  isDark
+                    ? "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:shadow-md"
+                    : "bg-white/80 text-gray-700 hover:bg-white hover:shadow-md hover:scale-105"
+                }`
           }`}
           aria-pressed={selectedCategory === "all"}
         >
@@ -418,7 +467,11 @@ export default function Rewards() {
             className={`flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all ${
               selectedCategory === category
                 ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg transform scale-105"
-                : "bg-white/80 text-gray-700 hover:bg-white hover:shadow-md hover:scale-105"
+                : `${
+                    isDark
+                      ? "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:shadow-md"
+                      : "bg-white/80 text-gray-700 hover:bg-white hover:shadow-md hover:scale-105"
+                  }`
             }`}
             aria-pressed={selectedCategory === category}
           >
@@ -430,18 +483,25 @@ export default function Rewards() {
 
       {/* Note about onsite redemption */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-6">
-        <p className="text-center text-sm text-red-600 font-semibold">
-          You may redeem rewards online early if you have enough points, but you <strong>must claim rewards onsite </strong> by showing your redemption code.
+        <p
+          className={`${
+            isDark ? "text-red-400" : "text-red-600"
+          } text-center text-sm font-semibold select-none`}
+        >
+          You may redeem rewards online early if you have enough points, but you{" "}
+          <strong>must claim rewards onsite </strong> by showing your redemption code.
         </p>
       </div>
 
       {/* Rewards List */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
         {filteredRewards.length === 0 ? (
-          <div className="text-center py-16">
-            <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-600 mb-2">No rewards available</h3>
-            <p className="text-gray-500">Check back later for new rewards!</p>
+          <div className="text-center py-16 select-none">
+            <AlertCircle className={`${isDark ? "text-gray-500" : "text-gray-400"} w-16 h-16 mx-auto mb-4`} />
+            <h3 className={`${isDark ? "text-gray-300" : "text-gray-600"} text-xl font-semibold mb-2`}>
+              No rewards available
+            </h3>
+            <p className={`${isDark ? "text-gray-400" : "text-gray-500"}`}>Check back later for new rewards!</p>
           </div>
         ) : (
           <>
@@ -475,22 +535,27 @@ export default function Rewards() {
         )}
       </div>
 
-      {/* Success Modal showing redemption code */}
+      {/* Success Modal */}
       {showSuccessModal && redeemedReward && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full animate-scaleIn">
+          <div
+            className={`${
+              isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+            } rounded-2xl p-8 max-w-md w-full animate-scaleIn`}
+          >
             <div className="text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-green-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">Success!</h3>
-              <p className="text-gray-600 mb-6">
-                You've successfully redeemed <span className="font-semibold text-purple-600">{redeemedReward.name}</span>.
+              <h3 className="text-2xl font-bold mb-2">Success!</h3>
+              <p className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-6`}>
+                You've successfully redeemed{" "}
+                <span className="font-semibold text-purple-600">{redeemedReward.name}</span>.
               </p>
               <p className="text-red-600 font-semibold mb-6">
                 Please present the following redemption code onsite to claim your reward:
               </p>
-              <div className="text-3xl font-mono font-bold text-center mb-6 select-all border-2 border-indigo-600 rounded-lg py-3 px-6 bg-indigo-50">
+              <div className="text-3xl font-mono font-bold text-center mb-6 select-all border-2 border-indigo-600 rounded-lg py-3 px-6 bg-indigo-50 text-indigo-900">
                 {redemptionCode}
               </div>
               <button

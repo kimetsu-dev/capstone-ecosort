@@ -4,10 +4,10 @@ import App from "./App";
 import "./index.css";
 import * as serviceWorkerRegistration from './serviceWorkerRegistration';
 
-
 // Import your context providers
 import { AuthProvider } from "./contexts/AuthContext";
 import { UserProvider } from "./contexts/UserContext";
+import { ThemeProvider } from "./contexts/ThemeContext"; // ✅ Import ThemeProvider
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -18,11 +18,14 @@ const root = ReactDOM.createRoot(rootElement);
 
 root.render(
   <React.StrictMode>
-    <AuthProvider>
-      <UserProvider>
-        <App />
-      </UserProvider>
-    </AuthProvider>
+    <ThemeProvider> {/* ✅ Wrap everything here */}
+      <AuthProvider>
+        <UserProvider>
+          <App />
+        </UserProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>
 );
+
 serviceWorkerRegistration.register();

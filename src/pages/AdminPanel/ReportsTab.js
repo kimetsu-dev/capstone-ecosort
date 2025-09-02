@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 
-export default function ReportsTab({ reports, setReports, formatTimestamp, getStatusBadge, showToast }) {
+export default function ReportsTab({ reports, setReports, formatTimestamp, getStatusBadge, showToast, isDark }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,25 +21,45 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
     }
   };
 
-  // Filter and sort reports
+  const statusCounts = useMemo(() => {
+    const counts = reports.reduce((acc, report) => {
+      const status = typeof report.status === 'string' ? report.status.toLowerCase() : 'unknown';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
+
+    return {
+      all: reports.length,
+      pending: counts.pending || 0,
+      'in review': counts['in review'] || 0,
+      resolved: counts.resolved || 0,
+      unknown: counts.unknown || 0,
+    };
+  }, [reports]);
+
   const filteredAndSortedReports = useMemo(() => {
     let filtered = reports;
 
-    // Apply status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(report => report.status === statusFilter);
-    }
-
-    // Apply search filter
-    if (searchTerm) {
       filtered = filtered.filter(report =>
-        report.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        report.id.toLowerCase().includes(searchTerm.toLowerCase())
+        (typeof report.status === 'string' ? report.status.toLowerCase() : '') === statusFilter.toLowerCase()
       );
     }
 
-    // Apply sorting
+    if (searchTerm) {
+      const lowerSearch = searchTerm.toLowerCase();
+      filtered = filtered.filter(report => {
+        const description = report.description || "";
+        const location = report.location || "";
+        const id = report.id || "";
+        return (
+          description.toLowerCase().includes(lowerSearch) ||
+          location.toLowerCase().includes(lowerSearch) ||
+          id.toLowerCase().includes(lowerSearch)
+        );
+      });
+    }
+
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'newest':
@@ -47,9 +67,9 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
         case 'oldest':
           return new Date(a.submittedAt) - new Date(b.submittedAt);
         case 'location':
-          return a.location.localeCompare(b.location);
+          return (a.location || '').localeCompare(b.location || '');
         case 'status':
-          return a.status.localeCompare(b.status);
+          return (a.status || '').localeCompare(b.status || '');
         default:
           return 0;
       }
@@ -58,60 +78,49 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
     return filtered;
   }, [reports, statusFilter, sortBy, searchTerm]);
 
-  const getStatusCounts = () => {
-    const counts = reports.reduce((acc, report) => {
-      acc[report.status] = (acc[report.status] || 0) + 1;
-      return acc;
-    }, {});
-    return {
-      all: reports.length,
-      pending: counts.pending || 0,
-      'in review': counts['in review'] || 0,
-      resolved: counts.resolved || 0
-    };
-  };
-
-  const statusCounts = getStatusCounts();
-
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${isDark ? "bg-gray-900 text-gray-200" : "bg-white text-gray-900"}`}>
       <div>
-        <h2 className="text-xl font-bold text-slate-800">Violation Reports</h2>
-        <p className="text-slate-500 text-sm mb-4">
+        <h2 className={`text-xl font-bold ${isDark ? "text-gray-100" : "text-slate-800"}`}>Violation Reports</h2>
+        <p className={`text-sm mb-4 ${isDark ? "text-gray-400" : "text-slate-500"}`}>
           Manage and track community violation reports
         </p>
       </div>
 
       {/* Filters and Search */}
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+      <div className={`${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"} rounded-xl shadow-sm border p-6`}>
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
           {/* Search */}
           <div className="flex-1 max-w-md">
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              <svg className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isDark ? "text-gray-400" : "text-slate-400"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="m21 21-4.35-4.35"/>
               </svg>
               <input
                 type="text"
                 placeholder="Search reports..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${
+                  isDark ? "border-gray-600 bg-gray-700 text-gray-200 placeholder-gray-400" : "border-slate-300 bg-white text-slate-900 placeholder-slate-400"
+                }`}
               />
             </div>
           </div>
 
           {/* Status Filter */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Filter reports by status">
             {Object.entries(statusCounts).map(([status, count]) => (
               <button
                 key={status}
                 onClick={() => setStatusFilter(status)}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                   statusFilter === status
-                    ? 'bg-blue-500 text-white shadow-sm'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                    ? (isDark ? 'bg-blue-600 text-white shadow-sm' : 'bg-blue-500 text-white shadow-sm')
+                    : (isDark ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-slate-100 text-slate-700 hover:bg-slate-200')
                 }`}
+                aria-pressed={statusFilter === status}
               >
                 {status === 'all' ? 'All' : status.charAt(0).toUpperCase() + status.slice(1)} ({count})
               </button>
@@ -123,7 +132,10 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
+              className={`px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none ${
+                isDark ? "border-gray-600 bg-gray-700 text-gray-200" : "border-slate-300 bg-white text-slate-900"
+              }`}
+              disabled={reports.length === 0}
             >
               <option value="newest">Newest First</option>
               <option value="oldest">Oldest First</option>
@@ -136,17 +148,17 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
 
       {/* Results Summary */}
       {(statusFilter !== 'all' || searchTerm) && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className={`${isDark ? "bg-blue-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-200 text-blue-800"} border rounded-lg p-4`}>
           <div className="flex items-center justify-between">
-            <div className="text-blue-800">
+            <div>
               Showing {filteredAndSortedReports.length} of {reports.length} reports
               {statusFilter !== 'all' && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs">
+                <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs text-blue-800">
                   Status: {statusFilter}
                 </span>
               )}
               {searchTerm && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs">
+                <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-xs text-blue-800">
                   Search: "{searchTerm}"
                 </span>
               )}
@@ -157,7 +169,7 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
                 setSearchTerm('');
                 setSortBy('newest');
               }}
-              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+              className={`${isDark ? "text-blue-400 hover:text-blue-200" : "text-blue-600 hover:text-blue-800"} text-sm font-medium`}
             >
               Clear Filters
             </button>
@@ -167,24 +179,23 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
 
       {/* Reports List */}
       {filteredAndSortedReports.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="text-slate-400 w-8 h-8" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              {searchTerm || statusFilter !== 'all' ? (
+        <div className={`text-center py-16 ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+          <div className={`${isDark ? "bg-gray-700" : "bg-slate-100"} w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4`}>
+            <svg className={`w-8 h-8 ${isDark ? "text-gray-400" : "text-slate-400"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              {(searchTerm || statusFilter !== 'all') ? (
                 <circle cx="11" cy="11" r="8"/>
               ) : (
                 <path d="M4 6h16M4 10h16M4 14h16M4 18h16" />
               )}
             </svg>
           </div>
-          <h3 className="text-lg font-medium text-slate-800 mb-2">
-            {searchTerm || statusFilter !== 'all' ? 'No matching reports' : 'No reports found'}
+          <h3 className={`text-lg font-medium mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+            {(searchTerm || statusFilter !== 'all') ? 'No matching reports' : 'No reports found'}
           </h3>
-          <p className="text-slate-500">
-            {searchTerm || statusFilter !== 'all' 
-              ? 'Try adjusting your filters or search terms.'
-              : 'All clear! No violation reports to review.'
-            }
+          <p>
+            {(searchTerm || statusFilter !== 'all') 
+              ? 'Try adjusting your filters or search terms.' 
+              : 'All clear! No violation reports to review.'}
           </p>
         </div>
       ) : (
@@ -192,18 +203,20 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
           {filteredAndSortedReports.map((report) => (
             <div
               key={report.id}
-              className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 hover:shadow-md transition-all duration-200"
+              className={`${isDark ? "bg-gray-800 border-gray-700 text-gray-200 hover:shadow-lg" : "bg-white border-slate-200 text-slate-900 hover:shadow-md"} rounded-xl shadow-sm border p-6 transition-all duration-200`}
             >
               <div className="flex justify-between items-start mb-4">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-3">
-                    <h3 className="font-semibold text-slate-800">
+                    <h3 className={`${isDark ? "text-gray-100" : "text-slate-800"} font-semibold`}>
                       Report #{report.id.slice(-8)}
                     </h3>
-                    {getStatusBadge(report.status)}
+                    {getStatusBadge(report.status, isDark)}
                   </div>
-                  <p className="text-slate-700 mb-3 leading-relaxed">{report.description}</p>
-                  <div className="flex items-center space-x-6 text-sm text-slate-500">
+                  <p className={`${isDark ? "text-gray-300" : "text-slate-700"} mb-3 leading-relaxed`}>
+                    {report.description}
+                  </p>
+                  <div className={`flex items-center space-x-6 text-sm ${isDark ? "text-gray-400" : "text-slate-500"}`}>
                     <div className="flex items-center space-x-2">
                       <span>📍</span>
                       <span>{report.location}</span>
@@ -216,7 +229,7 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
                 </div>
                 <button
                   onClick={() => deleteReport(report.id)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50 p-2 rounded-lg transition-all duration-200"
+                  className={`${isDark ? "text-red-400 hover:text-red-600 hover:bg-red-900" : "text-red-500 hover:text-red-700 hover:bg-red-50"} p-2 rounded-lg transition-all duration-200`}
                   aria-label="Delete report"
                 >
                   <svg stroke="currentColor" fill="none" strokeWidth="2" viewBox="0 0 24 24" className="w-5 h-5">
@@ -226,17 +239,25 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
                 </button>
               </div>
 
-              <div className="flex space-x-3 pt-4 border-t border-slate-100">
+              <div className="flex space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => updateReportStatus(report.id, "in review")}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 transition-colors font-medium"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    report.status === "in review"
+                      ? (isDark ? "bg-blue-700 text-blue-300 cursor-default" : "bg-blue-300 text-blue-700 cursor-default")
+                      : (isDark ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-blue-500 text-white hover:bg-blue-600")
+                  }`}
                   disabled={report.status === "in review"}
                 >
                   Mark In Review
                 </button>
                 <button
                   onClick={() => updateReportStatus(report.id, "resolved")}
-                  className="px-4 py-2 bg-emerald-500 text-white rounded-lg text-sm hover:bg-emerald-600 transition-colors font-medium"
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    report.status === "resolved"
+                      ? (isDark ? "bg-emerald-700 text-emerald-300 cursor-default" : "bg-emerald-300 text-emerald-700 cursor-default")
+                      : (isDark ? "bg-emerald-600 text-white hover:bg-emerald-700" : "bg-emerald-500 text-white hover:bg-emerald-600")
+                  }`}
                   disabled={report.status === "resolved"}
                 >
                   Mark Resolved

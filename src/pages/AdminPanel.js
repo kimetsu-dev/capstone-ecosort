@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
+import { FiSettings } from "react-icons/fi";
+import Settings from "./Settings"; // Adjust the relative path if needed
 import {
   doc,
   getDoc,
@@ -21,7 +23,6 @@ import {
 import WasteTypesManager from "./AdminPanel/WasteTypesManager";
 
 import StatsSummary from "./AdminPanel/StatsSummary";
-import TabsNavigation from "./AdminPanel/TabsNavigation";
 import RewardsTab from "./AdminPanel/RewardsTab";
 import ReportsTab from "./AdminPanel/ReportsTab";
 import UsersTab from "./AdminPanel/UsersTab";
@@ -32,6 +33,7 @@ import RewardModal from "./AdminPanel/Modals/RewardModal";
 import RewardPreview from "./AdminPanel/Modals/RewardPreview";
 
 import { formatTimestamp, getStatusBadge } from "../utils/helpers";
+import { useTheme } from "../contexts/ThemeContext";
 
 async function addNotification(userId, message, type = "submission_status") {
   const notificationsRef = collection(db, "notifications", userId, "userNotifications");
@@ -59,6 +61,7 @@ async function createPointTransaction({ userId, points, description, type = "poi
 }
 
 export default function AdminPanel() {
+  const { isDark } = useTheme() || {};
   const [user, loadingAuth] = useAuthState(auth);
   const navigate = useNavigate();
 
@@ -97,13 +100,14 @@ export default function AdminPanel() {
 
   useEffect(() => {
     if (!user) return;
-      const fetchProfile = async () => {
-    const userDoc = doc(db, "users", user.uid);
-    const docSnap = await getDoc(userDoc);
-    if (docSnap.exists()) {
-      setProfile(docSnap.data());  // set directly without spreading prev profile
-    }
-  };
+    const fetchProfile = async () => {
+      const userDoc = doc(db, "users", user.uid);
+      const docSnap = await getDoc(userDoc);
+      if (docSnap.exists()) {
+        setProfile(docSnap.data()); // set directly without spreading prev profile
+      }
+    };
+    fetchProfile();
     const q = query(collection(db, "waste_types"), orderBy("name"));
 
     const unsubscribeWasteTypes = onSnapshot(q, (snapshot) => {
@@ -182,80 +186,75 @@ export default function AdminPanel() {
       showToast(error.message || "Failed to claim redemption", "error");
     }
   };
-const rejectSubmission = async (submissionId, userId) => {
-  setLoading(true);
-  try {
-    const submissionRef = doc(db, "waste_submissions", submissionId);
 
-    await updateDoc(submissionRef, {
-      status: "rejected",
-      rejectedAt: serverTimestamp(),
-    });
+  const rejectSubmission = async (submissionId, userId) => {
+    setLoading(true);
+    try {
+      const submissionRef = doc(db, "waste_submissions", submissionId);
 
-    await addNotification(
-      userId,
-      "Your waste submission has been rejected. Please review the guidelines and try again."
-    );
+      await updateDoc(submissionRef, {
+        status: "rejected",
+        rejectedAt: serverTimestamp(),
+      });
 
-    // Remove from local state
-    setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submissionId));
+      await addNotification(
+        userId,
+        "Your waste submission has been rejected. Please review the guidelines and try again."
+      );
 
-    showToast("Submission rejected", "success");
-  } catch (error) {
-    console.error("Error rejecting submission:", error);
-    showToast("Failed to reject submission", "error");
-  } finally {
-    setLoading(false);
-  }
-};
+      setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submissionId));
+      showToast("Submission rejected", "success");
+    } catch (error) {
+      console.error("Error rejecting submission:", error);
+      showToast("Failed to reject submission", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-const confirmSubmission = async (submission) => {
-  setLoading(true);
-  try {
-    const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
-    const awardedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
-    const userRef = doc(db, "users", submission.userId);
+  const confirmSubmission = async (submission) => {
+    setLoading(true);
+    try {
+      const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
+      const awardedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
+      const userRef = doc(db, "users", submission.userId);
 
-    await createPointTransaction({
-      userId: submission.userId,
-      points: awardedPoints,
-      description: `Awarded points for waste submission (ID: ${submission.id})`,
-      type: "points_awarded",
-    });
+      await createPointTransaction({
+        userId: submission.userId,
+        points: awardedPoints,
+        description: `Awarded points for waste submission (ID: ${submission.id})`,
+        type: "points_awarded",
+      });
 
-    await runTransaction(db, async (transaction) => {
-      const userSnap = await transaction.get(userRef);
-      if (!userSnap.exists()) throw new Error("User  does not exist");
-      const currentPoints = Number(userSnap.data().totalPoints) || 0;
-      const updatedPoints = currentPoints + awardedPoints;
-      if (updatedPoints < 0) throw new Error("User  points cannot be negative");
-      transaction.update(userRef, { totalPoints: updatedPoints });
-    });
+      await runTransaction(db, async (transaction) => {
+        const userSnap = await transaction.get(userRef);
+        if (!userSnap.exists()) throw new Error("User does not exist");
+        const currentPoints = Number(userSnap.data().totalPoints) || 0;
+        const updatedPoints = currentPoints + awardedPoints;
+        if (updatedPoints < 0) throw new Error("User points cannot be negative");
+        transaction.update(userRef, { totalPoints: updatedPoints });
+      });
 
-    // Update the submission status to "confirmed"
-    const submissionRef = doc(db, "waste_submissions", submission.id);
-    await updateDoc(submissionRef, {
-      status: "confirmed", // Update the status to "confirmed"
-      confirmedAt: serverTimestamp(), // Optionally, you can add a timestamp
-    });
+      const submissionRef = doc(db, "waste_submissions", submission.id);
+      await updateDoc(submissionRef, {
+        status: "confirmed",
+        confirmedAt: serverTimestamp(),
+      });
 
-    await addNotification(
-      submission.userId,
-      `Your waste submission has been confirmed! You earned ${awardedPoints.toFixed(2)} points.`
-    );
+      await addNotification(
+        submission.userId,
+        `Your waste submission has been confirmed! You earned ${awardedPoints.toFixed(2)} points.`
+      );
 
-    // Update the local state to remove the confirmed submission
-    setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submission.id));
-
-    showToast("Submission confirmed and points awarded!", "success");
-  } catch (error) {
-    console.error("Error confirming submission:", error);
-    showToast("Failed to confirm submission", "error");
-  } finally {
-    setLoading(false);
-  }
-};
-
+      setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submission.id));
+      showToast("Submission confirmed and points awarded!", "success");
+    } catch (error) {
+      console.error("Error confirming submission:", error);
+      showToast("Failed to confirm submission", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const deleteReward = async (id) => {
     if (!window.confirm("Are you sure you want to delete this reward?")) return;
@@ -376,73 +375,84 @@ const confirmSubmission = async (submission) => {
     return matchesCategory && matchesStock && matchesSearch;
   });
 
-  // Define tab configuration to avoid duplication
   const tabConfig = [
-    { 
-      id: "dashboard", 
-      label: "Dashboard", 
+    {
+      id: "dashboard",
+      label: "Dashboard",
       icon: "📊",
       shortLabel: "Dash",
-      description: "Overview and statistics"
+      description: "Overview and statistics",
     },
-    { 
-      id: "submissions", 
-      label: "Submissions", 
+    {
+      id: "submissions",
+      label: "Submissions",
       icon: "📝",
       shortLabel: "Subs",
       badge: pendingSubmissions.length,
-      description: "Manage waste submissions"
+      description: "Manage waste submissions",
     },
-    { 
-      id: "rewards", 
-      label: "Rewards", 
+    {
+      id: "rewards",
+      label: "Rewards",
       icon: "🎁",
       shortLabel: "Rewards",
-      description: "Manage reward items"
+      description: "Manage reward items",
     },
-    { 
-      id: "users", 
-      label: "Users", 
+    {
+      id: "users",
+      label: "Users",
       icon: "👥",
       shortLabel: "Users",
-      description: "User management"
+      description: "User management",
     },
-    { 
-      id: "transactions", 
-      label: "Transactions", 
+    {
+      id: "transactions",
+      label: "Transactions",
       icon: "💳",
       shortLabel: "Txns",
-      description: "Point transactions"
+      description: "Point transactions",
     },
-    { 
-      id: "redemptions", 
-      label: "Redemptions", 
+    {
+      id: "redemptions",
+      label: "Redemptions",
       icon: "🎫",
       shortLabel: "Redeem",
       badge: redemptions.filter((r) => r.status === "pending").length,
-      description: "Reward redemptions"
+      description: "Reward redemptions",
     },
-    { 
-      id: "reports", 
-      label: "Reports", 
+    {
+      id: "reports",
+      label: "Reports",
       icon: "⚠️",
       shortLabel: "Reports",
       badge: reportsPendingCount,
-      description: "Violation reports"
+      description: "Violation reports",
     },
-    { 
-      id: "wasteTypes", 
-      label: "Waste Types", 
+    {
+      id: "wasteTypes",
+      label: "Waste Types",
       icon: "♻️",
       shortLabel: "Waste",
-      description: "Configure waste categories"
-    }
+      description: "Configure waste categories",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100">
-      {/* Header - Mobile Optimized */}
-      <header className="bg-white/90 backdrop-blur-md shadow-sm border-b border-slate-200/50 sticky top-0 z-40">
+    <div
+      className={`min-h-screen transition-colors duration-500 ${
+        isDark
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200"
+          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900"
+      }`}
+    >
+      {/* Header */}
+      <header
+        className={`backdrop-blur-md sticky top-0 z-40 border-b ${
+          isDark
+            ? "bg-gray-800/90 text-gray-200 border-gray-700"
+            : "bg-white/90 text-slate-900 border-slate-200/50"
+        } shadow-sm`}
+      >
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
           <div className="flex justify-between items-center py-3 lg:py-4">
             <div className="flex items-center space-x-2 lg:space-x-3">
@@ -450,17 +460,40 @@ const confirmSubmission = async (submission) => {
                 A
               </div>
               <div className="flex flex-col">
-                <h1 className="text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                <h1
+                  className={`text-base sm:text-lg lg:text-xl font-bold bg-gradient-to-r ${
+                    isDark ? "from-gray-100 to-gray-400" : "from-slate-800 to-slate-600"
+                  } bg-clip-text text-transparent`}
+                >
                   Admin Panel
                 </h1>
-                <p className="text-slate-500 text-xs font-medium hidden sm:block">
-                  ECOSORT Management
+                <p
+                  className={`text-xs font-medium hidden sm:block ${
+                    isDark ? "text-gray-400" : "text-slate-500"
+                  }`}
+                >
+                  ECOSORT
                 </p>
               </div>
             </div>
-
             <div className="flex items-center space-x-2">
-              {/* User info - Mobile Optimized */}
+              <div>
+                <button
+                  onClick={() => navigate("/settings")}
+                  className={`
+                    p-2 rounded-lg text-xl transition-colors duration-200
+                    ${isDark
+                      ? "bg-gray-700 text-gray-200 hover:bg-green-800 hover:text-emerald-400"
+                      : "bg-gray-100 text-slate-800 hover:bg-green-50 hover:text-emerald-600"
+                    }
+                  `}
+                  title="Settings"
+                  aria-label="Settings"
+                >
+                  <FiSettings />
+                </button>
+                </div>
+
               <div
                 className="flex items-center space-x-2 cursor-pointer group"
                 onClick={() => navigate("/adminprofile")}
@@ -480,15 +513,20 @@ const confirmSubmission = async (submission) => {
                     {user?.email?.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <span className="hidden lg:block text-sm font-medium text-slate-700 group-hover:text-indigo-600 transition-colors truncate max-w-32">
+                <span
+                  className={`hidden lg:block text-sm font-medium group-hover:text-indigo-400 transition-colors truncate max-w-32 ${
+                    isDark ? "text-gray-200" : "text-slate-700"
+                  }`}
+                >
                   {user?.email}
                 </span>
               </div>
 
-              {/* Logout button - Mobile Optimized */}
               <button
                 onClick={handleLogout}
-                className="px-2 py-1.5 lg:px-3 lg:py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-xs lg:text-sm font-medium shadow-sm"
+                className={`px-2 py-1.5 lg:px-3 lg:py-2 rounded-md text-xs lg:text-sm font-medium shadow-sm transition-colors ${
+                  isDark ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"
+                }`}
               >
                 Logout
               </button>
@@ -497,9 +535,9 @@ const confirmSubmission = async (submission) => {
         </div>
       </header>
 
-      {/* Main Content - Mobile Optimized */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 lg:py-6 space-y-4 lg:space-y-6">
-        {/* Stats Summary - Mobile Optimized */}
+        {/* Stats Summary */}
         {activeTab === "dashboard" && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-4">
             {[
@@ -509,7 +547,10 @@ const confirmSubmission = async (submission) => {
               { name: "Transactions", value: transactions.length, color: "from-green-500 to-emerald-600", trend: "+15%" },
               { name: "Pending", value: redemptions.filter((r) => r.status === "pending").length, color: "from-yellow-400 to-yellow-600", trend: "" },
             ].map((stat, index) => (
-              <div key={index} className={`bg-gradient-to-br ${stat.color} rounded-lg p-3 lg:p-4 text-white shadow-lg`}>
+              <div
+                key={index}
+                className={`bg-gradient-to-br ${stat.color} rounded-lg p-3 lg:p-4 shadow-lg ${isDark ? "bg-opacity-80" : ""} text-white`}
+              >
                 <div className="text-lg lg:text-2xl font-bold">{stat.value}</div>
                 <div className="text-xs lg:text-sm opacity-90 truncate">{stat.name}</div>
                 {stat.trend && <div className="text-xs opacity-75 mt-1">{stat.trend}</div>}
@@ -518,8 +559,12 @@ const confirmSubmission = async (submission) => {
           </div>
         )}
 
-        {/* Tab Navigation Container - Mobile Optimized */}
-        <div className="bg-white rounded-lg lg:rounded-xl shadow-sm border border-slate-200/50 overflow-hidden">
+        {/* Tab Navigation Container */}
+        <div
+          className={`rounded-lg lg:rounded-xl shadow-sm border overflow-hidden ${
+            isDark ? "bg-gray-800 border-gray-600" : "bg-white border-slate-200/50"
+          }`}
+        >
           {/* Mobile horizontal scroll tabs */}
           <div className="lg:hidden border-b border-slate-200">
             <div className="flex overflow-x-auto scrollbar-hide px-1 py-2">
@@ -574,17 +619,20 @@ const confirmSubmission = async (submission) => {
             </nav>
           </div>
 
-          {/* Tab Content - Mobile Optimized Padding */}
+          {/* Tab Content */}
           <div className="p-3 lg:p-6">
-            {/* Dashboard Tab - Mobile Optimized */}
+            {/* Dashboard Tab */}
             {activeTab === "dashboard" && (
               <div className="space-y-4 lg:space-y-6">
                 <div>
-                  <h2 className="text-lg lg:text-2xl font-bold text-slate-800 mb-1 lg:mb-2">Dashboard Overview</h2>
-                  <p className="text-slate-600 text-sm lg:text-base">Welcome to the EcoSort Management System admin panel.</p>
+                  <h2 className={`text-lg lg:text-2xl font-bold mb-1 lg:mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+                    Dashboard Overview
+                  </h2>
+                  <p className={`${isDark ? "text-gray-400" : "text-slate-600"} text-sm lg:text-base`}>
+                    Welcome to the EcoSort Management System admin panel.
+                  </p>
                 </div>
-                
-                {/* Quick actions - Mobile Grid */}
+
                 <div className="grid grid-cols-2 gap-2 lg:gap-4">
                   {pendingSubmissions.length > 0 && (
                     <button
@@ -595,7 +643,7 @@ const confirmSubmission = async (submission) => {
                       <div className="text-xs lg:text-sm text-orange-700">Pending Submissions</div>
                     </button>
                   )}
-                  
+
                   {redemptions.filter((r) => r.status === "pending").length > 0 && (
                     <button
                       onClick={() => setActiveTab("redemptions")}
@@ -607,7 +655,7 @@ const confirmSubmission = async (submission) => {
                       <div className="text-xs lg:text-sm text-blue-700">Pending Redemptions</div>
                     </button>
                   )}
-                  
+
                   {reportsPendingCount > 0 && (
                     <button
                       onClick={() => setActiveTab("reports")}
@@ -617,7 +665,7 @@ const confirmSubmission = async (submission) => {
                       <div className="text-xs lg:text-sm text-red-700">Pending Reports</div>
                     </button>
                   )}
-                  
+
                   <button
                     onClick={() => setActiveTab("wasteTypes")}
                     className="p-3 lg:p-4 bg-green-50 border border-green-200 rounded-lg text-left hover:bg-green-100 transition-colors"
@@ -628,27 +676,34 @@ const confirmSubmission = async (submission) => {
                 </div>
               </div>
             )}
+            {activeTab === "settings" && (
+              <Settings showToast={showToast} isDark={isDark} />
+            )}
+
 
             {/* Waste Types Tab */}
-            {activeTab === "wasteTypes" && <WasteTypesManager />}
+            {activeTab === "wasteTypes" && (
+              <WasteTypesManager isDark={isDark} />)}
 
-            {/* Submissions Tab - Mobile Optimized */}
+            {/* Submissions Tab */}
             {activeTab === "submissions" && (
               <div className="space-y-4 lg:space-y-6">
                 <div>
-                  <h2 className="text-lg lg:text-2xl font-bold text-slate-800 mb-1 lg:mb-2">
+                  <h2 className={`text-lg lg:text-2xl font-bold mb-1 lg:mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
                     Pending Submissions ({pendingSubmissions.length})
                   </h2>
-                  <p className="text-slate-600 text-sm lg:text-base">Review and approve waste submissions from users.</p>
+                  <p className={`${isDark ? "text-gray-400" : "text-slate-600"} text-sm lg:text-base`}>
+                    Review and approve waste submissions from users.
+                  </p>
                 </div>
-                
+
                 {loading && (
                   <div className="flex items-center justify-center py-6 lg:py-8">
                     <div className="animate-spin rounded-full h-6 w-6 lg:h-8 lg:w-8 border-b-2 border-indigo-600"></div>
                     <span className="ml-2 text-slate-600 text-sm lg:text-base">Loading...</span>
                   </div>
                 )}
-                
+
                 {!loading && pendingSubmissions.length === 0 && (
                   <div className="text-center py-8 lg:py-12">
                     <div className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-3 lg:mb-4 bg-slate-100 rounded-full flex items-center justify-center">
@@ -658,36 +713,38 @@ const confirmSubmission = async (submission) => {
                     <p className="text-slate-500 text-sm lg:text-base">All submissions have been processed.</p>
                   </div>
                 )}
-                
+
                 {!loading && pendingSubmissions.length > 0 && (
                   <div className="space-y-3 lg:space-y-4">
                     {pendingSubmissions.map((sub) => (
                       <div
                         key={sub.id}
-                        className="bg-white border border-slate-200 rounded-lg p-3 lg:p-4 shadow-sm"
+                        className={`rounded-lg p-3 lg:p-4 shadow-sm ${
+                          isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
+                        }`}
                       >
                         <div className="space-y-3">
                           <div className="grid grid-cols-2 gap-2 lg:gap-4 text-xs lg:text-sm">
                             <div>
-                              <span className="font-medium text-slate-700">User:</span>
-                              <div className="text-slate-600 truncate">{sub.userId.slice(0, 8)}...</div>
+                              <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>User:</span>
+                              <div className={`${isDark ? "text-gray-400" : "text-slate-600"} truncate`}>{sub.userId.slice(0, 8)}...</div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-700">Type:</span>
-                              <div className="text-slate-600 truncate">{sub.type}</div>
+                              <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Type:</span>
+                              <div className={`${isDark ? "text-gray-400" : "text-slate-600"} truncate`}>{sub.type}</div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-700">Weight:</span>
-                              <div className="text-slate-600">{sub.weight} kg</div>
+                              <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Weight:</span>
+                              <div className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>{sub.weight} kg</div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-700">Points:</span>
-                              <div className="text-slate-600">{sub.points}</div>
+                              <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Points:</span>
+                              <div className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>{sub.points}</div>
                             </div>
                           </div>
-                          <div className="text-xs lg:text-sm">
-                            <span className="font-medium text-slate-700">Submitted:</span>
-                            <div className="text-slate-600 mt-1">
+                          <div className={`${isDark ? "text-gray-400" : "text-slate-600"} text-xs lg:text-sm`}>
+                            <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Submitted:</span>
+                            <div className="mt-1">
                               {sub.submittedAt?.toDate ? sub.submittedAt.toDate().toLocaleString() : "N/A"}
                             </div>
                           </div>
@@ -733,6 +790,7 @@ const confirmSubmission = async (submission) => {
                 deleteReward={deleteReward}
                 loading={loading || imageUploadLoading}
                 showToast={showToast}
+                isDark={isDark}
               />
             )}
 
@@ -744,65 +802,103 @@ const confirmSubmission = async (submission) => {
                 formatTimestamp={formatTimestamp}
                 getStatusBadge={getStatusBadge}
                 showToast={showToast}
+                isDark={isDark}
               />
             )}
 
             {/* Users Tab */}
-            {activeTab === "users" && <UsersTab users={users} setUsers={setUsers} setPointsModal={setPointsModal} />}
+            {activeTab === "users" && (
+              <UsersTab users={users} setUsers={setUsers} setPointsModal={setPointsModal} isDark={isDark} />
+            )}
 
             {/* Transactions Tab */}
             {activeTab === "transactions" && (
-              <TransactionsTab transactions={transactions} users={users} formatTimestamp={formatTimestamp} showSigns={true} />
+              <TransactionsTab transactions={transactions} users={users} formatTimestamp={formatTimestamp} showSigns={true} isDark={isDark} />
             )}
 
-            {/* Redemptions Tab - Mobile Optimized */}
+            {/* Redemptions Tab */}
             {activeTab === "redemptions" && (
               <div className="space-y-4 lg:space-y-6">
                 <div>
-                  <h2 className="text-lg lg:text-2xl font-bold text-slate-800 mb-1 lg:mb-2">Redemptions Management</h2>
-                  <p className="text-slate-600 text-sm lg:text-base">Manage reward redemption requests from users.</p>
+                  <h2 className={`text-lg lg:text-2xl font-bold mb-1 lg:mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+                    Redemptions Management
+                  </h2>
+                  <p className={`${isDark ? "text-gray-400" : "text-slate-600"} text-sm lg:text-base`}>
+                    Manage reward redemption requests from users.
+                  </p>
                 </div>
-
                 {redemptions.length === 0 ? (
                   <div className="text-center py-8 lg:py-12">
                     <div className="w-12 h-12 lg:w-16 lg:h-16 mx-auto mb-3 lg:mb-4 bg-slate-100 rounded-full flex items-center justify-center">
                       <span className="text-xl lg:text-2xl">🎫</span>
                     </div>
-                    <h3 className="text-base lg:text-lg font-medium text-slate-900 mb-1 lg:mb-2">No redemption requests</h3>
+                    <h3 className="text-base lg:text-lg font-medium text-slate-900 mb-1 lg:mb-2">
+                      No redemption requests
+                    </h3>
                     <p className="text-slate-500 text-sm lg:text-base">No users have redeemed rewards yet.</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+                  <div
+                    className={`rounded-lg shadow-sm border overflow-hidden ${
+                      isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"
+                    }`}
+                  >
                     {/* Desktop table view */}
                     <div className="hidden lg:block overflow-x-auto">
                       <table className="w-full">
-                        <thead className="bg-slate-50">
+                        <thead
+                          className={`${
+                            isDark ? "bg-gray-700 border-gray-600" : "bg-slate-50 border-slate-200"
+                          } border-b`}
+                        >
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">User Email</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Reward</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Code</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                            <th className="px-4 py-3 text-center text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                              User Email
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                              Reward
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                              Code
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                              Status
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
+                              Date
+                            </th>
+                            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
+                              Actions
+                            </th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-200">
+                        <tbody className={`${isDark ? "divide-gray-600" : "divide-slate-200"} divide-y`}>
                           {redemptions.map((redemption) => (
-                            <tr key={redemption.id} className="hover:bg-slate-50 transition-colors">
-                              <td className="px-4 py-3 text-sm text-slate-900 max-w-[150px] truncate">{getUserEmail(redemption.userId)}</td>
-                              <td className="px-4 py-3 text-sm text-slate-900 max-w-[120px] truncate">{getRewardName(redemption.rewardId)}</td>
-                              <td className="px-4 py-3 text-sm font-mono text-slate-600">{redemption.redemptionCode}</td>
+                            <tr
+                              key={redemption.id}
+                              className={`${isDark ? "hover:bg-gray-700" : "hover:bg-slate-50"} transition-colors`}
+                            >
+                              <td className="px-4 py-3 text-sm truncate max-w-[150px]">
+                                {getUserEmail(redemption.userId)}
+                              </td>
+                              <td className="px-4 py-3 text-sm truncate max-w-[120px]">
+                                {getRewardName(redemption.rewardId)}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-mono text-gray-400">{redemption.redemptionCode}</td>
                               <td className="px-4 py-3">
-                                <span className={`
-                                  inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                                  ${redemption.status === "pending" ? "bg-yellow-100 text-yellow-800" : 
-                                    redemption.status === "claimed" ? "bg-green-100 text-green-800" :
-                                    "bg-red-100 text-red-800"}
-                                `}>
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    redemption.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : redemption.status === "claimed"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
                                   {redemption.status}
                                 </span>
                               </td>
-                              <td className="px-4 py-3 text-sm text-slate-600">
+                              <td className="px-4 py-3 text-sm text-gray-400">
                                 {redemption.redeemedAt?.toDate ? redemption.redeemedAt.toDate().toLocaleDateString() : "N/A"}
                               </td>
                               <td className="px-4 py-3 text-center">
@@ -824,7 +920,7 @@ const confirmSubmission = async (submission) => {
                                     </>
                                   )}
                                   {(redemption.status === "claimed" || redemption.status === "cancelled") && (
-                                    <span className="text-slate-500 italic text-xs">{redemption.status}</span>
+                                    <span className="text-gray-500 italic text-xs">{redemption.status}</span>
                                   )}
                                 </div>
                               </td>
@@ -834,44 +930,69 @@ const confirmSubmission = async (submission) => {
                       </table>
                     </div>
 
-                    {/* Mobile card view - Optimized */}
-                    <div className="lg:hidden divide-y divide-slate-200">
+                    {/* Mobile card view */}
+                    <div className={`${isDark ? "divide-gray-700" : "divide-slate-200"} lg:hidden divide-y`}>
                       {redemptions.map((redemption) => (
-                        <div key={redemption.id} className="p-3 space-y-3">
+                        <div
+                          key={redemption.id}
+                          className={`p-3 space-y-3 rounded-lg ${
+                            isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
+                          }`}
+                        >
                           <div className="grid grid-cols-2 gap-3 text-xs">
                             <div>
-                              <span className="font-medium text-slate-500 uppercase tracking-wider">User</span>
-                              <div className="text-sm text-slate-900 truncate mt-1">{getUserEmail(redemption.userId)}</div>
+                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                                User
+                              </span>
+                              <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
+                                {getUserEmail(redemption.userId)}
+                              </div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-500 uppercase tracking-wider">Reward</span>
-                              <div className="text-sm text-slate-900 truncate mt-1">{getRewardName(redemption.rewardId)}</div>
+                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                                Reward
+                              </span>
+                              <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
+                                {getRewardName(redemption.rewardId)}
+                              </div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-500 uppercase tracking-wider">Code</span>
-                              <div className="text-sm font-mono text-slate-600 mt-1">{redemption.redemptionCode}</div>
+                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                                Code
+                              </span>
+                              <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                                {redemption.redemptionCode}
+                              </div>
                             </div>
                             <div>
-                              <span className="font-medium text-slate-500 uppercase tracking-wider">Status</span>
+                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                                Status
+                              </span>
                               <div className="mt-1">
-                                <span className={`
-                                  inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                                  ${redemption.status === "pending" ? "bg-yellow-100 text-yellow-800" : 
-                                    redemption.status === "claimed" ? "bg-green-100 text-green-800" :
-                                    "bg-red-100 text-red-800"}
-                                `}>
+                                <span
+                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    redemption.status === "pending"
+                                      ? "bg-yellow-100 text-yellow-800"
+                                      : redemption.status === "claimed"
+                                      ? "bg-green-100 text-green-800"
+                                      : "bg-red-100 text-red-800"
+                                  }`}
+                                >
                                   {redemption.status}
                                 </span>
                               </div>
                             </div>
                           </div>
-                          <div className="text-xs">
-                            <span className="font-medium text-slate-500 uppercase tracking-wider">Date</span>
-                            <div className="text-sm text-slate-600 mt-1">
-                              {redemption.redeemedAt?.toDate ? redemption.redeemedAt.toDate().toLocaleDateString() : "N/A"}
+                          <div className={`text-xs ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                            <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                              Date
+                            </span>
+                            <div className="text-sm mt-1">
+                              {redemption.redeemedAt?.toDate
+                                ? redemption.redeemedAt.toDate().toLocaleDateString()
+                                : "N/A"}
                             </div>
                           </div>
-                          
                           {redemption.status === "pending" && (
                             <div className="flex space-x-2 pt-2">
                               <button
@@ -895,89 +1016,91 @@ const confirmSubmission = async (submission) => {
                 )}
               </div>
             )}
+
+            {/* Modals */}
+            {pointsModal.visible && (
+              <PointsModal
+                pointsModal={pointsModal}
+                setPointsModal={setPointsModal}
+                pointsForm={pointsForm}
+                setPointsForm={setPointsForm}
+                users={users}
+                setUsers={setUsers}
+                transactions={transactions}
+                setTransactions={setTransactions}
+                showToast={showToast}
+                isDark={isDark}
+              />
+            )}
+
+            {rewardModal.visible && (
+              <RewardModal
+                rewardModal={rewardModal}
+                setRewardModal={setRewardModal}
+                rewardForm={rewardForm}
+                setRewardForm={setRewardForm}
+                loading={loading || imageUploadLoading}
+                setLoading={setLoading}
+                showToast={showToast}
+                isDark={isDark}
+              />
+            )}
+
+            {rewardPreview.visible && (
+              <RewardPreview
+                rewardPreview={rewardPreview}
+                setRewardPreview={setRewardPreview}
+                setRewardModal={setRewardModal}
+                setRewardForm={setRewardForm}
+                isDark={isDark}
+              />
+            )}
+
+            {/* Toast Notification */}
+            {toast.visible && (
+              <div
+                className={`
+                  fixed top-4 left-4 right-4 lg:top-6 lg:right-6 lg:left-auto px-4 py-3 lg:px-6 lg:py-4 rounded-xl lg:rounded-2xl text-white shadow-2xl transition-all duration-300 z-50 backdrop-blur-sm transform lg:max-w-sm
+                  ${toast.visible ? "translate-y-0 opacity-100" : "-translate-y-full lg:translate-y-0 lg:translate-x-full opacity-0"}
+                  ${
+                    toast.type === "success"
+                      ? "bg-gradient-to-r from-emerald-500 to-teal-600"
+                      : toast.type === "error"
+                      ? "bg-gradient-to-r from-red-500 to-rose-600"
+                      : "bg-gradient-to-r from-blue-500 to-indigo-600"
+                  }
+                `}
+                role="alert"
+                aria-live="assertive"
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`
+                      w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-xs lg:text-sm font-bold
+                      bg-white/20
+                    `}
+                  >
+                    {toast.type === "success" && "✓"}
+                    {toast.type === "error" && "✗"}
+                    {toast.type === "info" && "i"}
+                  </div>
+                  <span className="font-medium text-sm lg:text-base">{toast.message}</span>
+                </div>
+              </div>
+            )}
+
+            <style>{`
+              .scrollbar-hide {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+              }
+              .scrollbar-hide::-webkit-scrollbar {
+                display: none;
+              }
+            `}</style>
           </div>
-        </div>
+          </div>
       </main>
-
-      {/* Modals */}
-      {pointsModal.visible && (
-        <PointsModal
-          pointsModal={pointsModal}
-          setPointsModal={setPointsModal}
-          pointsForm={pointsForm}
-          setPointsForm={setPointsForm}
-          users={users}
-          setUsers={setUsers}
-          transactions={transactions}
-          setTransactions={setTransactions}
-          showToast={showToast}
-        />
-      )}
-
-      {rewardModal.visible && (
-        <RewardModal
-          rewardModal={rewardModal}
-          setRewardModal={setRewardModal}
-          rewardForm={rewardForm}
-          setRewardForm={setRewardForm}
-          loading={loading || imageUploadLoading}
-          setLoading={setLoading}
-          showToast={showToast}
-        />
-      )}
-
-      {rewardPreview.visible && (
-        <RewardPreview
-          rewardPreview={rewardPreview}
-          setRewardPreview={setRewardPreview}
-          setRewardModal={setRewardModal}
-          setRewardForm={setRewardForm}
-        />
-      )}
-
-      {/* Toast Notification - Mobile Optimized */}
-      {toast.visible && (
-        <div
-          className={`
-            fixed top-4 left-4 right-4 lg:top-6 lg:right-6 lg:left-auto px-4 py-3 lg:px-6 lg:py-4 rounded-xl lg:rounded-2xl text-white shadow-2xl transition-all duration-300 z-50 backdrop-blur-sm transform lg:max-w-sm
-            ${toast.visible ? "translate-y-0 opacity-100" : "-translate-y-full lg:translate-y-0 lg:translate-x-full opacity-0"}
-            ${
-              toast.type === "success"
-                ? "bg-gradient-to-r from-emerald-500 to-teal-600"
-                : toast.type === "error"
-                ? "bg-gradient-to-r from-red-500 to-rose-600"
-                : "bg-gradient-to-r from-blue-500 to-indigo-600"
-            }
-          `}
-          role="alert"
-          aria-live="assertive"
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={`
-                w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-xs lg:text-sm font-bold
-                ${toast.type === "success" ? "bg-white/20" : toast.type === "error" ? "bg-white/20" : "bg-white/20"}
-              `}
-            >
-              {toast.type === "success" && "✓"}
-              {toast.type === "error" && "✗"}
-              {toast.type === "info" && "i"}
-            </div>
-            <span className="font-medium text-sm lg:text-base">{toast.message}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Add custom CSS for scrollbar hide */}
-      <style jsx>{`
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-      `}</style>
     </div>
   );
 }

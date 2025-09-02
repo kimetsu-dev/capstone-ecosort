@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "../contexts/ThemeContext"; // Add this import
 
 import { auth, db, storage } from "../firebase";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
@@ -38,6 +39,15 @@ export default function Report() {
 
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+
+  // Add theme context
+  const themeContext = useTheme();
+  const { theme, styles, isDark } = themeContext || {};
+
+  // Helper function to get theme classes safely
+  const getThemeClass = (styleKey, fallback = "") => {
+    return styles && styles[styleKey] ? styles[styleKey] : fallback;
+  };
 
   // Toast helper
   const showToast = (message, type = "info") => {
@@ -156,7 +166,6 @@ export default function Report() {
 
       if (media) {
         // Upload media to Firebase Storage
-
         const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}_${media.name}`);
         const uploadTask = uploadBytesResumable(storageRef, media);
 
@@ -225,25 +234,44 @@ export default function Report() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 py-8 px-4">
+    <div className={`min-h-screen py-8 px-4 transition-colors duration-300 ${
+      isDark 
+        ? 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900' 
+        : 'bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100'
+    }`}>
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg mx-auto mb-4">
+          <div className={`w-16 h-16 bg-gradient-to-br from-red-500 to-orange-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg mx-auto mb-4 ${
+            isDark ? 'shadow-red-500/25' : 'shadow-lg'
+          }`}>
             📢
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+          <h1 className={`text-3xl font-bold mb-2 ${
+            isDark 
+              ? 'bg-gradient-to-r from-white via-emerald-200 to-teal-300 bg-clip-text text-transparent'
+              : 'bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent'
+          }`}>
             Report a Violation
           </h1>
-          <p className="text-slate-600">Help us maintain a safe and clean community</p>
+          <p className={isDark ? 'text-gray-300' : 'text-slate-600'}>
+            Help us maintain a safe and clean community
+          </p>
         </div>
 
         {/* Form Card */}
         <form onSubmit={handleSubmit}>
-          <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl border border-white/50 overflow-hidden p-8 space-y-6">
+          <div className={`${
+            isDark 
+              ? 'bg-gray-800/80 border-gray-700/50' 
+              : 'bg-white/80 border-white/50'
+          } backdrop-blur-sm rounded-2xl shadow-xl border overflow-hidden p-8 space-y-6 transition-colors duration-300`}>
+            
             {/* Category Selection */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
+              <label className={`block text-sm font-semibold mb-3 ${
+                isDark ? 'text-gray-200' : 'text-slate-700'
+              }`}>
                 Report Category
               </label>
               <div className="grid grid-cols-2 gap-3">
@@ -259,7 +287,9 @@ export default function Report() {
                     onClick={() => setCategory(cat.value)}
                     className={`p-3 rounded-xl border-2 transition-all duration-200 flex items-center space-x-2 ${
                       category === cat.value
-                        ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                        : isDark
+                        ? "border-gray-600 hover:border-gray-500 text-gray-300 hover:bg-gray-700"
                         : "border-slate-200 hover:border-slate-300 text-slate-600"
                     }`}
                     aria-pressed={category === cat.value}
@@ -273,7 +303,9 @@ export default function Report() {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className={`block text-sm font-semibold mb-2 ${
+                isDark ? 'text-gray-200' : 'text-slate-700'
+              }`}>
                 Description *
               </label>
               <textarea
@@ -283,16 +315,22 @@ export default function Report() {
                 rows={4}
                 placeholder="Please provide a detailed description..."
                 maxLength={500}
-                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 resize-none"
+                className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 resize-none ${
+                  isDark
+                    ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                    : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                }`}
               />
-              <div className="mt-1 text-xs text-slate-500">
+              <div className={`mt-1 text-xs ${isDark ? 'text-gray-400' : 'text-slate-500'}`}>
                 {description.length}/500 characters (minimum 10 required)
               </div>
             </div>
 
             {/* Location */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className={`block text-sm font-semibold mb-2 ${
+                isDark ? 'text-gray-200' : 'text-slate-700'
+              }`}>
                 Location *
               </label>
               <div className="space-y-3">
@@ -302,13 +340,17 @@ export default function Report() {
                   disabled={locationLoading}
                   className={`w-full p-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center space-x-2 ${
                     useCurrentLocation
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                      : isDark
+                      ? "border-gray-600 hover:border-gray-500 text-gray-300 hover:bg-gray-700"
                       : "border-slate-300 hover:border-slate-400 text-slate-600"
                   } ${locationLoading ? "opacity-50 cursor-not-allowed" : "hover:shadow-md"}`}
                 >
                   {locationLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                      <div className={`w-4 h-4 border-2 border-t-transparent rounded-full animate-spin ${
+                        isDark ? 'border-gray-400' : 'border-slate-400'
+                      }`}></div>
                       <span>Getting location...</span>
                     </>
                   ) : useCurrentLocation ? (
@@ -333,21 +375,27 @@ export default function Report() {
                   }}
                   required
                   placeholder="Or enter address, building name, or landmark..."
-                  className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200"
+                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-200 ${
+                    isDark
+                      ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400'
+                      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
                 />
               </div>
             </div>
 
             {/* Severity */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-3">
+              <label className={`block text-sm font-semibold mb-3 ${
+                isDark ? 'text-gray-200' : 'text-slate-700'
+              }`}>
                 Severity Level
               </label>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "low", label: "Low", color: "text-green-700 border-green-300 bg-green-50", icon: "🟢" },
-                  { value: "medium", label: "Medium", color: "text-yellow-700 border-yellow-300 bg-yellow-50", icon: "🟡" },
-                  { value: "high", label: "High", color: "text-red-700 border-red-300 bg-red-50", icon: "🔴" },
+                  { value: "low", label: "Low", color: "text-green-700 border-green-300 bg-green-50", darkColor: "dark:text-green-300 dark:border-green-700 dark:bg-green-900/30", icon: "🟢" },
+                  { value: "medium", label: "Medium", color: "text-yellow-700 border-yellow-300 bg-yellow-50", darkColor: "dark:text-yellow-300 dark:border-yellow-700 dark:bg-yellow-900/30", icon: "🟡" },
+                  { value: "high", label: "High", color: "text-red-700 border-red-300 bg-red-50", darkColor: "dark:text-red-300 dark:border-red-700 dark:bg-red-900/30", icon: "🔴" },
                 ].map((sev) => (
                   <button
                     key={sev.value}
@@ -355,7 +403,9 @@ export default function Report() {
                     onClick={() => setSeverity(sev.value)}
                     className={`p-3 rounded-xl border-2 transition-all duration-200 flex items-center justify-center space-x-2 ${
                       severity === sev.value
-                        ? sev.color
+                        ? `${sev.color} ${sev.darkColor}`
+                        : isDark
+                        ? "border-gray-600 hover:border-gray-500 text-gray-300"
                         : "border-slate-200 hover:border-slate-300 text-slate-600"
                     }`}
                     aria-pressed={severity === sev.value}
@@ -369,11 +419,17 @@ export default function Report() {
 
             {/* Media Upload */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
+              <label className={`block text-sm font-semibold mb-2 ${
+                isDark ? 'text-gray-200' : 'text-slate-700'
+              }`}>
                 Upload Photo or Video (Optional)
               </label>
               <div className="space-y-3">
-                <div className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-slate-400 transition-colors">
+                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                  isDark
+                    ? 'border-gray-600 hover:border-gray-500'
+                    : 'border-slate-300 hover:border-slate-400'
+                }`}>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -386,19 +442,27 @@ export default function Report() {
                     htmlFor="media-upload"
                     className="cursor-pointer flex flex-col items-center space-y-2"
                   >
-                    <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      isDark ? 'bg-gray-700' : 'bg-slate-100'
+                    }`}>
                       📎
                     </div>
-                    <p className="text-slate-600 font-medium">Click to upload a file</p>
-                    <p className="text-slate-400 text-sm">
+                    <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-slate-600'}`}>
+                      Click to upload a file
+                    </p>
+                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-slate-400'}`}>
                       Images: JPG, PNG, GIF, WebP | Videos: MP4, WebM, MOV
                     </p>
-                    <p className="text-slate-400 text-xs">Maximum file size: 50MB</p>
+                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                      Maximum file size: 50MB
+                    </p>
                   </label>
                 </div>
 
                 {mediaPreview && (
-                  <div className="relative border border-slate-200 rounded-xl p-4 bg-slate-50">
+                  <div className={`relative border rounded-xl p-4 ${
+                    isDark ? 'border-gray-600 bg-gray-700' : 'border-slate-200 bg-slate-50'
+                  }`}>
                     <button
                       type="button"
                       onClick={removeMedia}
@@ -420,10 +484,14 @@ export default function Report() {
                         className="w-full h-40 rounded-lg"
                       />
                     )}
-                    <p className="text-sm text-slate-600 mt-2 flex items-center space-x-2">
+                    <p className={`text-sm mt-2 flex items-center space-x-2 ${
+                      isDark ? 'text-gray-300' : 'text-slate-600'
+                    }`}>
                       <span>📎</span>
                       <span>{media?.name}</span>
-                      <span className="text-slate-400">({(media?.size / 1024 / 1024).toFixed(2)} MB)</span>
+                      <span className={isDark ? 'text-gray-400' : 'text-slate-400'}>
+                        ({(media?.size / 1024 / 1024).toFixed(2)} MB)
+                      </span>
                     </p>
                   </div>
                 )}
@@ -452,7 +520,9 @@ export default function Report() {
                 )}
               </button>
 
-              <p className="text-center text-slate-500 text-sm mt-3">
+              <p className={`text-center text-sm mt-3 ${
+                isDark ? 'text-gray-400' : 'text-slate-500'
+              }`}>
                 Your report will be reviewed by our team within 24-48 hours
               </p>
             </div>
@@ -463,7 +533,11 @@ export default function Report() {
         <div className="text-center mt-6">
           <button
             onClick={() => navigate("/forum")}
-            className="px-6 py-2 text-slate-600 hover:text-slate-800 transition-colors"
+            className={`px-6 py-2 transition-colors ${
+              isDark 
+                ? 'text-gray-400 hover:text-gray-200' 
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
           >
             ← Back to Forum
           </button>

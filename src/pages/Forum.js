@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, getDoc } from "firebase/firestore";
-import {
-  onAuthStateChanged,
-} from "firebase/auth";
+import { useTheme } from "../contexts/ThemeContext";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   query,
@@ -116,9 +115,16 @@ const XIcon = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
+const ArrowLeft = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24" >
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+  </svg>
+);
+
 
 // Firebase Storage instance
 const storage = getStorage();
+
 
 function Toast({ visible, message, type }) {
   if (!visible) return null;
@@ -130,9 +136,7 @@ function Toast({ visible, message, type }) {
       : "bg-blue-600";
   return (
     <div
-      className={`fixed bottom-6 right-6 px-6 py-3 rounded shadow-lg text-white z-50 select-none ${
-        bg
-      }`}
+      className={`fixed bottom-6 right-6 px-6 py-3 rounded shadow-lg text-white z-50 select-none ${bg}`}
       role="alert"
       aria-live="assertive"
     >
@@ -141,7 +145,7 @@ function Toast({ visible, message, type }) {
   );
 }
 
-function FilterTabs({ filterType, setFilterType }) {
+function FilterTabs({ filterType, setFilterType, isDark }) {
   const categoryOptions = [
     { id: "all", label: "All Reports", icon: "📋" },
     { id: "illegal_dumping", label: "Illegal Dumping", icon: "🚯" },
@@ -153,7 +157,7 @@ function FilterTabs({ filterType, setFilterType }) {
   ];
   return (
     <div
-      className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100"
+      className={`flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100`}
       role="tablist"
       aria-label="Report categories"
     >
@@ -164,6 +168,8 @@ function FilterTabs({ filterType, setFilterType }) {
           className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
             filterType === f.id
               ? "bg-indigo-500 text-white shadow-lg"
+              : isDark
+              ? "bg-gray-700 text-gray-200 hover:bg-gray-600 border border-gray-600"
               : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
           }`}
           role="tab"
@@ -179,7 +185,7 @@ function FilterTabs({ filterType, setFilterType }) {
   );
 }
 
-function CommentList({ comments = [] }) {
+function CommentList({ comments = [], isDark }) {
   const formatTimeAgo = (ts) => {
     if (!ts) return "N/A";
     const date = ts instanceof Date ? ts : new Date(ts.seconds * 1000);
@@ -192,25 +198,53 @@ function CommentList({ comments = [] }) {
 
   return (
     <div
-      className="p-4 space-y-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100"
+      className={`p-4 space-y-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100 ${
+        isDark ? "bg-gray-800" : ""
+      }`}
       aria-live="polite"
     >
       {comments.length === 0 ? (
-        <div className="text-slate-400 text-sm select-none">No comments yet</div>
+        <div
+          className={`${
+            isDark ? "text-gray-400" : "text-slate-400"
+          } text-sm select-none`}
+        >
+          No comments yet
+        </div>
       ) : (
         comments.map((comment, idx) => (
           <div key={idx} className="flex gap-3">
             <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold select-none">
               {comment.user?.charAt(0).toUpperCase() || "U"}
             </div>
-            <div className="flex-1 bg-white rounded-xl p-3 shadow-sm">
+            <div
+              className={`flex-1 rounded-xl p-3 shadow-sm ${
+                isDark ? "bg-gray-700" : "bg-white"
+              }`}
+            >
               <div className="flex items-center gap-2 mb-1">
-                <span className="font-semibold text-sm text-slate-800 select-text break-words">
+                <span
+                  className={`font-semibold text-sm ${
+                    isDark ? "text-gray-200" : "text-slate-800"
+                  } select-text break-words`}
+                >
                   {comment.user || "Anonymous"}
                 </span>
-                <span className="text-xs text-slate-500 select-text">{formatTimeAgo(comment.timestamp)}</span>
+                <span
+                  className={`text-xs ${
+                    isDark ? "text-gray-400" : "text-slate-500"
+                  } select-text`}
+                >
+                  {formatTimeAgo(comment.timestamp)}
+                </span>
               </div>
-              <p className="text-slate-700 text-sm whitespace-pre-wrap break-words">{comment.text}</p>
+              <p
+                className={`${
+                  isDark ? "text-gray-300" : "text-slate-700"
+                } text-sm whitespace-pre-wrap break-words`}
+              >
+                {comment.text}
+              </p>
             </div>
           </div>
         ))
@@ -228,21 +262,31 @@ function ReportItem({
   toggleComments,
   isCommentsExpanded,
   handleLike,
+  isDark,
 }) {
   const likeCount = report.likes?.length || 0;
   const isLiked = report.likes?.includes(currentUser?.uid);
   const commentCount = report.comments?.length || 0;
 
   function getSeverityColor(severity) {
+    // Adjusted for dark mode backgrounds and text
     switch (severity) {
       case "high":
-        return "bg-red-100 text-red-800 border-red-200";
+        return isDark
+          ? "bg-red-700 text-red-300 border-red-600"
+          : "bg-red-100 text-red-800 border-red-200";
       case "medium":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+        return isDark
+          ? "bg-yellow-700 text-yellow-300 border-yellow-600"
+          : "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "low":
-        return "bg-green-100 text-green-800 border-green-200";
+        return isDark
+          ? "bg-green-700 text-green-300 border-green-600"
+          : "bg-green-100 text-green-800 border-green-200";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
+        return isDark
+          ? "bg-gray-700 text-gray-300 border-gray-600"
+          : "bg-gray-100 text-gray-800 border-gray-200";
     }
   }
   function formatTimeAgo(ts) {
@@ -257,7 +301,11 @@ function ReportItem({
 
   return (
     <article
-      className="bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden focus:outline-none focus:ring-2 focus:ring-indigo-400"
+      className={`rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden focus:outline-none focus:ring-2 ${
+        isDark
+          ? "bg-gray-800 focus:ring-indigo-400"
+          : "bg-white focus:ring-indigo-600"
+      }`}
       tabIndex={0}
       aria-label={`Report from ${report.location}`}
     >
@@ -270,23 +318,43 @@ function ReportItem({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <MapPinIcon className="text-slate-500 h-5 w-5 shrink-0" aria-hidden="true" />
-                <span className="font-semibold text-slate-800">{report.location}</span>
+                <MapPinIcon
+                  className={`h-5 w-5 shrink-0 ${
+                    isDark ? "text-gray-300" : "text-slate-500"
+                  }`}
+                  aria-hidden="true"
+                />
                 <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium border ${getSeverityColor(
-                    report.severity
-                  )} whitespace-nowrap select-none`}
+                  className={`font-semibold ${
+                    isDark ? "text-gray-200" : "text-slate-800"
+                  }`}
+                >
+                  {report.location}
+                </span>
+                <span
+                  className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap select-none ${
+                    getSeverityColor(report.severity)
+                  }`}
                 >
                   {report.severity?.toUpperCase() || "REPORTED"}
                 </span>
               </div>
 
-              {/* NEW: Display author username */}
-              <div className="text-sm text-slate-600 select-text mb-1">
-                Reported by: <span className="font-semibold">{report.authorUsername || "Unknown"}</span>
+              {/* Display author username */}
+              <div
+                className={`text-sm select-text mb-1 ${
+                  isDark ? "text-gray-400" : "text-slate-600"
+                }`}
+              >
+                Reported by:{" "}
+                <span className="font-semibold">{report.authorUsername || "Unknown"}</span>
               </div>
 
-              <div className="flex items-center gap-2 text-sm text-slate-500 select-none">
+              <div
+                className={`flex items-center gap-2 text-sm select-none ${
+                  isDark ? "text-gray-400" : "text-slate-500"
+                }`}
+              >
                 <ClockIcon className="h-4 w-4" aria-hidden="true" />
                 <span>{formatTimeAgo(report.submittedAt)}</span>
               </div>
@@ -295,13 +363,24 @@ function ReportItem({
         </div>
 
         {/* Description */}
-        <p className="text-slate-700 leading-relaxed mb-4 whitespace-pre-wrap break-words">{report.description}</p>
+        <p
+          className={`leading-relaxed mb-4 whitespace-pre-wrap break-words ${
+            isDark ? "text-gray-300" : "text-slate-700"
+          }`}
+        >
+          {report.description}
+        </p>
 
         {/* Media */}
         {report.mediaUrl && (
           <div className="mb-4 rounded-xl overflow-hidden max-h-[320px] md:max-h-80">
-            {/\.(mp4|webm|ogg)$/i.test(report.mediaUrl) ? (
-              <video controls className="w-full h-full object-cover rounded-xl" preload="metadata" aria-label="Reported video content">
+            {/\\.(mp4|webm|ogg)$/i.test(report.mediaUrl) ? (
+              <video
+                controls
+                className="w-full h-full object-cover rounded-xl"
+                preload="metadata"
+                aria-label="Reported video content"
+              >
                 <source src={report.mediaUrl} type="video/mp4" />
                 Sorry, your browser doesn't support embedded videos.
               </video>
@@ -324,7 +403,11 @@ function ReportItem({
           <button
             onClick={() => handleLike(report.id)}
             className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-              isLiked ? "bg-blue-50 text-blue-600" : "hover:bg-slate-50 text-slate-600"
+              isLiked
+                ? "bg-blue-50 text-blue-600"
+                : isDark
+                ? "hover:bg-gray-700 text-gray-300"
+                : "hover:bg-slate-50 text-slate-600"
             }`}
             aria-pressed={isLiked}
             aria-label={`Like this report, ${likeCount} ${likeCount === 1 ? "like" : "likes"}`}
@@ -336,7 +419,9 @@ function ReportItem({
           </button>
           <button
             onClick={() => toggleComments(report.id)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full hover:bg-slate-50 text-slate-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-slate-50 text-slate-600"
+            }`}
             aria-expanded={isCommentsExpanded}
             aria-controls={`comments-${report.id}`}
             aria-label="Show or hide comments"
@@ -353,12 +438,14 @@ function ReportItem({
       {(isCommentsExpanded || commentCount > 0) && (
         <section
           id={`comments-${report.id}`}
-          className="border-t border-slate-100 bg-slate-50/50"
+          className={`border-t border-slate-100 ${
+            isDark ? "bg-gray-700/50" : "bg-slate-50/50"
+          }`}
           aria-live="polite"
         >
-          <CommentList comments={report.comments} />
+          <CommentList comments={report.comments} isDark={isDark} />
           {/* Add new comment */}
-          <div className="p-4 border-t border-slate-100">
+          <div className={`p-4 border-t border-slate-100 ${isDark ? "bg-gray-800" : "bg-white"}`}>
             <div className="flex gap-3">
               <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 select-none">
                 {currentUser?.email?.charAt(0).toUpperCase() || "U"}
@@ -387,14 +474,16 @@ function ReportItem({
                       commentSubmit(report.id);
                     }
                   }}
-                  className="flex-1 border border-slate-300 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white transition-shadow"
+                  className={`flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow ${
+                    isDark ? "bg-gray-700 border-gray-600 text-gray-300" : "bg-white border-gray-300 text-gray-900"
+                  }`}
                   aria-label="Write a comment"
                   spellCheck="true"
                 />
                 <button
                   type="submit"
                   disabled={!commentText[report.id]?.trim()}
-                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   aria-label="Send comment"
                 >
                   <SendIcon aria-hidden="true" className="h-5 w-5" />
@@ -407,7 +496,6 @@ function ReportItem({
     </article>
   );
 }
-
 
 export default function Forum() {
   const [reports, setReports] = useState([]);
@@ -429,13 +517,15 @@ export default function Forum() {
   const [newReportMediaUrl, setNewReportMediaUrl] = useState("");
   const [newReportFile, setNewReportFile] = useState(null);
   const [loadingReportSubmit, setLoadingReportSubmit] = useState(false);
-
+  const themeContext = useTheme();
+  const { isDark } = themeContext || {};
   const navigate = useNavigate();
-  const ArrowLeft = () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-    </svg>
-  );
+
+  const getThemeClass = (styleKey, fallback = "") => {
+    return themeContext?.styles && themeContext.styles[styleKey]
+      ? themeContext.styles[styleKey]
+      : fallback;
+  };
 
   const reportsCollectionPath = "violation_reports";
 
@@ -444,7 +534,9 @@ export default function Forum() {
     setToast({ visible: true, message, type });
     setTimeout(() => setToast({ visible: false, message: "", type: "info" }), 4000);
   }, []);
+
   const [username, setUsername] = useState(null);
+
   // Auth state listener
   useEffect(() => {
     setLoadingAuth(true);
@@ -503,7 +595,6 @@ export default function Forum() {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        // For simplicity, just show coordinates. You can integrate geocoding here.
         setNewReportLocation(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`);
         showToast("Location set from your current position", "success");
       },
@@ -533,10 +624,7 @@ export default function Forum() {
       let uploadedMediaUrl = "";
 
       if (newReportFile) {
-        const fileRef = storageRef(
-          storage,
-          `reports/${currentUser.uid}/${Date.now()}_${newReportFile.name}`
-        );
+        const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${newReportFile.name}`);
         await uploadBytes(fileRef, newReportFile);
         uploadedMediaUrl = await getDownloadURL(fileRef);
       } else {
@@ -544,12 +632,12 @@ export default function Forum() {
       }
 
       // Fetch username to store with report
-      let username = currentUser.email || currentUser.uid;
+      let usernameToSave = currentUser.email || currentUser.uid;
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          if (userData.username) username = userData.username;
+          if (userData.username) usernameToSave = userData.username;
         }
       } catch (err) {
         console.error("Failed to fetch username for report submission:", err);
@@ -566,7 +654,7 @@ export default function Forum() {
         comments: [],
         authorId: currentUser.uid,
         authorEmail: currentUser.email,
-        authorUsername: username, // <-- add username here
+        authorUsername: usernameToSave,
       });
 
       // Reset form and close modal
@@ -624,7 +712,7 @@ export default function Forum() {
 
     const comment = {
       text,
-      user: username || currentUser.email || currentUser.uid || "anonymous", // Use username here
+      user: username || currentUser.email || currentUser.uid || "anonymous",
       timestamp: new Date(),
     };
 
@@ -655,9 +743,13 @@ export default function Forum() {
   // Loading and error UI
   if (loadingAuth || (loading && !error)) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 px-4 text-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500 mb-4" />
-        <p className="text-lg text-gray-700 select-none">Loading application...</p>
+      <main
+        className={`min-h-screen flex flex-col items-center justify-center ${
+          isDark ? "bg-gray-900 text-white" : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
+        } px-4 text-center`}
+      >
+        <div className={`animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-4`} />
+        <p className="text-lg select-none">Loading application...</p>
       </main>
     );
   }
@@ -679,9 +771,21 @@ export default function Forum() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900">
+    <div
+      className={`min-h-screen transition-colors duration-300 ${
+        isDark
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
+      }`}
+    >
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      <header
+        className={`${
+          isDark ? "bg-gray-800/80" : "bg-white/80"
+        } backdrop-blur-md border-b ${
+          isDark ? "border-gray-700" : "border-slate-200"
+        } sticky top-0 z-50 shadow-sm`}
+      >
         <div className="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <button
@@ -722,16 +826,22 @@ export default function Forum() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-6" role="main">
-        <FilterTabs filterType={filterType} setFilterType={setFilterType} />
+        <FilterTabs filterType={filterType} setFilterType={setFilterType} isDark={isDark} />
         <div className="space-y-6">
           {filteredReports.length === 0 ? (
             <section
               aria-live="polite"
-              className="text-center py-12 bg-white rounded-2xl shadow-sm select-none"
+              className={`text-center py-12 rounded-2xl shadow-sm select-none ${
+                isDark ? "bg-gray-800 text-gray-400" : "bg-white text-slate-600"
+              }`}
             >
-              <AlertTriangleIcon className="w-16 h-16 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-600 mb-2">No reports found</h3>
-              <p className="text-slate-500">Be the first to report an issue in your community!</p>
+              <AlertTriangleIcon
+                className={`w-16 h-16 mx-auto mb-4 ${
+                  isDark ? "text-gray-500" : "text-slate-400"
+                }`}
+              />
+              <h3 className="text-xl font-semibold mb-2">No reports found</h3>
+              <p>Be the first to report an issue in your community!</p>
             </section>
           ) : (
             filteredReports.map((report) => (
@@ -745,6 +855,7 @@ export default function Forum() {
                 toggleComments={toggleComments}
                 isCommentsExpanded={expandedComments[report.id]}
                 handleLike={handleLike}
+                isDark={isDark}
               />
             ))
           )}
@@ -759,15 +870,26 @@ export default function Forum() {
           aria-modal="true"
           aria-labelledby="report-modal-title"
         >
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+          <div
+            className={`rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto ${
+              isDark ? "bg-gray-900 text-white" : "bg-white text-slate-900"
+            }`}
+          >
             <div className="flex justify-between items-center mb-4">
-              <h2 id="report-modal-title" className="text-xl font-bold text-slate-800 select-none">
+              <h2
+                id="report-modal-title"
+                className={`text-xl font-bold select-none ${
+                  isDark ? "text-white" : "text-slate-800"
+                }`}
+              >
                 Submit New Report
               </h2>
               <button
                 type="button"
                 onClick={() => setShowReportModal(false)}
-                className="text-slate-500 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 rounded"
+                className={`rounded focus:outline-none focus:ring-2 ${
+                  isDark ? "text-gray-400 hover:text-white focus:ring-indigo-500" : "text-gray-500 hover:text-gray-700 focus:ring-indigo-600"
+                }`}
                 aria-label="Close report submission"
               >
                 <XIcon className="h-6 w-6" />
@@ -777,7 +899,9 @@ export default function Forum() {
               <div>
                 <label
                   htmlFor="report-location"
-                  className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                  className={`block text-sm font-medium mb-1 select-none ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}
                 >
                   Location *
                 </label>
@@ -787,7 +911,11 @@ export default function Forum() {
                     type="text"
                     value={newReportLocation}
                     onChange={(e) => setNewReportLocation(e.target.value)}
-                    className="flex-1 p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`flex-1 p-2 rounded-md focus:outline-none focus:ring-2 ${
+                      isDark
+                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
+                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
+                    }`}
                     placeholder="e.g., Main Street Park"
                     required
                     autoComplete="off"
@@ -806,7 +934,9 @@ export default function Forum() {
               <div>
                 <label
                   htmlFor="report-description"
-                  className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                  className={`block text-sm font-medium mb-1 select-none ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}
                 >
                   Description *
                 </label>
@@ -815,7 +945,11 @@ export default function Forum() {
                   value={newReportDescription}
                   onChange={(e) => setNewReportDescription(e.target.value)}
                   rows={4}
-                  className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 resize-y"
+                  className={`w-full p-2 rounded-md resize-y focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
+                      : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
+                  }`}
                   placeholder="Describe the issue in detail..."
                   required
                   aria-required="true"
@@ -826,7 +960,9 @@ export default function Forum() {
                 <div>
                   <label
                     htmlFor="report-severity"
-                    className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                    className={`block text-sm font-medium mb-1 select-none ${
+                      isDark ? "text-gray-300" : "text-slate-700"
+                    }`}
                   >
                     Severity
                   </label>
@@ -834,7 +970,11 @@ export default function Forum() {
                     id="report-severity"
                     value={newReportSeverity}
                     onChange={(e) => setNewReportSeverity(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
+                      isDark
+                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
+                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
+                    }`}
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -844,7 +984,9 @@ export default function Forum() {
                 <div>
                   <label
                     htmlFor="report-category"
-                    className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                    className={`block text-sm font-medium mb-1 select-none ${
+                      isDark ? "text-gray-300" : "text-slate-700"
+                    }`}
                   >
                     Category
                   </label>
@@ -852,7 +994,11 @@ export default function Forum() {
                     id="report-category"
                     value={newReportCategory}
                     onChange={(e) => setNewReportCategory(e.target.value)}
-                    className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                    className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
+                      isDark
+                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
+                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
+                    }`}
                   >
                     <option value="illegal_dumping">Illegal Dumping</option>
                     <option value="littering">Littering</option>
@@ -865,7 +1011,9 @@ export default function Forum() {
               <div>
                 <label
                   htmlFor="report-file"
-                  className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                  className={`block text-sm font-medium mb-1 select-none ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}
                 >
                   Attach Proof (Optional)
                 </label>
@@ -877,14 +1025,21 @@ export default function Forum() {
                   className="w-full"
                   aria-describedby="file-helptext"
                 />
-                <p id="file-helptext" className="text-xs text-slate-400 mt-1 select-none">
+                <p
+                  id="file-helptext"
+                  className={`text-xs mt-1 select-none ${
+                    isDark ? "text-gray-400" : "text-slate-400"
+                  }`}
+                >
                   Upload an image or video file as proof of the issue.
                 </p>
               </div>
               <div>
                 <label
                   htmlFor="report-media-url"
-                  className="block text-sm font-medium text-slate-700 mb-1 select-none"
+                  className={`block text-sm font-medium mb-1 select-none ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}
                 >
                   Media URL (Optional)
                 </label>
@@ -893,12 +1048,21 @@ export default function Forum() {
                   type="url"
                   value={newReportMediaUrl}
                   onChange={(e) => setNewReportMediaUrl(e.target.value)}
-                  className="w-full p-2 border border-slate-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
+                    isDark
+                      ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
+                      : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
+                  }`}
                   placeholder="URL to an image or video (if you prefer)"
                   aria-describedby="media-url-helptext"
                   autoComplete="off"
                 />
-                <p id="media-url-helptext" className="text-xs text-slate-400 mt-1 select-none">
+                <p
+                  id="media-url-helptext"
+                  className={`text-xs mt-1 select-none ${
+                    isDark ? "text-gray-400" : "text-slate-400"
+                  }`}
+                >
                   Provide a URL to an image or video.
                 </p>
               </div>
@@ -906,7 +1070,7 @@ export default function Forum() {
               <button
                 type="submit"
                 disabled={loadingReportSubmit}
-                className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors disabled:bg-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-600"
+                className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-600"
                 aria-busy={loadingReportSubmit}
               >
                 {loadingReportSubmit ? "Submitting..." : "Submit Report"}
