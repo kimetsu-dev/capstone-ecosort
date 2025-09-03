@@ -63,6 +63,7 @@ const SparkleIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+
 function InstallPWAButton() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -108,7 +109,8 @@ function InstallPWAButton() {
             <SparkleIcon className="w-5 h-5 text-emerald-600" />
           </div>
           <p className="text-sm text-gray-700 leading-relaxed">
-            <span className="font-semibold text-emerald-700">Android:</span> Menu (⋮) → "Add to Home screen"<br/>
+            <span className="font-semibold text-emerald-700">Android:</span> Menu (⋮) → "Add to Home screen"
+            <br/>
             <span className="font-semibold text-emerald-700">iOS:</span> Share (📤) → "Add to Home Screen"
           </p>
           <div className="flex gap-3 justify-center">
@@ -188,7 +190,7 @@ export default function Welcome() {
     },
     {
       icon: CommunityIcon,
-      title: "Report Violations",
+      title: "Community Forums",
       description: "Help maintain community cleanliness by reporting waste-related violations and environmental concerns to barangay officials",
       gradient: "from-blue-400 via-indigo-500 to-purple-600",
       accent: "blue",
@@ -207,7 +209,8 @@ export default function Welcome() {
 
   return (
     <div className={`relative min-h-screen transition-colors duration-500 ${styles.backgroundGradient} overflow-hidden`}>
-      {/* Modern floating particles */}
+
+      {/* Floating particles */}
       {floatingElements.map(el => (
         <div
           key={el.id}
@@ -225,11 +228,12 @@ export default function Welcome() {
         </div>
       ))}
 
-      {/* Glass morphism navigation */}
+      {/* Navigation Bar */}
       <nav className={`relative z-50 bg-white/70 backdrop-blur-2xl border-b border-white/20 sticky top-0 shadow-lg shadow-emerald-500/5 ${isDark ? "bg-gray-900/70 border-gray-700 border-opacity-20" : ""}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+        <div className="max-w-full sm:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+
+            <div className="flex items-center gap-4 flex-grow sm:flex-grow-0">
               <div className="relative">
                 <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-emerald-500/25">
                   E
@@ -237,25 +241,25 @@ export default function Welcome() {
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full animate-pulse"></div>
               </div>
               <div>
-                <span className="text-3xl font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
+                <span className="text-3xl font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent whitespace-nowrap">
                   ECOSORT
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex gap-3 flex-col sm:flex-row w-full max-w-md sm:max-w-none justify-center sm:justify-end">
               <button
                 onClick={() => navigate('/signup')}
-                className="group relative overflow-hidden px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-emerald-500/25 transition-all duration-300 transform hover:-translate-y-1"
+                className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-2xl font-semibold shadow-lg hover:shadow-emerald-500/25 transition-transform duration-300 transform hover:-translate-y-1 px-6 py-2.5 text-sm sm:text-base flex items-center gap-2 justify-center w-full sm:w-auto"
               >
-                <span className="relative z-10">Join Now</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-emerald-600 to-teal-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
+                  <span>🚀</span> Join Now
+                  <ArrowRight className="group-hover:translate-x-2 transition-transform duration-300" />
+                </span>
               </button>
               <button
                 onClick={() => navigate('/login')}
-                className={`px-6 py-2.5 backdrop-blur-sm rounded-2xl font-semibold border border-gray-200/50 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 ${
-                  isDark ? 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700' : 'bg-white/80 text-gray-700 hover:bg-white'
-                }`}
+                className={`px-6 py-2.5 rounded-2xl font-semibold border border-gray-200/50 text-gray-700 hover:shadow-lg hover:bg-white/80 transition-transform duration-300 transform hover:-translate-y-1 text-sm sm:text-base w-full sm:w-auto ${isDark ? 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700' : 'bg-white/80 hover:bg-white'}`}
               >
                 Sign In
               </button>
@@ -264,23 +268,24 @@ export default function Welcome() {
         </div>
       </nav>
 
-      {/* Hero section with glass morphism */}
-      <section className={`relative z-10 px-4 sm:px-6 lg:px-8 py-24 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-            <div className="space-y-10">
+      {/* Hero Section */}
+      <section className={`relative z-10 px-4 sm:px-6 lg:px-8 py-20 sm:py-24 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+        <div className="max-w-full sm:max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 sm:gap-16 items-center">
 
-              {/* Main heading */}
-              <div className="space-y-6">
-                <h1 className={`text-5xl sm:text-7xl lg:text-8xl font-black leading-none ${isDark ? "text-white" : "text-gray-900"}`}>
+            <div className="space-y-8 sm:space-y-10">
+
+              {/* Heading */}
+              <div className="space-y-4">
+                <h1 className={`text-4xl sm:text-5xl lg:text-7xl font-black leading-tight ${isDark ? "text-white" : "text-gray-900"}`}>
                   <span className="block bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
                     Community
                   </span>
-                  <span className="block mt-2">
+                  <span className="block mt-1 sm:mt-2">
                     Waste Hub
                   </span>
                 </h1>
-                <p className="text-xl text-gray-600 max-w-full sm:max-w-2xl leading-relaxed mx-auto lg:mx-0">
+                <p className="text-base sm:text-lg lg:text-xl text-gray-600 max-w-full sm:max-w-xl leading-relaxed mx-auto lg:mx-0 whitespace-normal">
                   The comprehensive community platform for waste management.&nbsp;
                   <span className="font-semibold text-emerald-700">Recycle for rewards</span>,&nbsp;
                   <span className="font-semibold text-red-600">report violations</span>, and&nbsp;
@@ -288,68 +293,68 @@ export default function Welcome() {
                 </p>
               </div>
 
-
-              {/* CTA buttons */}
-                <div className="flex flex-row gap-4 justify-start items-center">
-                  <button
-                    onClick={() => navigate('/signup')}
-                    className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold text-base shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 hover:scale-105 flex items-center gap-2"
-                  >
-                    <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
-                      <span>🚀</span> Start Your Journey
-                      <ArrowRight className="group-hover:translate-x-2 transition-transform duration-300" />
-                    </span>
-                  </button>
-                </div>
-
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-start items-center">
+                <button
+                  onClick={() => navigate('/signup')}
+                  className="group relative overflow-hidden bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white px-6 py-3 rounded-xl font-semibold text-base shadow-lg hover:shadow-2xl transition-transform duration-300 transform hover:-translate-y-1 hover:scale-105 flex items-center gap-2 w-full sm:w-auto"
+                >
+                  <span className="relative z-10 flex items-center gap-2 whitespace-nowrap">
+                    <span>🚀</span> Start Your Journey
+                    <ArrowRight className="group-hover:translate-x-2 transition-transform duration-300" />
+                  </span>
+                </button>
+              </div>
 
               <InstallPWAButton />
+
             </div>
 
-            {/* Modern hero visual */}
-            <div className="relative">
-              <div className={`relative rounded-[3rem] p-12 border shadow-2xl
+            {/* Hero Visual */}
+            <div className="relative max-w-full sm:max-w-lg mx-auto lg:mx-0">
+              <div className={`relative rounded-3xl p-8 sm:p-12 border shadow-2xl
                 ${isDark
                   ? "bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900 border-gray-700 shadow-emerald-900/60"
                   : "bg-gradient-to-br from-white/40 via-emerald-50/60 to-teal-50/40 border-white/20 shadow-emerald-500/10"
                 } backdrop-blur-2xl`}>
-                <div className="aspect-square bg-gradient-to-br from-emerald-100/80 via-teal-100/60 to-green-100/40 rounded-[2.5rem] flex items-center justify-center relative overflow-hidden">
-                  {/* Central icon */}
-                  <div className="text-center space-y-6 relative z-10">
-                    <div className="text-8xl animate-bounce-soft filter drop-shadow-lg">
+
+                <div className="aspect-square max-w-full bg-gradient-to-br from-emerald-100/80 via-teal-100/60 to-green-100/40 rounded-3xl flex items-center justify-center relative overflow-hidden">
+                  {/* Central icon and texts */}
+                  <div className="text-center space-y-6 relative z-10 px-4 sm:px-0">
+                    <div className="text-7xl sm:text-8xl animate-bounce-soft filter drop-shadow-lg">
                       🌱
                     </div>
-                    <div className="text-4xl font-black bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
+                    <div className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-emerald-600 to-teal-700 bg-clip-text text-transparent">
                       ECOSORT
                     </div>
-                    <div className="font-medium text-lg" style={{color: isDark ? "#22c55e" : "#16a34a"}}>
+                    <div className="font-medium text-lg sm:text-xl" style={{color: isDark ? "#22c55e" : "#16a34a"}}>
                       Smart Waste Solutions
                     </div>
                   </div>
 
                   {/* Orbital elements */}
-                  <div className="absolute inset-0">
-                    <div className="absolute top-8 left-8 w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg flex items-center justify-center animate-float" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
+                  <div className="absolute inset-0 pointer-events-none">
+                    <div className="absolute top-6 left-6 w-14 h-14 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg flex items-center justify-center animate-float" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
                       <span className="text-2xl">♻️</span>
                     </div>
-                    <div className="absolute bottom-8 right-8 w-16 h-16 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg flex items-center justify-center animate-float-reverse" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
+                    <div className="absolute bottom-6 right-6 w-14 h-14 bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg flex items-center justify-center animate-float-reverse" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
                       <span className="text-2xl">🏘️</span>
                     </div>
-                    <div className="absolute top-8 right-8 w-12 h-12 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg flex items-center justify-center animate-float-slow" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
+                    <div className="absolute top-6 right-6 w-10 h-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-lg flex items-center justify-center animate-float-slow" style={{color: isDark ? "rgba(255,255,255,0.8)" : undefined}}>
                       <span className="text-xl">⭐</span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Floating cards with glass effect */}
-              <div className="absolute -top-8 -right-8 bg-white/70 backdrop-blur-xl rounded-2xl p-4 shadow-xl border border-white/20 animate-float transform hover:scale-110 transition-transform cursor-pointer">
+              {/* Floating Cards */}
+              <div className="absolute -top-6 -right-6 bg-white/70 backdrop-blur-xl rounded-2xl p-4 shadow-xl border border-white/20 animate-float transform hover:scale-110 transition-transform cursor-pointer">
                 <CoinsIcon className="w-8 h-8 text-amber-500 mb-2" />
                 <div className="text-sm font-bold text-amber-700">+150 Points</div>
                 <div className="text-xs" style={{color: isDark ? "#fbbf24" : "#92400e"}}>Today's Impact</div>
               </div>
 
-              <div className="absolute -bottom-8 -left-8 bg-white/70 backdrop-blur-xl rounded-2xl p-4 shadow-xl border border-white/20 animate-float-reverse transform hover:scale-110 transition-transform cursor-pointer">
+              <div className="absolute -bottom-6 -left-6 bg-white/70 backdrop-blur-xl rounded-2xl p-4 shadow-xl border border-white/20 animate-float-reverse transform hover:scale-110 transition-transform cursor-pointer">
                 <ReportIcon className="w-8 h-8 text-red-500 mb-2" />
                 <div className="text-sm font-bold text-red-700">3 Reports</div>
                 <div className="text-xs" style={{color: isDark ? "#f87171" : "#991b1b"}}>This Week</div>
@@ -359,14 +364,15 @@ export default function Welcome() {
         </div>
       </section>
 
-     
-      <section 
+      {/* Platform Features Section */}
+      <section
         id="platform-features"
-        className={`relative z-10 py-32 backdrop-blur-sm transition-colors duration-500 ${
-        isDark ? "bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900" : "bg-gradient-to-br from-white/60 via-emerald-50/40 to-teal-50/30"
-      }`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-20">
+        className={`relative z-10 py-24 sm:py-32 backdrop-blur-sm transition-colors duration-500 ${
+          isDark ? "bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900" : "bg-gradient-to-br from-white/60 via-emerald-50/40 to-teal-50/30"
+        }`}
+      >
+        <div className="max-w-full sm:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 sm:mb-20">
             <div className={`inline-flex items-center gap-2 rounded-full px-6 py-3 font-medium shadow-lg mb-8 transition-colors duration-300 ${
               isDark
                 ? "bg-gray-800 border border-emerald-200/30 text-emerald-400 backdrop-blur-xl"
@@ -376,11 +382,11 @@ export default function Welcome() {
               <span>Platform Features</span>
               <SparkleIcon className="w-4 h-4" />
             </div>
-            <h2 className={`text-5xl font-black mb-6 ${isDark ? "text-white" : "text-gray-900"}`}>
+            <h2 className={`text-4xl sm:text-5xl font-black mb-4 sm:mb-6 ${isDark ? "text-white" : "text-gray-900"}`}>
               Waste Management Solution
             </h2>
-            <p className={`text-xl max-w-3xl mx-auto leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
-              ECOSORT combines recycling rewards, community reporting, and social features to create a comprehensive platform for sustainable waste management in Barangay Teodora Alonzo.
+            <p className={`text-lg sm:text-xl max-w-3xl mx-auto leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+              ECOSORT combines recycling rewards, community reporting, and social features to create a comprehensive platform for sustainable waste management.
             </p>
           </div>
 
@@ -391,8 +397,8 @@ export default function Welcome() {
 
               return (
                 <div
-                 key={index}
-                  className={`group relative overflow-hidden rounded-3xl transition-all duration-700 transform px-4 ${
+                  key={index}
+                  className={`group relative overflow-hidden rounded-3xl transition-transform duration-700 transform px-4 py-8 ${
                     isActive
                       ? (isDark
                           ? 'bg-gray-800 shadow-emerald-700/50 border-emerald-600'
@@ -403,21 +409,21 @@ export default function Welcome() {
                   }`}
                 >
                   {/* Background gradient overlay */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-500`}></div>
+                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-500 rounded-3xl`}></div>
 
-                  <div className="relative p-8 text-center space-y-6">
-                    <div className={`relative w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-3xl flex items-center justify-center mx-auto shadow-lg transition-all duration-500 ${isActive ? 'scale-110 shadow-xl' : 'group-hover:scale-105'}`}>
+                  <div className="relative p-6 text-center space-y-6">
+                    <div className={`relative w-20 h-20 bg-gradient-to-br ${feature.gradient} rounded-3xl flex items-center justify-center mx-auto shadow-lg transition-transform duration-500 ${isActive ? 'scale-110 shadow-xl' : 'group-hover:scale-105'}`}>
                       <IconComponent className="w-10 h-10 text-white" />
                       <div className="absolute inset-0 bg-white/20 rounded-3xl scale-0 group-hover:scale-100 transition-transform duration-300"></div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-3 px-2">
                       <h3 className={`${isDark ? "text-white" : "text-gray-900"} text-2xl font-bold`}>{feature.title}</h3>
                       <p className={`${isDark ? "text-gray-300" : "text-gray-600"} leading-relaxed`}>{feature.description}</p>
                     </div>
 
                     {/* Feature indicator */}
-                    <div className={`absolute -top-4 -right-4 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-all duration-300 shadow-lg ${
+                    <div className={`absolute -top-4 -right-4 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-transform duration-300 shadow-lg ${
                       isActive ? `bg-gradient-to-r ${feature.gradient} scale-110` : 'bg-gray-400'
                     }`}>
                       {index + 1}

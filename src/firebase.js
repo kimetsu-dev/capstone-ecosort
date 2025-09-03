@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
-import { getMessaging } from "firebase/messaging";
+import { getMessaging, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWRvunKHCqs3maebTRr1dICfxb04XGW6A",
@@ -21,6 +21,22 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const provider = new GoogleAuthProvider();
 
-export const messaging = getMessaging(app); // Add this export
+// Messaging (safe init)
+let messaging = null;
 
+if (process.env.NODE_ENV === "production") {
+  // Only attempt messaging in production + supported browsers
+  isSupported().then((supported) => {
+    if (supported) {
+      messaging = getMessaging(app);
+      console.log("✅ Firebase Messaging initialized");
+    } else {
+      console.warn("🚫 Firebase Messaging not supported in this browser.");
+    }
+  });
+} else {
+  console.log("🚧 Skipping Firebase Messaging in development.");
+}
+
+export { messaging };
 export default app;
