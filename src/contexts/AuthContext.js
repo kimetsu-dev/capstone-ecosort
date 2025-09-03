@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '../firebase'; // Your firebase config exports
+import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext(undefined);
@@ -10,6 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Listen to user auth state change
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
@@ -36,10 +37,43 @@ export const AuthProvider = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  if (loading) return null; // or loading spinner
+  // Sign in with email and password
+  const loginUser = async (email, password) => {
+    setLoading(true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Create user with email and password
+  const createUser = async (email, password) => {
+    setLoading(true);
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Logout user
+  const logOut = async () => {
+    setLoading(true);
+    try {
+      await signOut(auth);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    // You can replace this with your loading spinner component
+    return <div>Loading...</div>;
+  }
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading }}>
+    <AuthContext.Provider value={{ currentUser, isAdmin, loading, loginUser, createUser, logOut }}>
       {children}
     </AuthContext.Provider>
   );

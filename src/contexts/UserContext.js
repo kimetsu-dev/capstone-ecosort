@@ -1,7 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { auth, db } from "../firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { doc, onSnapshot } from "firebase/firestore";
 
 const UserContext = createContext(null);
 
@@ -18,21 +18,28 @@ export function UserProvider({ children }) {
         setLoading(false);
         return;
       }
-      const userDocRef = doc(db, 'users', firebaseUser.uid);
-      const unsubscribeDoc = onSnapshot(userDocRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
-        } else {
+      // Listen to user profile document changes
+      const userDocRef = doc(db, "users", firebaseUser.uid);
+      const unsubscribeDoc = onSnapshot(
+        userDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            setUserData(docSnap.data());
+          } else {
+            setUserData(null);
+          }
+          setLoading(false);
+        },
+        (error) => {
+          console.error("Error fetching user profile:", error);
           setUserData(null);
+          setLoading(false);
         }
-        setLoading(false);
-      }, (error) => {
-        console.error(error);
-        setUserData(null);
-        setLoading(false);
-      });
+      );
+      // Cleanup Firestore listener on unmount or user change
       return () => unsubscribeDoc();
     });
+    // Cleanup auth listener on unmount
     return () => unsubscribeAuth();
   }, []);
 
@@ -43,11 +50,11 @@ export function UserProvider({ children }) {
   );
 }
 
+// Custom hook to access user context
 export function useUser() {
   const context = useContext(UserContext);
-  // You can also add a safety check here:
   if (context === null) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error("useUser must be used within a UserProvider");
   }
   return context;
 }

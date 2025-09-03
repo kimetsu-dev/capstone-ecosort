@@ -92,7 +92,6 @@ function InstallPWAButton() {
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
-    const choiceResult = await deferredPrompt.userChoice;
     setIsVisible(false);
     setDeferredPrompt(null);
     setManualPromptVisible(false);
@@ -282,7 +281,7 @@ export default function Welcome() {
                   </span>
                 </h1>
                 <p className="text-xl text-gray-600 max-w-full sm:max-w-2xl leading-relaxed mx-auto lg:mx-0">
-                  The comprehensive community platform for waste management in Barangay Teodora Alonzo.&nbsp;
+                  The comprehensive community platform for waste management.&nbsp;
                   <span className="font-semibold text-emerald-700">Recycle for rewards</span>,&nbsp;
                   <span className="font-semibold text-red-600">report violations</span>, and&nbsp;
                   <span className="font-semibold text-blue-600">connect with your community</span> for a cleaner, sustainable future.
