@@ -567,7 +567,7 @@ export default function AdminPanel() {
         >
           {/* Mobile horizontal scroll tabs */}
           <div className="lg:hidden border-b border-slate-200">
-            <div className="flex overflow-x-auto scrollbar-hide px-1 py-2">
+            <div className="flex overflow-x-auto scroll-container px-1 py-2">
               {tabConfig.map((tab) => (
                 <button
                   key={tab.id}
@@ -1089,14 +1089,29 @@ export default function AdminPanel() {
               </div>
             )}
 
-            <style>{`
-              .scrollbar-hide {
-                -ms-overflow-style: none;
-                scrollbar-width: none;
-              }
-              .scrollbar-hide::-webkit-scrollbar {
-                display: none;
-              }
+            <style jsx>{`
+              .scroll-container {
+  overflow-x: auto;
+  scrollbar-width: thin; /* Firefox */
+  scrollbar-color: #9ca3af transparent;
+  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+}
+
+.scroll-container::-webkit-scrollbar {
+  height: 8px;
+  display: block; /* force visibility */
+}
+
+.scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.scroll-container::-webkit-scrollbar-thumb {
+  background-color: #9ca3af;
+  border-radius: 4px;
+}
+
             `}</style>
           </div>
           </div>
