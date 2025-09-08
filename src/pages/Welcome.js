@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext";
+import { FiRecycle } from "react-icons/fi";
+import { Routes, Route } from 'react-router-dom';
 
 // Icon components with modern styling
 const RecycleIcon = ({ className = "w-6 h-6" }) => (
@@ -63,7 +65,7 @@ const SparkleIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
-
+// PWA Install Button (same as original)
 function InstallPWAButton() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
@@ -110,7 +112,7 @@ function InstallPWAButton() {
           </div>
           <p className="text-sm text-gray-700 leading-relaxed">
             <span className="font-semibold text-emerald-700">Android:</span> Menu (⋮) → "Add to Home screen"
-            <br/>
+            <br />
             <span className="font-semibold text-emerald-700">iOS:</span> Share (📤) → "Add to Home Screen"
           </p>
           <div className="flex gap-3 justify-center">
@@ -137,6 +139,106 @@ function InstallPWAButton() {
   return null;
 }
 
+// ========== Simplified WelcomeApp Component for App Version ===========
+export function WelcomeApp() {
+  const navigate = useNavigate();
+  const { styles, isDark } = useTheme();
+
+  return (
+    <div
+      className={`h-screen flex flex-col justify-between p-4 ${
+        isDark ? 'bg-gray-900 text-white' : 'bg-gradient-to-br from-emerald-50 via-teal-50 to-green-50 text-gray-900'
+      }`}
+      style={{ overflow: 'hidden', maxHeight: '100vh' }}
+    >
+      {/* Compact Header */}
+      <div className="flex flex-col items-center pt-8">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg mb-2">
+          E
+        </div>
+        <h1 className="text-3xl font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
+          ECOSORT
+        </h1>
+        <p className="text-gray-600 dark:text-gray-300 font-medium text-sm">Smart Waste Solutions</p>
+      </div>
+
+      {/* Compact Main Content */}
+      <div className="flex-1 flex flex-col justify-center space-y-6">
+        {/* Hero Message */}
+        <div className="text-center px-4">
+          <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">
+            Turn Trash into Rewards
+          </h2>
+          <p className="text-base text-gray-600 dark:text-gray-300">
+            Earn points for proper waste segregation
+          </p>
+        </div>
+
+        {/* Compact Visual & Benefits Combined */}
+        <div className="flex items-center justify-center gap-4 px-4">
+          <div className="w-20 h-20 bg-white/80 dark:bg-gray-800/80 rounded-2xl shadow-lg flex items-center justify-center backdrop-blur-sm">
+            <div className="text-4xl animate-bounce">♻️</div>
+          </div>
+          
+          <div className="space-y-2 flex-1">
+            <div className="flex items-center gap-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-3 backdrop-blur-sm">
+              <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <CoinsIcon className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-gray-800 dark:text-white">Earn Points</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Redeem rewards</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 bg-white/60 dark:bg-gray-800/60 rounded-xl p-3 backdrop-blur-sm">
+              <div className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-600 rounded-lg flex items-center justify-center">
+                <ReportIcon className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm text-gray-800 dark:text-white">Report Issues</h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300">Keep community clean</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Compact Bottom Actions */}
+      <div className="space-y-3 pb-6">
+        <button
+          onClick={() => navigate('/signup')}
+          className="w-full py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-green-600 text-white font-bold text-base rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+        >
+          Get Started
+        </button>
+
+        <button
+          onClick={() => navigate('/login')}
+          className={`w-full py-3 rounded-xl border-2 font-semibold transition-all duration-200 text-sm ${
+            isDark 
+              ? 'border-gray-600 text-gray-200 hover:bg-gray-700' 
+              : 'border-emerald-300 text-emerald-700 hover:bg-emerald-50'
+          }`}
+        >
+          Sign In
+        </button>
+
+        <p className="text-center text-xs text-gray-500 dark:text-gray-400">
+          Clean up and cash in! 
+          <button 
+            onClick={() => navigate('/signup')}
+            className="text-emerald-600 dark:text-emerald-400 font-medium ml-1"
+          >
+            Join now
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ========== Original Welcome Component for Web (default export) ===========
 export default function Welcome() {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
@@ -177,41 +279,50 @@ export default function Welcome() {
     {
       icon: RecycleIcon,
       title: "Recycle & Earn",
-      description: "Exchange recyclable waste for valuable EcoPoints that can be redeemed for essential goods and community rewards",
+      description:
+        "Exchange recyclable waste for valuable EcoPoints that can be redeemed for essential goods and community rewards",
       gradient: "from-emerald-400 via-teal-500 to-green-600",
       accent: "emerald",
     },
     {
       icon: ReportIcon,
       title: "Report Violations",
-      description: "Help maintain community cleanliness by reporting waste-related violations and environmental concerns to barangay officials",
+      description:
+        "Help maintain community cleanliness by reporting waste-related violations and environmental concerns to barangay officials",
       gradient: "from-orange-400 via-red-500 to-pink-600",
       accent: "red",
     },
     {
       icon: CommunityIcon,
       title: "Community Forums",
-      description: "Help maintain community cleanliness by reporting waste-related violations and environmental concerns to barangay officials",
+      description:
+        "Help maintain community cleanliness by reporting waste-related violations and environmental concerns to barangay officials",
       gradient: "from-blue-400 via-indigo-500 to-purple-600",
       accent: "blue",
-    }
+    },
   ];
 
   const getParticleIcon = (type) => {
     switch (type) {
-      case 'leaf': return '🍃';
-      case 'recycle': return '♻️';
-      case 'drop': return '💧';
-      case 'spark': return '✨';
-      default: return '🌿';
+      case 'leaf':
+        return '🍃';
+      case 'recycle':
+        return '♻️';
+      case 'drop':
+        return '💧';
+      case 'spark':
+        return '✨';
+      default:
+        return '🌿';
     }
   };
 
   return (
-    <div className={`relative min-h-screen transition-colors duration-500 ${styles.backgroundGradient} overflow-hidden`}>
-
+    <div
+      className={`relative min-h-screen transition-colors duration-500 ${styles.backgroundGradient} overflow-hidden`}
+    >
       {/* Floating particles */}
-      {floatingElements.map(el => (
+      {floatingElements.map((el) => (
         <div
           key={el.id}
           className="absolute opacity-20 animate-float-modern pointer-events-none"
@@ -229,15 +340,16 @@ export default function Welcome() {
       ))}
 
       {/* Navigation Bar */}
-      <nav className={`relative z-50 bg-white/70 backdrop-blur-2xl border-b border-white/20 sticky top-0 shadow-lg shadow-emerald-500/5 ${isDark ? "bg-gray-900/70 border-gray-700 border-opacity-20" : ""}`}>
+      <nav
+        className={`relative z-50 bg-white/70 backdrop-blur-2xl border-b border-white/20 sticky top-0 shadow-lg shadow-emerald-500/5 ${
+          isDark ? "bg-gray-900/70 border-gray-700 border-opacity-20" : ""
+        }`}
+      >
         <div className="max-w-full sm:max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-
             <div className="flex items-center gap-4 flex-grow sm:flex-grow-0">
               <div className="relative">
-                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-emerald-500/25">
-                  E
-                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-2xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-emerald-500/25">E</div>
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full animate-pulse"></div>
               </div>
               <div>
@@ -259,7 +371,9 @@ export default function Welcome() {
               </button>
               <button
                 onClick={() => navigate('/login')}
-                className={`px-6 py-2.5 rounded-2xl font-semibold border border-gray-200/50 text-gray-700 hover:shadow-lg hover:bg-white/80 transition-transform duration-300 transform hover:-translate-y-1 text-sm sm:text-base w-full sm:w-auto ${isDark ? 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700' : 'bg-white/80 hover:bg-white'}`}
+                className={`px-6 py-2.5 rounded-2xl font-semibold border border-gray-200/50 text-gray-700 hover:shadow-lg hover:bg-white/80 transition-transform duration-300 transform hover:-translate-y-1 text-sm sm:text-base w-full sm:w-auto ${
+                  isDark ? 'bg-gray-800 text-gray-200 border-gray-600 hover:bg-gray-700' : 'bg-white/80 hover:bg-white'
+                }`}
               >
                 Sign In
               </button>
@@ -866,3 +980,31 @@ export default function Welcome() {
   );
 }
 
+// ========== Wrapper to render WelcomeApp or Welcome based on environment ===========
+function WelcomeWrapper() {
+  const [isPWA, setIsPWA] = useState(false);
+
+  useEffect(() => {
+    // Detect if app is running as standalone PWA (installed app)
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    setIsPWA(standalone);
+  }, []);
+
+  if (isPWA === null) {
+    // While detection occurs, optionally show loading or blank screen
+    return null;
+  }
+
+  return <WelcomeApp />;
+}
+
+// ========== Main Router Component (example) ===========
+export function AppRouter() {
+  return (
+    <Routes>
+      {/* Route for home page */}
+      <Route path="/" element={<WelcomeWrapper />} />
+      {/* Add your other routes here */}
+    </Routes>
+  );
+}

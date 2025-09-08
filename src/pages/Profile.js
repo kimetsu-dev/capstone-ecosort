@@ -27,7 +27,6 @@ import { v4 as uuidv4 } from "uuid";
 import {
   FiUser,
   FiCamera,
-  FiEdit3,
   FiEye,
   FiEyeOff,
   FiArrowLeft,
@@ -38,6 +37,9 @@ import {
   FiLock,
   FiAward,
   FiTrendingUp,
+  FiSettings,
+  FiEdit3,
+  FiX,
 } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -118,10 +120,8 @@ export default function Profile() {
 
   const uploadWithRetry = async (fileRef, file, retries = 3, delay = 1000) => {
     try {
-      console.log(`Uploading file, attempts left: ${retries}`);
       return await uploadBytes(fileRef, file);
     } catch (error) {
-      console.warn(`Upload failed: ${error.message}. Retries left: ${retries}`);
       if (retries <= 0) throw error;
       await new Promise((resolve) => setTimeout(resolve, delay));
       return uploadWithRetry(fileRef, file, retries - 1, delay * 2);
@@ -178,35 +178,27 @@ export default function Profile() {
         await performReauthentication();
       }
 
-      // Prepare the update fields object
       const updateFields = {};
       if (profilePicFile) {
         const uploadedUrl = await uploadProfilePicture(profilePicFile);
         setProfileUrl(uploadedUrl);
         updateFields.profileUrl = uploadedUrl;
       }
-
       if (username.trim() && username !== user.displayName) {
         updateFields.username = username.trim();
       }
-
       if (Object.keys(updateFields).length > 0) {
-        console.log("Updating user document with fields:", updateFields);
         await updateDoc(doc(db, "users", user.uid), updateFields);
       }
-
       if (username.trim() && username !== user.displayName) {
         await updateProfile(user, { displayName: username.trim() });
       }
-
       if (emailChanged) {
         await updateEmail(user, email);
       }
-
       if (passwordChanging) {
         await updatePassword(user, password);
       }
-
       setIsEditing(false);
       setPassword("");
       setConfirmPassword("");
@@ -281,404 +273,424 @@ export default function Profile() {
         isDark
           ? "bg-gradient-to-br from-emerald-900 via-teal-900 to-cyan-900 text-gray-200"
           : "bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 text-gray-900"
-      } relative overflow-hidden`}
+      } relative overflow-x-hidden`}
     >
-      <div className="relative z-10 px-4 py-6 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-y-4 sm:gap-y-0 animate-slide-down">
+      <div className="relative z-10 px-3 sm:px-4 py-4 sm:py-6 max-w-6xl mx-auto">
+        {/* Mobile-optimized Header */}
+        <div className="flex items-center justify-between mb-6 sm:mb-8">
+          {/* Left side - Back button */}
           <button
             onClick={() => navigate("/dashboard")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${
-              isDark ? "bg-gray-800 text-gray-300" : "bg-white text-gray-700"
+            className={`flex items-center space-x-2 px-3 py-2 sm:px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 ${
+              isDark ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-white text-gray-700 hover:bg-gray-50"
             }`}
           >
-            <FiArrowLeft />
-            <span>Dashboard</span>
+            <FiArrowLeft className="text-sm sm:text-base" />
+            <span className="text-sm sm:text-base">Back</span>
           </button>
+
+          {/* Center - Title */}
           <h1
-            className={`text-3xl font-bold ${
+            className={`text-xl sm:text-2xl lg:text-3xl font-bold text-center ${
               isDark ? "text-gray-200" : "text-gray-800"
-            } text-center`}
+            }`}
           >
             My Profile
           </h1>
+
+          {/* Right side - Settings button */}
           <button
-            onClick={() => {
-              setIsEditing(!isEditing);
-              if (isEditing) {
-                setPassword("");
-                setConfirmPassword("");
-                setCurrentPassword("");
-                setPasswordError("");
-                setConfirmPasswordError("");
-                setCurrentPasswordError("");
-                setProfilePicFile(null);
-              }
-            }}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 ${
-              isEditing
-                ? isDark
-                  ? "bg-red-700 text-red-300 hover:bg-red-600"
-                  : "bg-red-100 text-red-700 hover:bg-red-200"
-                : isDark
-                ? "bg-blue-700 text-blue-300 hover:bg-blue-600"
-                : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+            onClick={() => navigate("/settings")}
+            className={`flex items-center space-x-2 px-3 py-2 sm:px-4 rounded-xl shadow-md transition-all duration-300 hover:scale-105 ${
+              isDark
+                ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
             }`}
           >
-            <FiEdit3 />
-            <span>{isEditing ? "Cancel" : "Edit"}</span>
+            <FiSettings className="text-sm sm:text-base" />
+            <span className="text-sm sm:text-base hidden sm:inline">Settings</span>
           </button>
-        </div>
+        </div>  
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Profile Card */}
-          <div>
-            <div
-              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-200"
-                  : "bg-white border-gray-200 text-gray-900"
-              }`}
-            >
-              {/* Profile Picture */}
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative group">
-                  {profileUrl ? (
-                    <img
-                      src={profileUrl}
-                      alt="Profile"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300">
-                      <FiUser size={48} className="text-gray-600" />
-                    </div>
-                  )}
-
-                  {isEditing && (
-                    <label className="absolute bottom-1 right-1 bg-blue-500 rounded-full p-3 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors duration-300">
-                      <FiCamera className="text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          if (e.target.files[0]) setProfilePicFile(e.target.files[0]);
-                        }}
+       
+            {/* Mobile-optimized Profile Layout */}
+            <div className="space-y-6">
+              {/* Profile Summary Card - Always on top for mobile */}
+              <div
+                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
+                  isDark
+                    ? "bg-gray-800 border-gray-700 text-gray-200"
+                    : "bg-white border-gray-200 text-gray-900"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+                  {/* Profile Picture */}
+                  <div className="relative group flex-shrink-0">
+                    {profileUrl ? (
+                      <img
+                        src={profileUrl}
+                        alt="Profile"
+                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-3 border-white shadow-md group-hover:scale-105 transition-transform duration-300"
                       />
+                    ) : (
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-3 border-white shadow-md group-hover:scale-105 transition-transform duration-300">
+                        <FiUser size={32} className="text-gray-600" />
+                      </div>
+                    )}
+
+                    {isEditing && (
+                      <label className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-2 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors duration-300">
+                        <FiCamera className="text-white text-xs" />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files[0]) setProfilePicFile(e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+
+                  {/* User Info */}
+                  <div className="flex-1 text-center sm:text-left">
+                    <h2 className="text-lg sm:text-xl font-bold mb-1">
+                      {username || "Anonymous User"}
+                    </h2>
+                    <p className={`text-sm mb-3 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                      {email}
+                    </p>
+                    
+                    {/* Badge */}
+                    <div
+                      className={`inline-flex items-center space-x-2 px-3 py-1 sm:px-4 sm:py-2 rounded-xl shadow-md bg-gradient-to-r ${currentBadge.color} text-white text-sm`}
+                    >
+                      <span className="text-lg">{currentBadge.icon}</span>
+                      <span className="font-semibold">{currentBadge.name}</span>
+                    </div>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex gap-3 sm:gap-4">
+                    <div className={`text-center px-3 py-2 rounded-xl ${isDark ? "bg-gray-700" : "bg-emerald-50"}`}>
+                      <div className={`text-lg font-bold ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                        {points.toLocaleString()}
+                      </div>
+                      <div className={`text-xs ${isDark ? "text-emerald-500" : "text-emerald-600"}`}>Points</div>
+                    </div>
+                    <div className={`text-center px-3 py-2 rounded-xl ${isDark ? "bg-gray-700" : "bg-blue-50"}`}>
+                      <div className={`text-lg font-bold ${isDark ? "text-blue-400" : "text-blue-700"}`}>
+                        #{rank || "?"}
+                      </div>
+                      <div className={`text-xs ${isDark ? "text-blue-500" : "text-blue-600"}`}>Rank</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className={`mt-4 p-3 rounded-xl ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+                      Next Level
+                    </span>
+                    <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                      {levelProgress.remaining} points to go
+                    </span>
+                  </div>
+                  <div className={`w-full rounded-full h-2 ${isDark ? "bg-gray-600" : "bg-gray-200"}`}>
+                    <div
+                      className="bg-gradient-to-r from-emerald-400 to-green-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${levelProgress.progress}%` }}
+                    ></div>
+                  </div>
+                </div>
+
+                {/* Quick Actions */}
+                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+                  <Link
+                    to="/my-redemptions"
+                    state={{ from: "/profile" }}
+                    className={`inline-flex items-center text-sm font-medium transition-colors ${
+                      isDark 
+                        ? "text-blue-400 hover:text-blue-300" 
+                        : "text-blue-600 hover:text-blue-700"
+                    }`}
+                  >
+                    View My Redemptions →
+                  </Link>
+                </div>
+              </div>
+
+              {/* Profile Information Form */}
+              <div
+                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
+                  isDark
+                    ? "bg-gray-800 border-gray-700 text-gray-200"
+                    : "bg-white border-gray-200 text-gray-900"
+                }`}
+              >
+                <h3 className={`text-lg sm:text-xl font-bold mb-4 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                  <FiUser className="mr-2" /> Profile Information
+                </h3>
+
+                <div className="space-y-4">
+                  {/* Username */}
+                  <div>
+                    <label htmlFor="username" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                      Username
                     </label>
-                  )}
-                </div>
-                <h2 className="text-2xl font-bold text-gray-800 text-center mt-3">{username || "Anonymous User"}</h2>
-                <p className="text-gray-600 text-center">{email}</p>
-              </div>
-
-              {/* Badge */}
-              <div className="text-center mb-6">
-                <div
-                  className={`inline-flex items-center space-x-2 px-6 py-3 rounded-2xl shadow-lg bg-gradient-to-r ${currentBadge.color} text-white`}
-                >
-                  <span className="text-2xl">{currentBadge.icon}</span>
-                  <span className="font-bold">{currentBadge.name}</span>
-                </div>
-              </div>
-
-              {/* Stats */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-gradient-to-br from-emerald-100 to-green-200 rounded-2xl p-4 text-center">
-                  <div className="text-2xl font-bold text-emerald-700">{points.toLocaleString()}</div>
-                  <div className="text-sm text-emerald-600">Total Points</div>
-                </div>
-                <div className="bg-gradient-to-br from-blue-100 to-indigo-200 rounded-2xl p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-700">#{rank || "?"}</div>
-                  <div className="text-sm text-blue-600">Rank</div>
-                </div>
-              </div>
-
-              {/* Progress to Next Level */}
-              <div className="bg-gray-50 rounded-2xl p-4 mb-8">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-gray-600">Next Level</span>
-                  <span className="text-sm text-gray-500">{levelProgress.remaining} points to go</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-3">
-                  <div
-                    className="bg-gradient-to-r from-emerald-400 to-green-500 h-3 rounded-full transition-all duration-500"
-                    style={{ width: `${levelProgress.progress}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Link to My Redemptions */}
-              <div className="mt-4 text-center">
-                <Link
-                  to="/my-redemptions"
-                  className="inline-block px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors duration-300 shadow-lg"
-                >
-                  View My Redemptions
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="lg:col-span-2 flex flex-col gap-8">
-            {/* Profile Form */}
-            <div
-              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-200"
-                  : "bg-white border-gray-200 text-gray-900"
-              }`}
-            >
-              <h3 className={`text-2xl font-bold mb-6 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
-                <FiUser className="mr-3" /> Profile Information
-              </h3>
-
-              <div className="space-y-6">
-                <div>
-                  <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="username"
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      disabled={!isEditing}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
-                        isEditing
-                          ? "border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                      placeholder="Enter your username"
-                      autoComplete="username"
-                      required
-                    />
+                    <div className="relative">
+                      <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="username"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
+                          isEditing
+                            ? `border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
+                                isDark ? "bg-gray-700 text-gray-200" : "bg-white"
+                              }`
+                            : `border-gray-200 ${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-50"}`
+                        }`}
+                        placeholder="Enter your username"
+                        autoComplete="username"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      disabled={!isEditing}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
-                        isEditing
-                          ? "border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white"
-                          : "border-gray-200 bg-gray-50"
-                      }`}
-                      placeholder="Enter your email"
-                      autoComplete="email"
-                      required
-                    />
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="email"
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        disabled={!isEditing}
+                        className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
+                          isEditing
+                            ? `border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
+                                isDark ? "bg-gray-700 text-gray-200" : "bg-white"
+                              }`
+                            : `border-gray-200 ${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-50"}`
+                        }`}
+                        placeholder="Enter your email"
+                        autoComplete="email"
+                        required
+                      />
+                    </div>
                   </div>
-                </div>
 
-                {isEditing && (
-                  <>
-                    {isEmailUser && (
+                  {/* Password Fields - Only show when editing */}
+                  {isEditing && (
+                    <>
+                      {isEmailUser && (
+                        <div>
+                          <label htmlFor="currentPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                            Current Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(required to change email or password)</span>
+                          </label>
+                          <div className="relative">
+                            <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                            <input
+                              id="currentPassword"
+                              type={showCurrentPassword ? "text" : "password"}
+                              value={currentPassword}
+                              onChange={(e) => {
+                                setCurrentPassword(e.target.value);
+                                setCurrentPasswordError("");
+                              }}
+                              className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
+                                currentPasswordError ? "border-red-500" : "border-gray-300"
+                              } focus:border-blue-500 focus:ring-2 ${
+                                currentPasswordError ? "focus:ring-red-200" : "focus:ring-blue-200"
+                              } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                              placeholder="Enter current password"
+                              autoComplete="current-password"
+                              required={password || (email !== user?.email)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
+                            </button>
+                          </div>
+                          {currentPasswordError && (
+                            <p className="text-xs text-red-600 mt-1">{currentPasswordError}</p>
+                          )}
+                        </div>
+                      )}
+
                       <div>
-                        <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                          Current Password <span className="text-gray-400">(required to change email or password)</span>
+                        <label htmlFor="password" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                          New Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(optional)</span>
                         </label>
                         <div className="relative">
                           <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                           <input
-                            id="currentPassword"
-                            type={showCurrentPassword ? "text" : "password"}
-                            value={currentPassword}
+                            id="password"
+                            type={showPassword ? "text" : "password"}
+                            value={password}
                             onChange={(e) => {
-                              setCurrentPassword(e.target.value);
-                              setCurrentPasswordError("");
+                              setPassword(e.target.value);
+                              setPasswordError("");
                             }}
                             className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                              currentPasswordError ? "border-red-500" : "border-gray-300"
+                              passwordError ? "border-red-500" : "border-blue-300"
                             } focus:border-blue-500 focus:ring-2 ${
-                              currentPasswordError ? "focus:ring-red-500" : "focus:ring-blue-200"
-                            } bg-white transition-all duration-300`}
-                            placeholder="Enter current password"
-                            autoComplete="current-password"
-                            required={password || (email !== user?.email)}
-                            aria-describedby="currentPasswordError"
+                              passwordError ? "focus:ring-red-200" : "focus:ring-blue-200"
+                            } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                            placeholder="Enter new password"
+                            autoComplete="new-password"
                           />
                           <button
                             type="button"
-                            onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                            onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            aria-label={showCurrentPassword ? "Hide password" : "Show password"}
                           >
-                            {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
+                            {showPassword ? <FiEyeOff /> : <FiEye />}
                           </button>
                         </div>
-                        {currentPasswordError && (
-                          <p id="currentPasswordError" className="text-xs text-red-600 mt-1">{currentPasswordError}</p>
-                        )}
+                        <p className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                          Must be at least 8 characters, with uppercase and number.
+                        </p>
+                        {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
                       </div>
-                    )}
 
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                        New Password <span className="text-gray-400">(optional)</span>
-                      </label>
-                      <div className="relative">
-                        <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          id="password"
-                          type={showPassword ? "text" : "password"}
-                          value={password}
-                          onChange={(e) => {
-                            setPassword(e.target.value);
-                            setPasswordError("");
-                          }}
-                          className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                            passwordError ? "border-red-500" : "border-blue-300"
-                          } focus:border-blue-500 focus:ring-2 ${
-                            passwordError ? "focus:ring-red-500" : "focus:ring-blue-200"
-                          } bg-white transition-all duration-300`}
-                          placeholder="Enter new password"
-                          autoComplete="new-password"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          aria-label={showPassword ? "Hide password" : "Show password"}
-                        >
-                          {showPassword ? <FiEyeOff /> : <FiEye />}
-                        </button>
+                      <div>
+                        <label htmlFor="confirmPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                          Confirm New Password
+                        </label>
+                        <div className="relative">
+                          <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                          <input
+                            id="confirmPassword"
+                            type={showConfirmPassword ? "text" : "password"}
+                            value={confirmPassword}
+                            onChange={(e) => {
+                              setConfirmPassword(e.target.value);
+                              setConfirmPasswordError("");
+                            }}
+                            className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
+                              confirmPasswordError ? "border-red-500" : "border-blue-300"
+                            } focus:border-blue-500 focus:ring-2 ${
+                              confirmPasswordError ? "focus:ring-red-200" : "focus:ring-blue-200"
+                            } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                            placeholder="Confirm new password"
+                            autoComplete="new-password"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                          >
+                            {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+                          </button>
+                        </div>
+                        {confirmPasswordError && <p className="text-xs text-red-600 mt-1">{confirmPasswordError}</p>}
                       </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Must be at least 8 characters, with uppercase and number.
-                      </p>
-                      {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
-                    </div>
+                    </>
+                  )}
 
-                    <div>
-                      <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                        Confirm New Password <span className="text-gray-400">(optional)</span>
-                      </label>
-                      <div className="relative">
-                        <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                        <input
-                          id="confirmPassword"
-                          type={showConfirmPassword ? "text" : "password"}
-                          value={confirmPassword}
-                          onChange={(e) => {
-                            setConfirmPassword(e.target.value);
-                            setConfirmPasswordError("");
-                          }}
-                          className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                            confirmPasswordError ? "border-red-500" : "border-blue-300"
-                          } focus:border-blue-500 focus:ring-2 ${
-                            confirmPasswordError ? "focus:ring-red-500" : "focus:ring-blue-200"
-                          } bg-white transition-all duration-300`}
-                          placeholder="Confirm new password"
-                          autoComplete="new-password"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                        >
-                          {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                        </button>
-                      </div>
-                      {confirmPasswordError && <p className="text-xs text-red-600 mt-1">{confirmPasswordError}</p>}
-                    </div>
-                  </>
-                )}
-
-                {isEditing && (
-                  <button
-                    onClick={handleSave}
-                    disabled={isSaveDisabled}
-                    className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    aria-busy={saving}
-                  >
-                    <FiSave />
-                    <span>{saving ? "Saving..." : "Save Changes"}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Achievements */}
-            <div
-              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-200"
-                  : "bg-white border-gray-200 text-gray-900"
-              }`}
-            >
-              <h3 className={`text-2xl font-bold mb-6 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
-                <FiAward className="mr-3" /> Achievements
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {achievements.length > 0 ? (
-                  achievements.map((achievement, index) => (
-                    <div
-                      key={index}
-                      className={`rounded-2xl p-6 border ${
-                        isDark ? "bg-yellow-800 border-yellow-600" : "bg-yellow-50 border-amber-200"
-                      }`}
+                  {/* Save Button - Only show when editing */}
+                  {isEditing && (
+                    <button
+                      onClick={handleSave}
+                      disabled={isSaveDisabled}
+                      className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
                     >
-                      <div className="flex items-center space-x-3">
-                        <div className="text-3xl">{achievement.icon}</div>
-                        <div>
-                          <h4 className={`font-bold ${isDark ? "text-yellow-300" : "text-amber-800"}`}>{achievement.name}</h4>
-                          <p className={`text-sm ${isDark ? "text-yellow-400" : "text-amber-600"}`}>{achievement.description}</p>
+                      <FiSave />
+                      <span>{saving ? "Saving..." : "Save Changes"}</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Achievements Section */}
+              <div
+                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
+                  isDark
+                    ? "bg-gray-800 border-gray-700 text-gray-200"
+                    : "bg-white border-gray-200 text-gray-900"
+                }`}
+              >
+                <h3 className={`text-lg sm:text-xl font-bold mb-4 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                  <FiAward className="mr-2" /> Achievements
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {achievements.length > 0 ? (
+                    achievements.map((achievement, index) => (
+                      <div
+                        key={index}
+                        className={`rounded-xl p-4 border ${
+                          isDark ? "bg-yellow-800/20 border-yellow-600/30" : "bg-yellow-50 border-amber-200"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <div className="text-2xl flex-shrink-0">{achievement.icon}</div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className={`font-bold text-sm sm:text-base ${isDark ? "text-yellow-300" : "text-amber-800"}`}>
+                              {achievement.name}
+                            </h4>
+                            <p className={`text-xs sm:text-sm ${isDark ? "text-yellow-400" : "text-amber-600"} truncate`}>
+                              {achievement.description}
+                            </p>
+                          </div>
                         </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className={`text-center py-8 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                      <FiTrendingUp className="mx-auto text-3xl mb-3 opacity-50" />
+                      <p className="text-sm">Start earning points to unlock achievements!</p>
                     </div>
-                  ))
-                ) : (
-                  <div className={`col-span-2 text-center py-8 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                    <FiTrendingUp className="mx-auto text-4xl mb-4 opacity-50" />
-                    <p>Start earning points to unlock achievements!</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* Account Actions */}
-            <div
-              className={`rounded-3xl p-8 shadow-xl border transition-colors duration-500 ${
-                isDark
-                  ? "bg-gray-800 border-gray-700 text-gray-200"
-                  : "bg-white border-gray-200 text-gray-900"
-              }`}
-            >
-              <h3 className="text-2xl font-bold mb-6">Account Actions</h3>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button
-                  onClick={handleLogout}
-                  className="flex-1 bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-6 rounded-xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-                >
-                  <FiLogOut />
-                  <span>Logout</span>
-                </button>
-                <button
-                  onClick={handleDeleteAccount}
-                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-6 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-                >
-                  <FiTrash2 />
-                  <span>Delete Account</span>
-                </button>
+              {/* Account Actions */}
+              <div
+                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
+                  isDark
+                    ? "bg-gray-800 border-gray-700 text-gray-200"
+                    : "bg-white border-gray-200 text-gray-900"
+                }`}
+              >
+                <h3 className={`text-lg sm:text-xl font-bold mb-4 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                  Account Actions
+                </h3>
+                <div className="flex flex-col gap-3">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                  >
+                    <FiLogOut />
+                    <span>Logout</span>
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                  >
+                    <FiTrash2 />
+                    <span>Delete Account</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Bottom Spacing for Mobile */}
+              <div className="h-4"></div>
             </div>
-          </div>
-        </div>
+          
+  
       </div>
     </div>
   );

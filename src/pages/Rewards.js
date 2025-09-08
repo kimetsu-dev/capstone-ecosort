@@ -247,8 +247,6 @@ function RewardCard({ reward, canRedeem, onRedeem, disabled }) {
 export default function Rewards() {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-
-  // Always call hooks at top level
   const { styles, isDark } = useTheme();
 
   const PAGE_SIZE = 8;
@@ -412,11 +410,21 @@ export default function Rewards() {
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
-
+      
+      {/* View Redemptions button placed here */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 mb-4 flex justify-end">
+        <button
+          onClick={() => navigate("/my-redemptions")}
+          className="px-4 py-2 rounded-md bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition"
+          aria-label="Go to My Redemptions"
+        >
+          View Redemptions
+        </button>
+      </div>
       {/* Header */}
       <div
         className={`${
-          isDark ? "bg-gray-800/90 border-gray-700" : ""
+          isDark ? "bg-gray-800/90 border-gray-700" : "bg-white/80 border-purple-100"
         } backdrop-blur-sm border-b sticky top-0 z-40`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">

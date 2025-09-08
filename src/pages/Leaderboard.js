@@ -112,44 +112,41 @@ export default function Leaderboard() {
         <p className="text-center text-red-600 font-semibold">{error}</p>
       )}
 
-      {!loading && !error && topUsers.length === 0 && (
-        <p className={`text-center ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-          No users on the leaderboard yet.
-        </p>
-      )}
-
       {!loading && !error && topUsers.length > 0 && (
-        <ol className="space-y-4">
-          {topUsers.map((user, index) => (
-            <li
-              key={user.id}
-              tabIndex={0}
-              className={`flex items-center justify-between p-4 rounded-xl shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 cursor-pointer ${
-                isDark
-                  ? "bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 hover:to-gray-800 text-gray-200"
-                  : "bg-gradient-to-r from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 text-green-900"
-              }`}
-              aria-label={`Rank ${index + 1}, ${user.username || user.email || 'Anonymous user'} with ${user.totalPoints || 0} points`}
-              onClick={() => alert(`Clicked on user: ${user.username || user.email || 'Anonymous'}`)}
-            >
-              <div className="flex items-center space-x-4">
-                {/* Rank badge */}
-                <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full font-bold ${getRankBadge(index + 1)}`}>
-                  {index + 1}
-                </span>
-                {/* User name or email */}
-                <span className="font-semibold truncate max-w-[180px]">
-                  {user.username || user.email || 'Anonymous'}
-                </span>
-              </div>
-              {/* Points */}
-              <span className={`font-mono font-semibold ${
-                isDark ? "text-green-400" : "text-green-700"
-              }`}>{(user.totalPoints ?? 0).toLocaleString()} pts</span>
-            </li>
-          ))}
-        </ol>
-      )}
+  <ol className="space-y-4">
+    {topUsers.map((user, index) => (
+      <li
+        key={user.id}
+        // Optional: Remove tabIndex if you don't want keyboard focus on list items
+        // tabIndex={0} 
+        className={`flex items-center justify-between p-4 rounded-xl shadow transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-400 ${
+          isDark
+            ? "bg-gradient-to-r from-gray-800 to-gray-900 text-gray-200"
+            : "bg-gradient-to-r from-green-50 to-green-100 text-green-900"
+        }`}
+        aria-label={`Rank ${index + 1}, ${user.username || user.email || 'Anonymous user'} with ${user.totalPoints || 0} points`}
+        // Remove the onClick handler to disable clicking
+      >
+        <div className="flex items-center space-x-4">
+          {/* Rank badge */}
+          <span className={`inline-flex items-center justify-center w-9 h-9 rounded-full font-bold ${getRankBadge(index + 1)}`}>
+            {index + 1}
+          </span>
+          {/* User name or email */}
+          <span className="font-semibold truncate max-w-[180px]">
+            {user.username || user.email || 'Anonymous'}
+          </span>
+        </div>
+        {/* Points */}
+        <span className={`font-mono font-semibold ${
+          isDark ? "text-green-400" : "text-green-700"
+        }`}>{(user.totalPoints ?? 0).toLocaleString()} pts</span>
+      </li>
+    ))}
+  </ol>
+)}
+
+      
     </section>
   );
 }

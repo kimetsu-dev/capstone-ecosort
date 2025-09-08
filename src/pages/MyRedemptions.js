@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Clock,
   CheckCircle,
@@ -36,6 +36,7 @@ export default function MyRedemptions() {
   const [copiedCode, setCopiedCode] = useState(null);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   const ArrowLeft = () => (
     <svg
@@ -48,18 +49,18 @@ export default function MyRedemptions() {
     </svg>
   );
 
-  useEffect(() => {
-    if (!currentUser) {
-      setLoading(false);
-      setRedemptions([]);
-      return;
-    }
+    useEffect(() => {
+      if (!currentUser || !currentUser.uid) {
+        setLoading(false);
+        setRedemptions([]);
+        return;
+      }
 
-    const redemptionsQuery = query(
-      collection(db, "redemptions"),
-      where("userId", "==", currentUser.uid),
-      orderBy("redeemedAt", "desc")
-    );
+      const redemptionsQuery = query(
+        collection(db, "redemptions"),
+        where("userId", "==", currentUser.uid),
+        orderBy("redeemedAt", "desc")
+      );
 
     const unsubscribe = onSnapshot(
       redemptionsQuery,
@@ -76,7 +77,7 @@ export default function MyRedemptions() {
     );
 
     return () => unsubscribe();
-  }, [currentUser]);
+}, [currentUser]);
 
   const cancelRedemption = async (redemption) => {
     if (!window.confirm("Cancel this redemption? Points will be refunded.")) return;
@@ -122,11 +123,8 @@ export default function MyRedemptions() {
   const toggleCodeVisibility = (id) => {
     setVisibleCodes((prev) => {
       const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
       return newSet;
     });
   };
@@ -175,6 +173,19 @@ export default function MyRedemptions() {
     }
   };
 
+  // Back button handler: go to profile if came from profile, else back or dashboard
+  const handleBack = () => {
+    if (location.state && location.state.from === "/profile") {
+      navigate("/profile");
+    } else {
+      if (window.history.length > 1) {
+        navigate(-1);
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className={`${isDark ? "bg-gray-900" : ""} max-w-6xl mx-auto p-6`}>
@@ -220,14 +231,12 @@ export default function MyRedemptions() {
       {/* Header */}
       <div className="mb-6">
         <button
-          onClick={() => navigate("/dashboard")}
-          className={`flex items-center gap-2 transition-colors ${
-            isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-          }`}
-          aria-label="Back to Dashboard"
+          onClick={handleBack}
+          className={`flex items-center gap-2 transition-colors ${isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"}`}
+          aria-label="Back"
         >
           <ArrowLeft />
-          <span className="font-medium">Dashboard</span>
+          <span className="font-medium">Back</span>
         </button>
       </div>
 

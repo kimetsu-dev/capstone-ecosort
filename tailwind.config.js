@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: ["./src/**/*.{js,jsx,ts,tsx}"],
-  darkMode: 'class', // ✅ This should be at the root level, not inside theme.extend
+  darkMode: 'class', // Enables toggling dark mode via the 'dark' class
   theme: {
     extend: {
       animation: {

@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUser, FiBell, FiSettings } from "react-icons/fi";
+import { FiUser, FiBell } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
+
 import {
   doc,
   onSnapshot,
@@ -18,13 +19,11 @@ import {
   FaExclamationTriangle,
   FaTrophy,
   FaFileAlt,
-  FaLeaf,
   FaCoins,
   FaCalendarAlt,
-  FaChartLine,
-  FaRocket,
-  FaMicrochip,
 } from "react-icons/fa";
+import Calendar from "react-calendar";
+import "react-calendar/dist/Calendar.css";
 
 const MENU_ITEMS = [
   {
@@ -34,7 +33,6 @@ const MENU_ITEMS = [
     icon: FaRecycle,
     color: "from-emerald-400 via-teal-500 to-green-600",
     route: "/submitwaste",
-    techIcon: "🤖",
   },
   {
     id: "rewards",
@@ -43,7 +41,6 @@ const MENU_ITEMS = [
     icon: FaGift,
     color: "from-amber-400 via-orange-500 to-yellow-600",
     route: "/rewards",
-    techIcon: "💎",
   },
   {
     id: "report",
@@ -52,7 +49,6 @@ const MENU_ITEMS = [
     icon: FaExclamationTriangle,
     color: "from-red-400 via-rose-500 to-pink-600",
     route: "/forum",
-    techIcon: "🔍",
   },
   {
     id: "leaderboard",
@@ -61,7 +57,6 @@ const MENU_ITEMS = [
     icon: FaTrophy,
     color: "from-blue-400 via-indigo-500 to-purple-600",
     route: "/leaderboard",
-    techIcon: "🏆",
   },
   {
     id: "transactions",
@@ -70,25 +65,26 @@ const MENU_ITEMS = [
     icon: FaFileAlt,
     color: "from-gray-400 via-slate-500 to-gray-600",
     route: "/transactions",
-    techIcon: "📊",
-  },
-  {
-    id: "my-redemptions",
-    title: "Redemptions",
-    subtitle: "Redeemed Rewards",
-    icon: FaCoins,
-    color: "from-indigo-500 via-purple-600 to-violet-700",
-    route: "/my-redemptions",
-    techIcon: "💰",
   },
 ];
 
-// Helper to format Firestore Timestamp or JS Date to local string
-function formatDate(date) {
-  if (!date) return "";
-  if (typeof date.toDate === "function") return date.toDate().toLocaleString();
-  if (date instanceof Date) return date.toLocaleString();
-  return String(date);
+// Helper to parse Firestore date string to Date object
+function parseDate(dateStr) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+// Helper to format date to YYYY-MM-DD string
+function formatDateToString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// Helper to get weekday abbreviation
+function getWeekdayAbbr(date) {
+  return date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
 }
 
 export default function Dashboard() {
@@ -99,11 +95,18 @@ export default function Dashboard() {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [garbageSchedule, setGarbageSchedule] = useState([]);
+  const [garbageScheduleData, setGarbageScheduleData] = useState({}); // Store full schedule data
   const dropdownRef = useRef(null);
+  const calendarRef = useRef(null);
   const navigate = useNavigate();
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
+  const [loadingSchedule, setLoadingSchedule] = useState(true);
 
+  // Firestore listeners for user data, notifications, and garbage collection
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -128,9 +131,13 @@ export default function Dashboard() {
       }
     );
 
-    const notificationsRef = collection(db, "notifications", user.uid, "userNotifications");
+    const notificationsRef = collection(
+      db,
+      "notifications",
+      user.uid,
+      "userNotifications"
+    );
     const notificationsQuery = query(notificationsRef, orderBy("createdAt", "desc"));
-
     const unsubscribeNotifications = onSnapshot(
       notificationsQuery,
       (snapshot) => {
@@ -138,14 +145,12 @@ export default function Dashboard() {
           id: doc.id,
           ...doc.data(),
         }));
-
         const filteredNotifs = notifList.filter(
           (notif) =>
             notif.message &&
             (notif.message.toLowerCase().includes("approved") ||
               notif.message.toLowerCase().includes("confirmed"))
         );
-
         setNotifications(filteredNotifs);
         setUnreadCount(filteredNotifs.filter((n) => !n.read).length);
         setLoadingNotifications(false);
@@ -156,26 +161,74 @@ export default function Dashboard() {
       }
     );
 
+    // Enhanced garbage collection schedule listener with full data
+    const garbageRef = collection(db, "garbage_schedule");
+    const unsubscribeGarbage = onSnapshot(
+      garbageRef,
+      (snapshot) => {
+        const scheduleData = {};
+        const dates = [];
+        
+        snapshot.docs.forEach((doc) => {
+          const data = doc.data();
+          if (data.date) {
+            dates.push(data.date);
+            scheduleData[data.date] = {
+              time: data.time || 'TBD',
+              id: doc.id,
+              ...data
+            };
+          }
+        });
+        
+        setGarbageSchedule(dates);
+        setGarbageScheduleData(scheduleData);
+        setLoadingSchedule(false);
+      },
+      (error) => {
+        console.error("Garbage schedule listener error:", error);
+        setLoadingSchedule(false);
+      }
+    );
+
     return () => {
       unsubscribeUser();
       unsubscribeNotifications();
+      unsubscribeGarbage();
     };
   }, []);
 
+  // Outside click handlers to close dropdowns and calendar
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
+      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
+        setShowCalendar(false);
+      }
     }
-    if (showNotifications) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [showNotifications]);
+  }, []);
 
+  // Keyboard event handler for calendar toggle
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowCalendar(false);
+        setShowNotifications(false);
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  // Current time updater for greeting
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -186,20 +239,66 @@ export default function Dashboard() {
     return <div>Loading...</div>;
   }
 
-  const { theme, styles, isDark } = themeContext;
+  const { styles, isDark } = themeContext;
 
-  if (!styles) {
-    return <div>Loading theme...</div>;
+  const getThemeClass = (styleKey, fallback = "") =>
+    styles && styles[styleKey] ? styles[styleKey] : fallback;
+
+  // Check if a date has garbage collection
+  function isGarbageDay(date) {
+    const dateString = formatDateToString(date);
+    return garbageSchedule.includes(dateString);
   }
 
-  const getThemeClass = (styleKey, fallback = "") => {
-    return styles && styles[styleKey] ? styles[styleKey] : fallback;
+  // Get garbage collection info for a date
+  function getGarbageInfo(date) {
+    const dateString = formatDateToString(date);
+    return garbageScheduleData[dateString] || null;
+  }
+
+  // Check if date is today
+  function isToday(date) {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  }
+
+  // Greeting based on time
+  const getGreeting = () => {
+    const hour = currentTime.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
   };
 
+  // Calendar toggle handler
+  const toggleCalendar = () => {
+    setShowCalendar((prev) => !prev);
+  };
+
+  // Calendar keyboard handler
+  const handleCalendarKeyDown = (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleCalendar();
+    }
+  };
+
+  // Date selection handler
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setShowCalendar(false);
+  };
+
+  // Notification toggle handler
   const toggleNotifications = () => {
     setShowNotifications((prev) => !prev);
   };
 
+  // Mark notification as read
   const markAsRead = async (id) => {
     try {
       setNotifications((prev) =>
@@ -216,6 +315,7 @@ export default function Dashboard() {
     }
   };
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -236,12 +336,11 @@ export default function Dashboard() {
     }
   };
 
-  const getGreeting = () => {
-    const hour = currentTime.getHours();
-    if (hour < 12) return "Good Morning";
-    if (hour < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
+  // Get selected date info
+  const selectedDateInfo = getGarbageInfo(selectedDate);
+  const selectedDateWeekday = getWeekdayAbbr(selectedDate);
+  const isSelectedDateToday = isToday(selectedDate);
+  const isSelectedDateGarbageDay = isGarbageDay(selectedDate);
 
   return (
     <div
@@ -258,7 +357,7 @@ export default function Dashboard() {
       }}
     >
       <div className="relative z-10 px-3 py-4 max-w-7xl mx-auto">
-        {/* Mobile-Optimized Header */}
+        {/* Header */}
         <header className="flex justify-between items-center mb-4 animate-slide-down">
           <div className="flex items-center space-x-2">
             <div className="relative">
@@ -268,20 +367,8 @@ export default function Dashboard() {
                   "shadow-lg"
                 )}`}
               >
-                <FaMicrochip className="text-white text-lg" />
+                <span className="text-white text-lg font-bold">E</span>
               </div>
-              <div
-                className={`absolute -top-0.5 -right-0.5 w-3 h-3 ${getThemeClass(
-                  "onlineIndicator",
-                  "bg-green-400"
-                )} rounded-full animate-ping`}
-              ></div>
-              <div
-                className={`absolute -top-0.5 -right-0.5 w-3 h-3 ${getThemeClass(
-                  "onlineIndicator",
-                  "bg-green-400"
-                )} rounded-full`}
-              ></div>
             </div>
             <div>
               <h1
@@ -296,25 +383,11 @@ export default function Dashboard() {
               >
                 ECOSORT
               </h1>
-              <div
-                className={`flex items-center gap-1.5 text-xs ${getThemeClass(
-                  "textMuted",
-                  "text-gray-600 dark:text-gray-400"
-                )}`}
-              >
-                <span
-                  className={`w-1.5 h-1.5 ${getThemeClass(
-                    "onlineIndicator",
-                    "bg-green-400"
-                  )} rounded-full animate-pulse`}
-                ></span>
-                <span className="font-mono">ONLINE</span>
-              </div>
             </div>
           </div>
 
+          {/* Notifications and Profile Buttons */}
           <div className="flex items-center space-x-1 relative">
-            {/* Mobile Notifications Button */}
             <button
               onClick={toggleNotifications}
               className={`relative p-2.5 ${getThemeClass(
@@ -345,33 +418,6 @@ export default function Dashboard() {
               )}
             </button>
 
-            {/* Mobile Settings Button */}
-            <button
-              onClick={() => navigate("/settings")}
-              className={`relative p-2.5 ${getThemeClass(
-                "cardBackground",
-                "bg-white dark:bg-gray-800"
-              )} ${getThemeClass(
-                "backdropBlur",
-                "backdrop-blur-xl"
-              )} rounded-xl border ${getThemeClass(
-                "cardBorder",
-                "border-gray-200 dark:border-gray-700"
-              )} hover:${getThemeClass(
-                "cardBackgroundHover",
-                "bg-gray-100 dark:bg-gray-700"
-              )} transition-all duration-300 active:scale-95 touch-manipulation`}
-              aria-label="Settings"
-            >
-              <FiSettings
-                className={`${getThemeClass(
-                  "textSecondary",
-                  "text-gray-600 dark:text-gray-400"
-                )} text-lg transition-colors`}
-              />
-            </button>
-
-            {/* Mobile Profile Button */}
             <button
               onClick={() => navigate("/profile")}
               className={`relative p-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 rounded-xl hover:shadow-lg ${getThemeClass(
@@ -383,7 +429,7 @@ export default function Dashboard() {
               <FiUser className="text-white text-lg" />
             </button>
 
-            {/* Mobile Notifications Dropdown */}
+            {/* Notifications Dropdown */}
             {showNotifications && (
               <div
                 ref={dropdownRef}
@@ -396,102 +442,65 @@ export default function Dashboard() {
                 )} rounded-2xl shadow-2xl border ${getThemeClass(
                   "cardBorder",
                   "border-gray-200 dark:border-gray-700"
-                )} z-50 animate-fade-in`}
+                )} notification-dropdown animate-fade-in`}
+                style={{ zIndex: 9998 }}
+                role="dialog"
+                aria-label="Notifications"
               >
-                <div
-                  className={`flex justify-between items-center px-4 py-3 border-b ${getThemeClass(
-                    "cardBorder",
-                    "border-gray-200 dark:border-gray-700"
-                  )}`}
-                >
-                  <h3
-                    className={`font-bold text-base ${getThemeClass(
-                      "textPrimary",
-                      "text-gray-900 dark:text-white"
-                    )} flex items-center gap-2`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 ${getThemeClass(
-                        "onlineIndicator",
-                        "bg-green-400"
-                      )} rounded-full animate-pulse`}
-                    ></span>
+                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                  <h3 className={`font-semibold ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")}`}>
                     Notifications
                   </h3>
                   {unreadCount > 0 && (
                     <button
                       onClick={markAllAsRead}
-                      className={`${getThemeClass(
-                        "textAccent",
-                        "text-emerald-500"
-                      )} text-sm font-medium px-2 py-1 rounded-lg transition-all duration-200 active:scale-95 touch-manipulation`}
+                      className="text-xs text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 dark:hover:text-emerald-300 font-medium"
                     >
-                      Clear All
+                      Mark all read
                     </button>
                   )}
                 </div>
-                {loadingNotifications ? (
-                  <div className="p-4 text-center">
-                    <div
-                      className={`w-6 h-6 border-2 ${getThemeClass(
-                        "textAccent",
-                        "text-emerald-500"
-                      )
-                        .replace("text-", "border-")
-                        .concat("/30")} ${getThemeClass(
-                        "textAccent",
-                        "text-emerald-500"
-                      )
-                        .replace("text-", "border-t-")} rounded-full animate-spin mx-auto mb-2`}
-                    ></div>
-                    <p className={getThemeClass("textMuted", "text-gray-600 dark:text-gray-400") + " text-sm"}>
-                      Loading...
-                    </p>
-                  </div>
-                ) : notifications.length === 0 ? (
-                  <div className="p-4 text-center">
-                    <div className="text-3xl mb-2">📭</div>
-                    <p className={getThemeClass("textMuted", "text-gray-600 dark:text-gray-400")}>
-                      No notifications
-                    </p>
-                  </div>
-                ) : (
-                  <ul className="max-h-56 overflow-y-auto">
-                    {notifications.map((notif) => (
-                      <li
+                <div className="max-h-64 overflow-y-auto">
+                  {loadingNotifications ? (
+                    <div className="p-4 text-center">
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent mx-auto mb-2"></div>
+                      <p className={`text-sm ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
+                        Loading notifications...
+                      </p>
+                    </div>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <FiBell className={`mx-auto h-8 w-8 ${getThemeClass("textSecondary", "text-gray-400")} mb-2`} />
+                      <p className={`text-sm ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
+                        No notifications yet
+                      </p>
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <div
                         key={notif.id}
-                        className={`px-4 py-3 cursor-pointer border-b ${getThemeClass(
-                          "cardBorder",
-                          "border-gray-200 dark:border-gray-700"
-                        )} last:border-b-0 ${
-                          notif.read
-                            ? "bg-transparent"
-                            : `${getThemeClass("textAccent", "text-emerald-500")
-                                .replace("text-", "bg-")
-                                .concat("/5 border-l-2 ")}${getThemeClass(
-                                "textAccent",
-                                "text-emerald-500"
-                              ).replace("text-", "border-l-")}`
-                        } hover:${getThemeClass("cardBackgroundHover", "bg-gray-100 dark:bg-gray-700")} transition-all duration-200 active:scale-[0.98] touch-manipulation`}
                         onClick={() => markAsRead(notif.id)}
+                        className={`p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${
+                          !notif.read ? 'bg-emerald-50 dark:bg-emerald-900/20' : ''
+                        }`}
                       >
-                        <div className="flex items-start gap-2">
-                          <div className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                            <span className="text-white text-xs">✓</span>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-sm ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} mb-1 leading-relaxed`}>
-                              {notif.message}
-                            </p>
-                            <small className={`${getThemeClass("textMuted", "text-gray-600 dark:text-gray-400")} text-xs font-mono`}>
-                              {formatDate(notif.createdAt)}
-                            </small>
-                          </div>
+                        <div className="flex justify-between items-start">
+                          <p className={`text-sm ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} leading-relaxed flex-1`}>
+                            {notif.message}
+                          </p>
+                          {!notif.read && (
+                            <div className="w-2 h-2 bg-emerald-500 rounded-full ml-2 mt-1 flex-shrink-0"></div>
+                          )}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                        {notif.createdAt && (
+                          <p className={`text-xs ${getThemeClass("textMuted", "text-gray-500 dark:text-gray-500")} mt-1`}>
+                            {new Date(notif.createdAt.toDate()).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -500,72 +509,84 @@ export default function Dashboard() {
         {/* Mobile-Optimized Welcome Section */}
         <div className="mb-6 animate-fade-in">
           <div
-            className={`${getThemeClass("cardBackground", "bg-white dark:bg-gray-800")} ${getThemeClass("backdropBlur", "backdrop-blur-xl")} rounded-2xl p-4 shadow-xl border ${getThemeClass("cardBorder", "border-gray-200 dark:border-gray-700")} relative overflow-hidden`}
+            className={`${getThemeClass(
+              "cardBackground",
+              "bg-white dark:bg-gray-800"
+            )} ${getThemeClass(
+              "backdropBlur",
+              "backdrop-blur-xl"
+            )} rounded-2xl p-4 shadow-xl border ${getThemeClass(
+              "cardBorder",
+              "border-gray-200 dark:border-gray-700"
+            )} relative overflow-hidden`}
           >
-            <div className={`absolute top-0 right-0 w-20 h-20 ${getThemeClass("textAccent", "text-emerald-500").replace("text-", "bg-")}/10 rounded-full blur-xl`} />
-            
             <div className="relative z-10">
-              <div className="flex items-center gap-2 mb-3">
-                <div
-                  className={`flex items-center gap-1.5 px-2 py-1 ${getThemeClass("textAccent", "text-emerald-500").replace(
-                    "text-",
-                    "bg-"
-                  )}/20 rounded-full border ${getThemeClass("textAccent", "text-emerald-500").replace("text-", "border-")}/30`}
-                >
-                  <span className={`w-1.5 h-1.5 ${getThemeClass("onlineIndicator", "bg-green-400")} rounded-full animate-pulse`} />
-                  <span className={`text-xs font-mono ${getThemeClass("textAccent", "text-emerald-500")}`}>ACTIVE</span>
-                </div>
-              </div>
-
-              <h2 className={`text-xl font-black ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} mb-2 leading-tight`}>
-                {loadingUser ? (
-                  <div className="flex items-center gap-2">
-                    <div
-                      className={`w-5 h-5 border-2 ${getThemeClass("textAccent", "text-emerald-500").replace("text-", "border-")}/30 ${getThemeClass(
-                        "textAccent", "text-emerald-500"
-                      ).replace("text-", "border-t-")} rounded-full animate-spin`}
-                    />
-                    <span>Loading...</span>
-                  </div>
-                ) : (
-                  <>
-                    {getGreeting()}, <span className={`${getThemeClass("textAccent", "text-emerald-500")} font-black`}>{userName}</span>! 🚀
-                  </>
-                )}
-              </h2>
-              <p className={`${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-300")} text-sm mb-4`}>
-                Ready to make a difference today?
-              </p>
-
-              {/* Mobile Stats Row */}
-              <div className="flex justify-between items-center">
-                <div className="text-center">
-                  <div className="relative mb-2">
-                    <div
-                      className={`w-12 h-12 bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg mb-1`}
-                    >
-                      <FaCoins className="text-white text-lg" />
-                    </div>
-                    <div
-                      className={`absolute -top-1 -right-1 w-4 h-4 ${getThemeClass("onlineIndicator", "bg-green-400")} rounded-full flex items-center justify-center`}
-                    >
-                      <span className="text-white text-xs font-bold">+</span>
-                    </div>
-                  </div>
-                  <p className={`text-lg font-black ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")}`}>
-                    {loadingUser ? "..." : points.toLocaleString()}
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h2
+                    className={`text-lg font-bold ${getThemeClass(
+                      "textPrimary",
+                      "text-gray-900 dark:text-white"
+                    )} mb-1`}
+                  >
+                    {loadingUser ? "Loading..." : `${getGreeting()}, ${userName || "User"}!`}
+                  </h2>
+                  <p
+                    className={`text-sm ${getThemeClass(
+                      "textSecondary",
+                      "text-gray-600 dark:text-gray-400"
+                    )}`}
+                  >
+                    {loadingUser ? "Fetching points..." : `You have ${points || 0} points`}
                   </p>
-                  <p className={`text-xs ${getThemeClass("textMuted", "text-gray-600 dark:text-gray-400")} font-mono`}>ECO POINTS</p>
                 </div>
 
-                <div className="text-center">
-                  <div
-                    className={`w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg mb-1`}
+                {/* Enhanced Calendar Collection Widget */}
+                <div className="text-center relative">
+                  <button
+                    onClick={toggleCalendar}
+                    onKeyDown={handleCalendarKeyDown}
+                    className={`w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg mb-1 transition-all duration-200 hover:scale-105 active:scale-95 ${
+                      showCalendar ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-transparent' : ''
+                    }`}
+                    aria-label={`${showCalendar ? 'Close' : 'Open'} garbage collection calendar`}
+                    aria-expanded={showCalendar}
+                    aria-describedby="collection-info"
                   >
                     <FaCalendarAlt className="text-white text-base" />
+                    {isSelectedDateGarbageDay && !showCalendar && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+                    )}
+                  </button>
+                  
+                  <div id="collection-info">
+                    <p
+                      className={`text-base font-black ${getThemeClass(
+                        "textPrimary",
+                        "text-gray-900 dark:text-white"
+                      )} ${isSelectedDateToday ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
+                    >
+                      {selectedDateWeekday}
+                    </p>
+                    <p
+                      className={`text-xs ${getThemeClass(
+                        "textMuted",
+                        "text-gray-600 dark:text-gray-400"
+                      )} font-mono`}
+                    >
+                      {isSelectedDateGarbageDay ? 'COLLECTION' : 'NO PICKUP'}
+                    </p>
+                    {isSelectedDateGarbageDay && selectedDateInfo?.time && (
+                      <p
+                        className={`text-xs ${getThemeClass(
+                          "textMuted",
+                          "text-gray-600 dark:text-gray-400"
+                        )} font-mono mt-0.5`}
+                      >
+                        {selectedDateInfo.time}
+                      </p>
+                    )}
                   </div>
-                  <p className={`text-base font-black ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")}`}>THU</p>
-                  <p className={`text-xs ${getThemeClass("textMuted", "text-gray-600 dark:text-gray-400")} font-mono`}>COLLECTION</p>
                 </div>
               </div>
             </div>
@@ -582,17 +603,20 @@ export default function Dashboard() {
               onClick={() => navigate(item.route)}
             >
               <div
-                className={`${getThemeClass("cardBackground", "bg-white dark:bg-gray-800")} ${getThemeClass("backdropBlur", "backdrop-blur-xl")} rounded-2xl p-4 shadow-lg border ${getThemeClass("cardBorder", "border-gray-200 dark:border-gray-700")} active:scale-95 transition-all duration-200 relative overflow-hidden group`}
+                className={`${getThemeClass(
+                  "cardBackground",
+                  "bg-white dark:bg-gray-800"
+                )} ${getThemeClass(
+                  "backdropBlur",
+                  "backdrop-blur-xl"
+                )} rounded-2xl p-4 shadow-lg border ${getThemeClass(
+                  "cardBorder",
+                  "border-gray-200 dark:border-gray-700"
+                )} active:scale-95 transition-all duration-200 relative overflow-hidden group`}
               >
-                {/* Background effects - reduced for mobile */}
                 <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-white/5 to-transparent rounded-full blur-lg" />
 
                 <div className="relative z-10 flex flex-col items-center text-center space-y-2">
-                  {/* Tech icon badge - smaller for mobile */}
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center text-xs shadow-md">
-                    {item.techIcon}
-                  </div>
-
                   <div
                     className={`w-12 h-12 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center shadow-lg group-active:scale-110 transition-all duration-200 relative`}
                   >
@@ -600,12 +624,29 @@ export default function Dashboard() {
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className={`text-sm font-black ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} leading-tight`}>{item.title}</h3>
-                    <p className={`${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-300")} text-xs font-medium leading-tight`}>{item.subtitle}</p>
+                    <h3
+                      className={`text-sm font-black ${getThemeClass(
+                        "textPrimary",
+                        "text-gray-900 dark:text-white"
+                      )} leading-tight`}
+                    >
+                      {item.title}
+                    </h3>
+                    <p
+                      className={`${getThemeClass(
+                        "textSecondary",
+                        "text-gray-600 dark:text-gray-300"
+                      )} text-xs font-medium leading-tight`}
+                    >
+                      {item.subtitle}
+                    </p>
                   </div>
 
-                  {/* Progress bar - thinner for mobile */}
-                  <div className={`w-full ${isDark ? "bg-gray-200/20" : "bg-gray-800/20"} rounded-full h-0.5 mt-2`}>
+                  <div
+                    className={`w-full ${
+                      isDark ? "bg-gray-200/20" : "bg-gray-800/20"
+                    } rounded-full h-0.5 mt-2`}
+                  >
                     <div
                       className={`h-0.5 bg-gradient-to-r ${item.color} rounded-full transition-all duration-500 group-active:w-full`}
                       style={{ width: "0%" }}
@@ -616,56 +657,113 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-
-        {/* Mobile-Optimized Collection Notice */}
-        <div className="animate-fade-in">
-          <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 rounded-2xl p-4 shadow-xl text-white relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-600/90 via-purple-600/90 to-indigo-700/90" />
-            <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full blur-2xl -translate-y-12 translate-x-12" />
-            <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/10 rounded-full blur-xl translate-y-10 -translate-x-10" />
-
-            <div className="relative z-10">
-              <div className="flex flex-col items-center text-center mb-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
-                    <FaCalendarAlt className="text-lg animate-pulse" />
-                  </div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white/10 rounded-full border border-white/20">
-                    <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                    <span className="text-xs font-mono">NEXT COLLECTION</span>
-                  </div>
-                </div>
-                
-                <h3 className="text-xl font-black mb-1 bg-gradient-to-r from-white via-blue-100 to-purple-100 bg-clip-text text-transparent">
-                  Smart Collection Hub
-                </h3>
-                <p className="text-base text-blue-100 mb-3 font-medium">Thursday Morning</p>
-                
-                <div className="text-center p-3 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20 mb-3">
-                  <div className="text-2xl font-black text-white mb-1">3</div>
-                  <div className="text-xs text-blue-200 font-mono">DAYS LEFT</div>
-                </div>
-              </div>
-
-              {/* Mobile Contact Info - Stacked vertically */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <span className="text-base">📞</span>
-                  <span className="text-sm font-mono">0912-345-6789</span>
-                </div>
-                <div className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <span className="text-base">📧</span>
-                  <span className="text-xs font-mono">teodoraalonzo@gmail.com</span>
-                </div>
-                <div className="flex items-center justify-center gap-2 px-3 py-2 bg-white/10 backdrop-blur-sm rounded-xl border border-white/20">
-                  <span className="text-base">📍</span>
-                  <span className="text-sm font-mono">Brgy-T-Alonzo</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
+
+      {/* Calendar Modal */}
+      {showCalendar && (
+        <>
+          {/* Backdrop overlay */}
+          <div 
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9998] animate-backdrop-appear modal-backdrop"
+            onClick={() => setShowCalendar(false)}
+            aria-hidden="true"
+          />
+          
+          <div
+            ref={calendarRef}
+            className={`fixed top-1/2 left-1/2 ${getThemeClass(
+              "cardBackground",
+              "bg-white dark:bg-gray-800"
+            )} ${getThemeClass(
+              "backdropBlur",
+              "backdrop-blur-xl"
+            )} p-4 rounded-2xl shadow-2xl border ${getThemeClass(
+              "cardBorder",
+              "border-gray-200 dark:border-gray-700"
+            )} z-[9999] w-[320px] max-w-[90vw] max-h-[80vh] overflow-auto animate-modal-appear calendar-modal`}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-label="Garbage collection calendar"
+          >
+            {loadingSchedule ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent mx-auto mb-3"></div>
+                <p className={`text-sm ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
+                  Loading schedule...
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="mb-3">
+                  <h3 className={`text-sm font-semibold ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} mb-1`}>
+                    Collection Schedule
+                  </h3>
+                  <p className={`text-xs ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
+                    Green dates have collection
+                  </p>
+                </div>
+                
+                <Calendar
+                  value={selectedDate}
+                  onChange={handleDateChange}
+                  className={`w-full ${isDark ? 'dark-calendar' : 'light-calendar'}`}
+                  tileClassName={({ date }) => {
+                    const classes = [];
+                    
+                    if (isToday(date)) {
+                      classes.push(isDark ? 
+                        'bg-blue-600 text-white font-bold rounded-lg shadow-md' :
+                        'bg-blue-500 text-white font-bold rounded-lg shadow-md'
+                      );
+                    } else if (isGarbageDay(date)) {
+                      classes.push(isDark ? 
+                        'bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700' :
+                        'bg-emerald-500 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-600'
+                      );
+                    } else {
+                      classes.push(isDark ? 
+                        'text-gray-300 hover:bg-gray-700 rounded-lg' :
+                        'text-gray-700 hover:bg-gray-100 rounded-lg'
+                      );
+                    }
+                    
+                    return classes.join(' ');
+                  }}
+                  formatShortWeekday={(locale, date) => 
+                    date.toLocaleDateString(locale, { weekday: 'narrow' })
+                  }
+                  showNavigation={true}
+                  showNeighboringMonth={false}
+                />
+                
+                {/* Selected Date Info */}
+                <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className={`text-sm font-semibold ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")}`}>
+                        {selectedDate.toLocaleDateString('en-US', { 
+                          weekday: 'long', 
+                          month: 'short', 
+                          day: 'numeric' 
+                        })}
+                      </p>
+                      <p className={`text-xs ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
+                        {isSelectedDateGarbageDay ? 
+                          `Collection at ${selectedDateInfo?.time || 'TBD'}` : 
+                          'No collection scheduled'
+                        }
+                      </p>
+                    </div>
+                    {isSelectedDateGarbageDay && (
+                      <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
 
       <style>{`
         @keyframes float {
@@ -759,6 +857,26 @@ export default function Dashboard() {
             box-shadow: 0 0 6px ${isDark ? 'rgba(16, 185, 129, 0.6)' : 'rgba(52, 211, 153, 0.7)'}, 0 0 12px ${isDark ? 'rgba(16, 185, 129, 0.4)' : 'rgba(52, 211, 153, 0.5)'}, 0 0 18px ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(52, 211, 153, 0.3)'};
           }
         }
+
+        @keyframes modal-appear {
+          from { 
+            opacity: 0; 
+            transform: translate(-50%, -50%) scale(0.9); 
+          }
+          to { 
+            opacity: 1; 
+            transform: translate(-50%, -50%) scale(1); 
+          }
+        }
+
+        @keyframes backdrop-appear {
+          from { 
+            opacity: 0; 
+          }
+          to { 
+            opacity: 1; 
+          }
+        }
         
         .animate-float { 
           animation: float 4s ease-in-out infinite; 
@@ -798,6 +916,153 @@ export default function Dashboard() {
 
         .animate-glow {
           animation: glow 2s ease-in-out infinite;
+        }
+
+        .animate-modal-appear { 
+          animation: modal-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; 
+        }
+
+        .animate-backdrop-appear { 
+          animation: backdrop-appear 0.2s ease-out forwards; 
+        }
+
+        /* Enhanced modal backdrop */
+        .modal-backdrop {
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+        }
+
+        /* Calendar modal positioning improvements */
+        .calendar-modal {
+          transform: translate(-50%, -50%) scale(1);
+          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .calendar-modal.entering {
+          transform: translate(-50%, -50%) scale(0.9);
+          opacity: 0;
+        }
+
+        /* Calendar-specific styles */
+        .react-calendar {
+          width: 100% !important;
+          background: transparent !important;
+          border: none !important;
+          font-family: inherit !important;
+          line-height: 1.125em !important;
+        }
+
+        .react-calendar__navigation {
+          height: 44px !important;
+          margin-bottom: 1rem !important;
+        }
+
+        .react-calendar__navigation button {
+          min-width: 44px !important;
+          background: transparent !important;
+          border: none !important;
+          border-radius: 0.5rem !important;
+          font-size: 1rem !important;
+          font-weight: 600 !important;
+          color: ${isDark ? '#e5e7eb' : '#374151'} !important;
+          transition: all 0.2s ease !important;
+        }
+
+        .react-calendar__navigation button:hover {
+          background: ${isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(243, 244, 246, 0.8)'} !important;
+          transform: scale(1.05) !important;
+        }
+
+        .react-calendar__navigation button:active {
+          transform: scale(0.95) !important;
+        }
+
+        .react-calendar__navigation__label {
+          font-weight: bold !important;
+          color: ${isDark ? '#f9fafb' : '#111827'} !important;
+        }
+
+        .react-calendar__month-view__weekdays {
+          text-align: center !important;
+          text-transform: uppercase !important;
+          font-weight: 600 !important;
+          font-size: 0.75rem !important;
+          color: ${isDark ? '#9ca3af' : '#6b7280'} !important;
+          margin-bottom: 0.5rem !important;
+        }
+
+        .react-calendar__month-view__weekdays__weekday {
+          padding: 0.5rem !important;
+          border: none !important;
+          background: none !important;
+        }
+
+        .react-calendar__month-view__days {
+          gap: 2px !important;
+        }
+
+        .react-calendar__tile {
+          max-width: 100% !important;
+          padding: 0.75rem 0.5rem !important;
+          background: transparent !important;
+          border: none !important;
+          font-size: 0.875rem !important;
+          font-weight: 500 !important;
+          transition: all 0.2s ease !important;
+          cursor: pointer !important;
+          position: relative !important;
+          min-height: 40px !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+        }
+
+        .react-calendar__tile:hover {
+          transform: scale(1.05) !important;
+        }
+
+        .react-calendar__tile:active {
+          transform: scale(0.95) !important;
+        }
+
+        .react-calendar__tile--active {
+          background: ${isDark ? '#1f2937' : '#f3f4f6'} !important;
+          border-radius: 0.5rem !important;
+          color: ${isDark ? '#10b981' : '#059669'} !important;
+          font-weight: 700 !important;
+        }
+
+        .react-calendar__tile--now {
+          position: relative !important;
+        }
+
+        .react-calendar__tile--now::after {
+          content: '' !important;
+          position: absolute !important;
+          bottom: 2px !important;
+          left: 50% !important;
+          transform: translateX(-50%) !important;
+          width: 4px !important;
+          height: 4px !important;
+          background: currentColor !important;
+          border-radius: 50% !important;
+        }
+
+        /* Dark/Light calendar theme adjustments */
+        .dark-calendar .react-calendar__tile {
+          color: #e5e7eb !important;
+        }
+
+        .light-calendar .react-calendar__tile {
+          color: #374151 !important;
+        }
+
+        .dark-calendar .react-calendar__tile--neighboringMonth {
+          color: #6b7280 !important;
+        }
+
+        .light-calendar .react-calendar__tile--neighboringMonth {
+          color: #9ca3af !important;
         }
 
         /* Mobile-optimized touch interactions */
@@ -898,6 +1163,18 @@ export default function Dashboard() {
           .leading-relaxed {
             line-height: 1.4;
           }
+
+          /* Calendar mobile optimizations */
+          .react-calendar__tile {
+            padding: 0.5rem 0.25rem !important;
+            min-height: 36px !important;
+            font-size: 0.8rem !important;
+          }
+
+          .react-calendar__navigation button {
+            min-width: 40px !important;
+            font-size: 0.875rem !important;
+          }
         }
 
         /* Very small screens (< 375px) */
@@ -919,6 +1196,16 @@ export default function Dashboard() {
           .w-80 {
             width: calc(100vw - 1rem);
           }
+
+          .min-w-\\[280px\\] {
+            min-width: calc(100vw - 2rem);
+          }
+
+          .react-calendar__tile {
+            padding: 0.375rem 0.125rem !important;
+            min-height: 32px !important;
+            font-size: 0.75rem !important;
+          }
         }
 
         /* Large mobile screens optimization */
@@ -933,8 +1220,6 @@ export default function Dashboard() {
           .animate-float,
           .animate-float-reverse,
           .animate-bounce-slow,
-          .animate-pulse-slow,
-          .animate-ping,
           .animate-spin,
           .animate-glow {
             animation: none;
@@ -949,6 +1234,14 @@ export default function Dashboard() {
           * {
             transition-duration: 50ms;
           }
+
+          .react-calendar__tile:hover {
+            transform: none !important;
+          }
+
+          .react-calendar__tile:active {
+            transform: none !important;
+          }
         }
 
         /* Focus states for accessibility */
@@ -957,6 +1250,12 @@ export default function Dashboard() {
           outline: 2px solid ${isDark ? '#10b981' : '#059669'};
           outline-offset: 2px;
           border-radius: 0.75rem;
+        }
+
+        .react-calendar__tile:focus-visible {
+          outline: 2px solid ${isDark ? '#10b981' : '#059669'} !important;
+          outline-offset: 2px !important;
+          border-radius: 0.5rem !important;
         }
 
         /* High contrast mode support */
@@ -972,6 +1271,10 @@ export default function Dashboard() {
           .shadow-xl,
           .shadow-2xl {
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+          }
+
+          .react-calendar__tile {
+            border: 1px solid ${isDark ? '#4b5563' : '#d1d5db'} !important;
           }
         }
 
@@ -1013,6 +1316,72 @@ export default function Dashboard() {
             width: calc(100vw - 1.5rem);
             max-width: calc(100vw - 1.5rem);
           }
+        }
+
+        /* Loading states */
+        .loading-shimmer {
+          background: linear-gradient(90deg, transparent, ${isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(229, 231, 235, 0.8)'}, transparent);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+
+        /* Enhanced notification badge */
+        .notification-badge {
+          animation: notification-pulse 2s infinite;
+        }
+
+        @keyframes notification-pulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+          }
+          50% {
+            transform: scale(1.1);
+            opacity: 0.8;
+          }
+        }
+
+        /* Calendar date indicator animations */
+        .garbage-day-indicator {
+          animation: garbage-glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes garbage-glow {
+          from {
+            box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
+          }
+          to {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8), 0 0 30px rgba(16, 185, 129, 0.6);
+          }
+        }
+
+        /* Improve calendar month navigation */
+        .react-calendar__navigation__prev2-button,
+        .react-calendar__navigation__next2-button {
+          display: none !important;
+        }
+
+        /* Custom styling for weekend days */
+        .react-calendar__month-view__days__day--weekend {
+          color: ${isDark ? '#f87171' : '#dc2626'} !important;
+        }
+
+        /* Ensure proper z-index stacking */
+        .calendar-popup {
+          z-index: 9999 !important;
+        }
+
+        .notification-dropdown {
+          z-index: 9998 !important;
         }
       `}</style>
     </div>

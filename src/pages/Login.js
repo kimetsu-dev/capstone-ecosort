@@ -203,14 +203,15 @@ export default function Login() {
         </p>
       </div>
 
-      {toast.visible && (
-        <div className={`fixed top-4 right-4 px-6 py-4 rounded-xl text-white shadow-lg z-50 transition-all duration-300 ${
-          toast.type === 'success' ? 'bg-green-500' :
-          toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-        }`}>
-          {toast.message}
-        </div>
-      )}
+     {toast.visible && (
+  <div className={`fixed top-4 left-1/2 transform -translate-x-1/2
+    px-4 py-2 rounded-xl text-white shadow-lg z-50
+    transition-all duration-300 max-w-xl w-auto
+    whitespace-nowrap overflow-x-auto
+    ${toast.type === 'success' ? 'bg-green-700' : toast.type === 'error' ? 'bg-red-500' : ''}`}>
+    {toast.message}
+  </div>
+)}
     </div>
   );
 }

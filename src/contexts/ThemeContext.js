@@ -1,177 +1,128 @@
-// src/contexts/ThemeContext.js - Enhanced version
-import React, { createContext, useContext, useState, useEffect } from 'react';
+// src/contexts/ThemeContext.js - Enhanced with system theme support
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 const ThemeContext = createContext();
 
 export const useTheme = () => {
   const context = useContext(ThemeContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
+    throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
 };
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const savedTheme = localStorage.getItem('ecosort-theme');
-      // Check system preference if no saved theme
-      if (!savedTheme) {
-        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        return systemPrefersDark ? 'dark' : 'light';
-      }
-      return savedTheme;
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("ecosort-theme");
+      return savedTheme || "system";
     }
-    return 'dark';
+    return "system";
   });
 
-  // Listen for system theme changes
-  useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = (e) => {
-      if (!localStorage.getItem('ecosort-theme')) {
-        setTheme(e.matches ? 'dark' : 'light');
-      }
-    };
-
-    mediaQuery.addListener(handleChange);
-    return () => mediaQuery.removeListener(handleChange);
-  }, []);
-
-  // Apply theme changes
-  useEffect(() => {
-    localStorage.setItem('ecosort-theme', theme);
-
+  const applyTheme = (value) => {
     const root = document.documentElement;
     const body = document.body;
-    
-    // Clear all theme classes
-    root.classList.remove('dark', 'light');
-    body.classList.remove('dark', 'light', 'dark-theme', 'light-theme');
-    
-    // Apply theme classes
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      body.classList.add('dark', 'dark-theme');
-    } else {
-      root.classList.add('light');
-      body.classList.add('light', 'light-theme');
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+    let effectiveTheme = value;
+    if (value === "system") {
+      effectiveTheme = systemPrefersDark ? "dark" : "light";
     }
 
-    // Set CSS custom properties
-    root.style.setProperty('--theme-mode', theme);
-    
-    if (theme === 'dark') {
-      root.style.setProperty('--bg-primary', '#0f172a');
-      root.style.setProperty('--bg-secondary', 'rgba(255, 255, 255, 0.05)');
-      root.style.setProperty('--bg-tertiary', 'rgba(255, 255, 255, 0.1)');
-      root.style.setProperty('--text-primary', '#ffffff');
-      root.style.setProperty('--text-secondary', '#d1d5db');
-      root.style.setProperty('--text-muted', '#9ca3af');
-      root.style.setProperty('--border-color', 'rgba(255, 255, 255, 0.1)');
-      root.style.setProperty('--accent-color', '#10b981');
-      root.style.setProperty('--accent-color-light', '#34d399');
-      root.style.setProperty('--card-bg', 'rgba(255, 255, 255, 0.05)');
-      root.style.setProperty('--backdrop-blur', 'blur(20px)');
+    // Save user preference
+    localStorage.setItem("ecosort-theme", value);
+
+    // Clear classes
+    root.classList.remove("dark", "light");
+    body.classList.remove("dark", "light", "dark-theme", "light-theme");
+
+    // Apply new classes
+    if (effectiveTheme === "dark") {
+      root.classList.add("dark");
+      body.classList.add("dark", "dark-theme");
     } else {
-      root.style.setProperty('--bg-primary', '#f9fafb');
-      root.style.setProperty('--bg-secondary', 'rgba(255, 255, 255, 0.8)');
-      root.style.setProperty('--bg-tertiary', 'rgba(0, 0, 0, 0.05)');
-      root.style.setProperty('--text-primary', '#111827');
-      root.style.setProperty('--text-secondary', '#4b5563');
-      root.style.setProperty('--text-muted', '#6b7280');
-      root.style.setProperty('--border-color', 'rgba(0, 0, 0, 0.1)');
-      root.style.setProperty('--accent-color', '#059669');
-      root.style.setProperty('--accent-color-light', '#10b981');
-      root.style.setProperty('--card-bg', 'rgba(255, 255, 255, 0.8)');
-      root.style.setProperty('--backdrop-blur', 'blur(20px)');
+      root.classList.add("light");
+      body.classList.add("light", "light-theme");
     }
 
-    // Set meta theme-color for mobile browsers
+    // Update meta theme-color
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    const color = effectiveTheme === "dark" ? "#0f172a" : "#f9fafb";
     if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', theme === 'dark' ? '#0f172a' : '#f9fafb');
+      metaThemeColor.setAttribute("content", color);
     } else {
-      const meta = document.createElement('meta');
-      meta.name = 'theme-color';
-      meta.content = theme === 'dark' ? '#0f172a' : '#f9fafb';
-      document.getElementsByTagName('head')[0].appendChild(meta);
+      const meta = document.createElement("meta");
+      meta.name = "theme-color";
+      meta.content = color;
+      document.head.appendChild(meta);
     }
+  };
+
+  // Apply whenever theme changes
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  // React to system preference change
+  useEffect(() => {
+    if (theme !== "system") return;
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = () => applyTheme("system");
+    media.addEventListener("change", handler);
+    return () => media.removeEventListener("change", handler);
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prevTheme => (prevTheme === 'dark' ? 'light' : 'dark'));
+    setTheme((prev) => (prev === "dark" ? "light" : prev === "light" ? "system" : "dark"));
   };
 
   const setSpecificTheme = (newTheme) => {
-    if (newTheme === 'dark' || newTheme === 'light') {
+    if (["light", "dark", "system"].includes(newTheme)) {
       setTheme(newTheme);
     }
   };
 
-  // Comprehensive theme styles
-  const getThemeStyles = () => ({
-    // Common classes for consistent theming
-    page: theme === 'dark' 
-      ? 'min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900 text-white'
-      : 'min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 text-gray-900',
-    
-    card: theme === 'dark'
-      ? 'bg-white/5 backdrop-blur-xl border border-white/10'
-      : 'bg-white/80 backdrop-blur-xl border border-black/10',
-    
-    cardHover: theme === 'dark'
-      ? 'hover:bg-white/10 hover:border-white/20'
-      : 'hover:bg-white/90 hover:border-black/20',
-    
-    button: theme === 'dark'
-      ? 'bg-white/10 hover:bg-white/20 border border-white/10 text-gray-300 hover:text-white'
-      : 'bg-black/10 hover:bg-black/20 border border-black/10 text-gray-700 hover:text-black',
-    
-    buttonPrimary: theme === 'dark'
-      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white'
-      : 'bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white',
-    
-    input: theme === 'dark'
-      ? 'bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 focus:border-emerald-500'
-      : 'bg-white/80 border-gray-300 text-gray-900 placeholder-gray-500 focus:border-emerald-500',
-    
-    text: {
-      primary: theme === 'dark' ? 'text-white' : 'text-gray-900',
-      secondary: theme === 'dark' ? 'text-gray-300' : 'text-gray-700',
-      muted: theme === 'dark' ? 'text-gray-400' : 'text-gray-600',
-      accent: theme === 'dark' ? 'text-emerald-400' : 'text-emerald-700',
-    },
-    
-    background: {
-      primary: theme === 'dark' ? 'bg-slate-900' : 'bg-gray-50',
-      secondary: theme === 'dark' ? 'bg-gray-800' : 'bg-white',
-      gradient: theme === 'dark' 
-        ? 'bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900'
-        : 'bg-gradient-to-br from-gray-50 via-white to-emerald-50',
-    },
-    
-    border: theme === 'dark' ? 'border-white/10' : 'border-black/10',
-    divider: theme === 'dark' ? 'border-gray-700' : 'border-gray-200',
-    
-    // Status indicators
-    status: {
-      online: theme === 'dark' ? 'text-emerald-400' : 'text-emerald-600',
-      offline: theme === 'dark' ? 'text-red-400' : 'text-red-500',
-    },
-  });
+  const getThemeStyles = () => {
+    const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const effectiveTheme = theme === "system" ? (systemPrefersDark ? "dark" : "light") : theme;
 
-  const value = {
-    theme,
-    toggleTheme,
-    setTheme: setSpecificTheme,
-    isDark: theme === 'dark',
-    isLight: theme === 'light',
-    styles: getThemeStyles(),
+    return {
+      page:
+        effectiveTheme === "dark"
+          ? "min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-emerald-900 text-white"
+          : "min-h-screen bg-gradient-to-br from-gray-50 via-white to-emerald-50 text-gray-900",
+
+      card:
+        effectiveTheme === "dark"
+          ? "bg-white/5 backdrop-blur-xl border border-white/10"
+          : "bg-white/80 backdrop-blur-xl border border-black/10",
+
+      buttonPrimary:
+        effectiveTheme === "dark"
+          ? "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white"
+          : "bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white",
+
+      text: {
+        primary: effectiveTheme === "dark" ? "text-white" : "text-gray-900",
+        secondary: effectiveTheme === "dark" ? "text-gray-300" : "text-gray-700",
+        muted: effectiveTheme === "dark" ? "text-gray-400" : "text-gray-600",
+      },
+    };
   };
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        toggleTheme,
+        setTheme: setSpecificTheme,
+        isDark: theme === "dark",
+        isLight: theme === "light",
+        isSystem: theme === "system",
+        styles: getThemeStyles(),
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
@@ -317,46 +268,3 @@ export const useThemeSync = () => {
   return { theme, styles };
 };
 
-// ===========================
-// Usage Examples:
-// ===========================
-
-// 1. Wrap your entire app with ThemeProvider:
-// function App() {
-//   return (
-//     <ThemeProvider>
-//       <Router>
-//         <Routes>
-//           <Route path="/settings" element={<Settings />} />
-//           <Route path="/dashboard" element={<Dashboard />} />
-//         </Routes>
-//       </Router>
-//     </ThemeProvider>
-//   );
-// }
-
-// 2. Use BaseLayout in your components:
-// function Dashboard() {
-//   return (
-//     <BaseLayout>
-//       <div className="container mx-auto px-4 py-8">
-//         <YourContent />
-//       </div>
-//     </BaseLayout>
-//   );
-// }
-
-// 3. Or use withTheme HOC:
-// export default withTheme(Dashboard);
-
-// 4. Or use ThemeWrapper directly:
-// function Dashboard() {
-//   const { styles } = useTheme();
-//   return (
-//     <ThemeWrapper>
-//       <div className={`container mx-auto px-4 py-8 ${styles.card} rounded-3xl`}>
-//         <YourContent />
-//       </div>
-//     </ThemeWrapper>
-//   );
-// }

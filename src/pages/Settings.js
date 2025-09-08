@@ -30,24 +30,32 @@ export default function Settings() {
   const [notifications, setNotifications] = useState(false);
   const manualToggleRef = useRef(false);
 
-  // Realtime listener for push state
-  useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
+ useEffect(() => {
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const unsub = onSnapshot(doc(db, "fcmTokens", user.uid), (snap) => {
-      if (manualToggleRef.current) {
-        console.log("Manual toggle, skipping Firestore sync");
-        return;
+  try {
+    const ref = doc(db, "fcmTokens", user.uid);
+
+    const unsubscribe = onSnapshot(ref, {
+      next: (snap) => {
+        if (manualToggleRef.current) return;
+        const permissionGranted = Notification.permission === "granted";
+        const tokenExists = snap.exists() && snap.data()?.token;
+        setNotifications(permissionGranted && tokenExists);
+      },
+      error: (error) => {
+        console.error("Firestore listener error:", error);
       }
-
-      const permissionGranted = Notification.permission === "granted";
-      const tokenExists = snap.exists() && snap.data()?.token;
-      setNotifications(permissionGranted && tokenExists);
     });
 
-    return () => unsub();
-  }, []);
+    return () => unsubscribe();
+  } catch (err) {
+    console.error("Snapshot setup failed:", err);
+  }
+}, []);
+
+
 
   const handlePushToggle = async (enabled) => {
     setNotifications(enabled);
@@ -184,8 +192,7 @@ export default function Settings() {
               <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-2xl flex items-center justify-center shadow-2xl shadow-emerald-500/25">
                 <FiSettings className="text-white text-xl animate-spin-slow" />
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full animate-ping"></div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-400 rounded-full"></div>
+              
             </div>
 
             <div>

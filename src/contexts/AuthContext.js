@@ -1,7 +1,12 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { auth, db } from '../firebase'; // Your firebase config exports
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { auth, db } from "../firebase"; // Your firebase config exports
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+} from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const AuthContext = createContext(undefined);
 
@@ -10,24 +15,39 @@ export const AuthProvider = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Listen to user auth state change
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
 
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setIsAdmin(userData.role === 'admin');
-          } else {
-            setIsAdmin(false);
-          }
-        } catch {
+      if (!user || !user.uid) {
+        // Not logged in
+        setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          setIsAdmin(userData.role === "admin");
+        } else {
+          console.warn("User doc not found, creating default for:", user.uid);
+
+          // Create default user doc so rules will pass
+          await setDoc(userDocRef, {
+            email: user.email,
+            role: "resident", // default role
+            totalPoints: 0,
+            createdAt: new Date(),
+          });
+
           setIsAdmin(false);
         }
-      } else {
+      } catch (error) {
+        console.error("Error reading user doc:", error);
         setIsAdmin(false);
       }
 
@@ -51,7 +71,16 @@ export const AuthProvider = ({ children }) => {
   const createUser = async (email, password) => {
     setLoading(true);
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
+      const userCred = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCred.user;
+
+      // Create Firestore user document
+      await setDoc(doc(db, "users", user.uid), {
+        email: user.email,
+        role: "resident", // default role
+        totalPoints: 0,
+        createdAt: new Date(),
+      });
     } finally {
       setLoading(false);
     }
@@ -68,12 +97,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   if (loading) {
-    // You can replace this with your loading spinner component
-    return <div>Loading...</div>;
+    return <div>Loading...</div>; // Replace with spinner if you like
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, isAdmin, loading, loginUser, createUser, logOut }}>
+    <AuthContext.Provider
+      value={{ currentUser, isAdmin, loading, loginUser, createUser, logOut }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -82,7 +112,7 @@ export const AuthProvider = ({ children }) => {
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
