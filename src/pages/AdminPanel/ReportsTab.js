@@ -1,44 +1,126 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore'; // Add updateDoc and deleteDoc imports
+import { db } from '../../firebase'; // Adjust relative path to your firebase.js
 
 export default function ReportsTab({ reports, setReports, formatTimestamp, getStatusBadge, showToast, isDark }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState('newest');
   const [searchTerm, setSearchTerm] = useState('');
+  const [reportsWithUserNames, setReportsWithUserNames] = useState([]);
 
-  const updateReportStatus = (id, newStatus) => {
-    setReports((prev) =>
-      prev.map((report) =>
-        report.id === id ? { ...report, status: newStatus } : report
-      )
-    );
-    showToast(`Report status updated to ${newStatus}`, "success");
+  useEffect(() => {
+    async function fetchUserNames() {
+      const newReports = await Promise.all(
+        reports.map(async (report) => {
+          if (report.userName || report.authorUsername) return report; // already have userName, skip
+
+          try {
+            const userDoc = await getDoc(doc(db, 'users', report.reportedBy));
+            const userData = userDoc.exists() ? userDoc.data() : null;
+            return {
+              ...report,
+              userName: userData?.username || "Unknown User",
+            };
+          } catch (err) {
+            console.error('Error fetching username for report:', report.id, err);
+            return {
+              ...report,
+              userName: "Unknown User",
+            };
+          }
+        })
+      );
+      setReportsWithUserNames(newReports);
+    }
+
+    if (reports.length > 0) {
+      fetchUserNames();
+    } else {
+      setReportsWithUserNames([]);
+    }
+  }, [reports]);
+
+  // Updated function to persist status changes to Firebase
+  const updateReportStatus = async (id, newStatus) => {
+    try {
+      console.log('Updating report:', id, 'to status:', newStatus);
+      
+      // Update in Firebase first
+      const reportRef = doc(db, 'violation_reports', id); // Adjust collection name if different
+      await updateDoc(reportRef, {
+        status: newStatus,
+        updatedAt: new Date() // Optional: track when status was updated
+      });
+
+      console.log('Firebase update successful');
+
+      // Then update local state
+      setReports((prev) =>
+        prev.map((report) =>
+          report.id === id ? { ...report, status: newStatus } : report
+        )
+      );
+      
+      showToast(`Report status updated to ${newStatus}`, "success");
+    } catch (error) {
+      console.error('Error updating report status:', error);
+      console.error('Error details:', {
+        code: error.code,
+        message: error.message,
+        reportId: id,
+        newStatus: newStatus
+      });
+      
+      // More specific error messages
+      let errorMessage = 'Failed to update report status';
+      if (error.code === 'permission-denied') {
+        errorMessage = 'Permission denied. Check your Firebase security rules.';
+      } else if (error.code === 'not-found') {
+        errorMessage = 'Report not found in database.';
+      } else if (error.code === 'unavailable') {
+        errorMessage = 'Database temporarily unavailable. Please try again.';
+      }
+      
+      showToast(errorMessage, "error");
+    }
   };
 
-  const deleteReport = (id) => {
+  // Updated function to persist deletions to Firebase
+  const deleteReport = async (id) => {
     if (window.confirm("Are you sure you want to delete this report?")) {
-      setReports((prev) => prev.filter((report) => report.id !== id));
-      showToast("Report deleted", "success");
+      try {
+        // Delete from Firebase first
+        const reportRef = doc(db, 'reports', id); // Adjust collection name if different
+        await deleteDoc(reportRef); // You'll need to import deleteDoc from 'firebase/firestore'
+
+        // Then update local state
+        setReports((prev) => prev.filter((report) => report.id !== id));
+        showToast("Report deleted", "success");
+      } catch (error) {
+        console.error('Error deleting report:', error);
+        showToast('Failed to delete report', "error");
+      }
     }
   };
 
   const statusCounts = useMemo(() => {
-    const counts = reports.reduce((acc, report) => {
+    const counts = reportsWithUserNames.reduce((acc, report) => {
       const status = typeof report.status === 'string' ? report.status.toLowerCase() : 'unknown';
       acc[status] = (acc[status] || 0) + 1;
       return acc;
     }, {});
 
     return {
-      all: reports.length,
+      all: reportsWithUserNames.length,
       pending: counts.pending || 0,
       'in review': counts['in review'] || 0,
       resolved: counts.resolved || 0,
       unknown: counts.unknown || 0,
     };
-  }, [reports]);
+  }, [reportsWithUserNames]);
 
   const filteredAndSortedReports = useMemo(() => {
-    let filtered = reports;
+    let filtered = reportsWithUserNames;
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter(report =>
@@ -52,10 +134,14 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
         const description = report.description || "";
         const location = report.location || "";
         const id = report.id || "";
+        const userName = report.authorUsername || report.userName || "";
+        const severity = report.severity || "";
         return (
           description.toLowerCase().includes(lowerSearch) ||
           location.toLowerCase().includes(lowerSearch) ||
-          id.toLowerCase().includes(lowerSearch)
+          id.toLowerCase().includes(lowerSearch) ||
+          userName.toLowerCase().includes(lowerSearch) ||
+          severity.toLowerCase().includes(lowerSearch)
         );
       });
     }
@@ -76,7 +162,7 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
     });
 
     return filtered;
-  }, [reports, statusFilter, sortBy, searchTerm]);
+  }, [reportsWithUserNames, statusFilter, sortBy, searchTerm]);
 
   return (
     <div className={`space-y-6 ${isDark ? "bg-gray-900 text-gray-200" : "bg-white text-gray-900"}`}>
@@ -87,10 +173,8 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
         </p>
       </div>
 
-      {/* Filters and Search */}
       <div className={`${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"} rounded-xl shadow-sm border p-6`}>
         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
-          {/* Search */}
           <div className="flex-1 max-w-md">
             <div className="relative">
               <svg className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${isDark ? "text-gray-400" : "text-slate-400"}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -109,7 +193,6 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
             </div>
           </div>
 
-          {/* Status Filter */}
           <div className="flex flex-wrap gap-2" role="group" aria-label="Filter reports by status">
             {Object.entries(statusCounts).map(([status, count]) => (
               <button
@@ -127,7 +210,6 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
             ))}
           </div>
 
-          {/* Sort Dropdown */}
           <div>
             <select
               value={sortBy}
@@ -146,7 +228,6 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
         </div>
       </div>
 
-      {/* Results Summary */}
       {(statusFilter !== 'all' || searchTerm) && (
         <div className={`${isDark ? "bg-blue-900 border-blue-800 text-blue-200" : "bg-blue-50 border-blue-200 text-blue-800"} border rounded-lg p-4`}>
           <div className="flex items-center justify-between">
@@ -177,7 +258,6 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
         </div>
       )}
 
-      {/* Reports List */}
       {filteredAndSortedReports.length === 0 ? (
         <div className={`text-center py-16 ${isDark ? "text-gray-400" : "text-slate-500"}`}>
           <div className={`${isDark ? "bg-gray-700" : "bg-slate-100"} w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4`}>
@@ -213,8 +293,23 @@ export default function ReportsTab({ reports, setReports, formatTimestamp, getSt
                     </h3>
                     {getStatusBadge(report.status, isDark)}
                   </div>
-                  <p className={`${isDark ? "text-gray-300" : "text-slate-700"} mb-3 leading-relaxed`}>
-                    {report.description}
+                   {report.description && (
+                    <div className="mb-4">
+                      <h4 className={`${isDark ? "text-gray-400" : "text-gray-700"} font-semibold mb-2 text-sm`}>
+                        Description:
+                      </h4>
+                      <p className={`${isDark ? "text-gray-300" : "text-slate-700"} whitespace-pre-wrap break-words leading-relaxed`}>
+                        {report.description}
+                      </p>
+                    </div>
+                  )}
+                  {report.severity && (
+                    <p className={`${isDark ? "text-gray-300" : "text-slate-700"} mb-1 text-sm`}>
+                      Severity: {report.severity}
+                    </p>
+                  )}
+                  <p className={`${isDark ? "text-gray-300" : "text-slate-700"} mb-3 text-sm`}>
+                    Submitted by: {report.authorUsername || report.userName || "Unknown User"}
                   </p>
                   <div className={`flex items-center space-x-6 text-sm ${isDark ? "text-gray-400" : "text-slate-500"}`}>
                     <div className="flex items-center space-x-2">

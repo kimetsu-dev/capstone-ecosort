@@ -153,10 +153,10 @@ export default function Report() {
     }
 
     const user = auth.currentUser;
-    if (!user) {
-      showToast("You must be logged in to submit a report.", "error");
-      return;
-    }
+if (!user) {
+  showToast("You must be logged in to submit a report.", "error");
+  return;
+}
 
     setLoading(true);
 
@@ -191,24 +191,25 @@ export default function Report() {
           );
         });
       }
-
+      const userName = user.displayName || "Unknown User";
       const reportData = {
-        reportedBy: user.uid,
-        reporterEmail: user.email || "unknown",
-        description: description.trim(),
-        location: location.trim(),
-        mediaUrl,
-        mediaType,
-        status: "pending",
-        likes: [],
-        comments: [],
-        submittedAt: serverTimestamp(),
-        coordinates: currentLocation || null,
-        severity,
-        category,
-        resolved: false,
-        adminNotes: "",
-      };
+  reportedBy: user.uid,
+  reporterEmail: user.email || "unknown",
+  userName,                      // <-- add this field
+  description: description.trim(),
+  location: location.trim(),
+  mediaUrl,
+  mediaType,
+  status: "pending",
+  likes: [],
+  comments: [],
+  submittedAt: serverTimestamp(),
+  coordinates: currentLocation || null,
+  severity,
+  category,
+  resolved: false,
+  adminNotes: "",
+};
 
       await addDoc(collection(db, "reports"), reportData);
 
@@ -393,9 +394,9 @@ export default function Report() {
               </label>
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { value: "low", label: "Low", color: "text-green-700 border-green-300 bg-green-50", darkColor: "dark:text-green-300 dark:border-green-700 dark:bg-green-900/30", icon: "🟢" },
-                  { value: "medium", label: "Medium", color: "text-yellow-700 border-yellow-300 bg-yellow-50", darkColor: "dark:text-yellow-300 dark:border-yellow-700 dark:bg-yellow-900/30", icon: "🟡" },
-                  { value: "high", label: "High", color: "text-red-700 border-red-300 bg-red-50", darkColor: "dark:text-red-300 dark:border-red-700 dark:bg-red-900/30", icon: "🔴" },
+                  { value: "Low", label: "Low", color: "text-green-700 border-green-300 bg-green-50", darkColor: "dark:text-green-300 dark:border-green-700 dark:bg-green-900/30", icon: "🟢" },
+                  { value: "Medium", label: "Medium", color: "text-yellow-700 border-yellow-300 bg-yellow-50", darkColor: "dark:text-yellow-300 dark:border-yellow-700 dark:bg-yellow-900/30", icon: "🟡" },
+                  { value: "High", label: "High", color: "text-red-700 border-red-300 bg-red-50", darkColor: "dark:text-red-300 dark:border-red-700 dark:bg-red-900/30", icon: "🔴" },
                 ].map((sev) => (
                   <button
                     key={sev.value}

@@ -40,6 +40,7 @@ import {
   FiSettings,
   FiEdit3,
   FiX,
+  FiCheck,
 } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -67,6 +68,14 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
   const [currentPasswordError, setCurrentPasswordError] = useState("");
+  const [scrollY, setScrollY] = useState(0);
+
+  // Handle scroll for animations
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
@@ -275,423 +284,520 @@ export default function Profile() {
           : "bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 text-gray-900"
       } relative overflow-x-hidden`}
     >
-      <div className="relative z-10 px-3 sm:px-4 py-4 sm:py-6 max-w-6xl mx-auto">
-        {/* Mobile-optimized Header */}
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
-          {/* Left side - Back button */}
-          <button
-            onClick={() => navigate("/dashboard")}
-            className={`flex items-center space-x-2 px-3 py-2 sm:px-4 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 hover:scale-105 ${
-              isDark ? "bg-gray-800 text-gray-300 hover:bg-gray-700" : "bg-white text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            <FiArrowLeft className="text-sm sm:text-base" />
-            <span className="text-sm sm:text-base">Back</span>
-          </button>
+      {/* Enhanced Sticky Header */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${
+          isDark 
+            ? `bg-gray-900/95 border-gray-700/50` 
+            : `bg-white/95 border-gray-200/50`
+        } ${scrollY > 20 ? 'shadow-lg border-b' : 'shadow-sm'}`}
+        style={{
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between">
+            {/* Enhanced Back Button */}
+            <button
+              onClick={() => navigate("/dashboard")}
+              className={`group flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${
+                isDark 
+                  ? "bg-gray-800/80 text-gray-300 hover:bg-gray-700/80 border border-gray-600/30" 
+                  : "bg-white/80 text-gray-700 hover:bg-gray-50/80 border border-gray-200/50"
+              } shadow-sm hover:shadow-md`}
+            >
+              <FiArrowLeft className="text-lg transition-transform group-hover:-translate-x-0.5" />
+              <span className="text-sm sm:text-base">Back</span>
+            </button>
 
-          {/* Center - Title */}
-          <h1
-            className={`text-xl sm:text-2xl lg:text-3xl font-bold text-center ${
-              isDark ? "text-gray-200" : "text-gray-800"
-            }`}
-          >
-            My Profile
-          </h1>
+            {/* Enhanced Title with Animation */}
+            <h1
+              className={`text-xl sm:text-2xl lg:text-3xl font-bold text-center flex-grow mx-6 transition-all duration-500 ${
+                isDark ? "text-gray-200" : "text-gray-800"
+              }`}
+              style={{ 
+                userSelect: "none",
+                transform: scrollY > 50 ? 'scale(0.95)' : 'scale(1)',
+              }}
+            >
+              My Profile
+            </h1>
 
-          {/* Right side - Settings button */}
+            {/* Enhanced Settings Button */}
+            <button
+              onClick={() => navigate("/settings")}
+              className={`group flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium transition-all duration-300 hover:scale-105 active:scale-95 ${
+                isDark 
+                  ? "bg-gray-700/80 text-gray-300 hover:bg-gray-600/80 border border-gray-600/30" 
+                  : "bg-gray-100/80 text-gray-700 hover:bg-gray-200/80 border border-gray-200/50"
+              } shadow-sm hover:shadow-md`}
+            >
+              <FiSettings className="text-lg transition-transform group-hover:rotate-90" />
+              <span className="text-sm sm:text-base hidden sm:inline">Settings</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content with Top Padding */}
+      <div className="pt-20 sm:pt-24 pb-6 px-4 sm:px-6 max-w-4xl mx-auto">
+        {/* Floating Edit Button */}
+        {!isEditing && (
           <button
-            onClick={() => navigate("/settings")}
-            className={`flex items-center space-x-2 px-3 py-2 sm:px-4 rounded-xl shadow-md transition-all duration-300 hover:scale-105 ${
+            onClick={() => setIsEditing(true)}
+            className={`fixed bottom-6 right-6 z-40 p-4 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110 active:scale-95 ${
               isDark
-                ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600"
+                : "bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700"
+            } text-white group`}
+            style={{
+              transform: `translateY(${Math.min(scrollY * 0.1, 10)}px)`,
+            }}
           >
-            <FiSettings className="text-sm sm:text-base" />
-            <span className="text-sm sm:text-base hidden sm:inline">Settings</span>
+            <FiEdit3 className="text-xl transition-transform group-hover:rotate-12" />
           </button>
-        </div>  
+        )}
 
-       
-            {/* Mobile-optimized Profile Layout */}
-            <div className="space-y-6">
-              {/* Profile Summary Card - Always on top for mobile */}
-              <div
-                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
-                  isDark
-                    ? "bg-gray-800 border-gray-700 text-gray-200"
-                    : "bg-white border-gray-200 text-gray-900"
+        {/* Enhanced Content Layout */}
+        <div className="space-y-6">
+          {/* Enhanced Profile Summary Card */}
+          <div
+            className={`rounded-2xl p-6 sm:p-8 shadow-xl border transition-all duration-500 ${
+              isDark
+                ? "bg-gray-800/95 border-gray-700/50 backdrop-blur-sm"
+                : "bg-white/95 border-gray-200/50 backdrop-blur-sm"
+            }`}
+            style={{
+              transform: `translateY(${Math.min(scrollY * 0.05, 5)}px)`,
+            }}
+          >
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+              {/* Enhanced Profile Picture */}
+              <div className="relative group flex-shrink-0">
+                {profileUrl ? (
+                  <img
+                    src={profileUrl}
+                    alt="Profile"
+                    className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-white shadow-xl group-hover:scale-105 transition-all duration-300"
+                  />
+                ) : (
+                  <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-4 border-white shadow-xl group-hover:scale-105 transition-all duration-300">
+                    <FiUser size={36} className="text-gray-600" />
+                  </div>
+                )}
+
+                {isEditing && (
+                  <label className="absolute -bottom-2 -right-2 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full p-3 shadow-lg cursor-pointer hover:from-blue-600 hover:to-blue-700 transition-all duration-300 hover:scale-110 group">
+                    <FiCamera className="text-white text-sm" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        if (e.target.files[0]) setProfilePicFile(e.target.files[0]);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+
+              {/* Enhanced User Info */}
+              <div className="flex-1 text-center sm:text-left">
+                <h2 className="text-2xl sm:text-3xl font-bold mb-2">
+                  {username || "Anonymous User"}
+                </h2>
+                <p className={`text-base mb-4 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                  {email}
+                </p>
+                
+                {/* Enhanced Badge */}
+                <div
+                  className={`inline-flex items-center space-x-3 px-5 py-3 rounded-2xl shadow-lg bg-gradient-to-r ${currentBadge.color} text-white text-base font-semibold transition-all duration-300 hover:scale-105`}
+                >
+                  <span className="text-2xl">{currentBadge.icon}</span>
+                  <span>{currentBadge.name}</span>
+                </div>
+              </div>
+
+              {/* Enhanced Stats */}
+              <div className="flex gap-4">
+                <div className={`text-center px-5 py-4 rounded-2xl shadow-md transition-all duration-300 hover:scale-105 ${isDark ? "bg-gray-700/80" : "bg-emerald-50"}`}>
+                  <div className={`text-2xl font-bold ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
+                    {points.toLocaleString()}
+                  </div>
+                  <div className={`text-sm ${isDark ? "text-emerald-500" : "text-emerald-600"}`}>Points</div>
+                </div>
+                <div className={`text-center px-5 py-4 rounded-2xl shadow-md transition-all duration-300 hover:scale-105 ${isDark ? "bg-gray-700/80" : "bg-blue-50"}`}>
+                  <div className={`text-2xl font-bold ${isDark ? "text-blue-400" : "text-blue-700"}`}>
+                    #{rank || "?"}
+                  </div>
+                  <div className={`text-sm ${isDark ? "text-blue-500" : "text-blue-600"}`}>Rank</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Enhanced Progress Bar */}
+            <div className={`mt-6 p-4 rounded-2xl ${isDark ? "bg-gray-700/50" : "bg-gray-50"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className={`font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+                  Next Level Progress
+                </span>
+                <span className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  {levelProgress.remaining} points to go
+                </span>
+              </div>
+              <div className={`w-full rounded-full h-3 ${isDark ? "bg-gray-600" : "bg-gray-200"} overflow-hidden`}>
+                <div
+                  className="bg-gradient-to-r from-emerald-400 to-green-500 h-3 rounded-full transition-all duration-1000 ease-out"
+                  style={{ width: `${levelProgress.progress}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+              <Link
+                to="/my-redemptions"
+                state={{ from: "/profile" }}
+                className={`inline-flex items-center font-medium transition-all duration-300 hover:scale-105 ${
+                  isDark 
+                    ? "text-blue-400 hover:text-blue-300" 
+                    : "text-blue-600 hover:text-blue-700"
                 }`}
               >
-                <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
-                  {/* Profile Picture */}
-                  <div className="relative group flex-shrink-0">
-                    {profileUrl ? (
-                      <img
-                        src={profileUrl}
-                        alt="Profile"
-                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-3 border-white shadow-md group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-3 border-white shadow-md group-hover:scale-105 transition-transform duration-300">
-                        <FiUser size={32} className="text-gray-600" />
-                      </div>
-                    )}
+                View My Redemptions →
+              </Link>
+            </div>
+          </div>
 
-                    {isEditing && (
-                      <label className="absolute -bottom-1 -right-1 bg-blue-500 rounded-full p-2 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors duration-300">
-                        <FiCamera className="text-white text-xs" />
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={(e) => {
-                            if (e.target.files[0]) setProfilePicFile(e.target.files[0]);
-                          }}
-                        />
-                      </label>
-                    )}
-                  </div>
-
-                  {/* User Info */}
-                  <div className="flex-1 text-center sm:text-left">
-                    <h2 className="text-lg sm:text-xl font-bold mb-1">
-                      {username || "Anonymous User"}
-                    </h2>
-                    <p className={`text-sm mb-3 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                      {email}
-                    </p>
-                    
-                    {/* Badge */}
-                    <div
-                      className={`inline-flex items-center space-x-2 px-3 py-1 sm:px-4 sm:py-2 rounded-xl shadow-md bg-gradient-to-r ${currentBadge.color} text-white text-sm`}
-                    >
-                      <span className="text-lg">{currentBadge.icon}</span>
-                      <span className="font-semibold">{currentBadge.name}</span>
-                    </div>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex gap-3 sm:gap-4">
-                    <div className={`text-center px-3 py-2 rounded-xl ${isDark ? "bg-gray-700" : "bg-emerald-50"}`}>
-                      <div className={`text-lg font-bold ${isDark ? "text-emerald-400" : "text-emerald-700"}`}>
-                        {points.toLocaleString()}
-                      </div>
-                      <div className={`text-xs ${isDark ? "text-emerald-500" : "text-emerald-600"}`}>Points</div>
-                    </div>
-                    <div className={`text-center px-3 py-2 rounded-xl ${isDark ? "bg-gray-700" : "bg-blue-50"}`}>
-                      <div className={`text-lg font-bold ${isDark ? "text-blue-400" : "text-blue-700"}`}>
-                        #{rank || "?"}
-                      </div>
-                      <div className={`text-xs ${isDark ? "text-blue-500" : "text-blue-600"}`}>Rank</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Progress Bar */}
-                <div className={`mt-4 p-3 rounded-xl ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-sm font-medium ${isDark ? "text-gray-300" : "text-gray-600"}`}>
-                      Next Level
-                    </span>
-                    <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                      {levelProgress.remaining} points to go
-                    </span>
-                  </div>
-                  <div className={`w-full rounded-full h-2 ${isDark ? "bg-gray-600" : "bg-gray-200"}`}>
-                    <div
-                      className="bg-gradient-to-r from-emerald-400 to-green-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${levelProgress.progress}%` }}
-                    ></div>
-                  </div>
-                </div>
-
-                {/* Quick Actions */}
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
-                  <Link
-                    to="/my-redemptions"
-                    state={{ from: "/profile" }}
-                    className={`inline-flex items-center text-sm font-medium transition-colors ${
-                      isDark 
-                        ? "text-blue-400 hover:text-blue-300" 
-                        : "text-blue-600 hover:text-blue-700"
+          {/* Enhanced Profile Information Form */}
+          <div
+            className={`rounded-2xl p-6 sm:p-8 shadow-xl border transition-all duration-500 ${
+              isDark
+                ? "bg-gray-800/95 border-gray-700/50 backdrop-blur-sm"
+                : "bg-white/95 border-gray-200/50 backdrop-blur-sm"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h3 className={`text-xl sm:text-2xl font-bold flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+                <FiUser className="mr-3 text-2xl" /> Profile Information
+              </h3>
+              
+              {isEditing && (
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setIsEditing(false);
+                      setPassword("");
+                      setConfirmPassword("");
+                      setCurrentPassword("");
+                      setProfilePicFile(null);
+                    }}
+                    className={`p-2 rounded-xl transition-all duration-300 hover:scale-110 ${
+                      isDark
+                        ? "bg-gray-700 text-gray-300 hover:bg-gray-600"
+                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                     }`}
                   >
-                    View My Redemptions →
-                  </Link>
-                </div>
-              </div>
-
-              {/* Profile Information Form */}
-              <div
-                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
-                  isDark
-                    ? "bg-gray-800 border-gray-700 text-gray-200"
-                    : "bg-white border-gray-200 text-gray-900"
-                }`}
-              >
-                <h3 className={`text-lg sm:text-xl font-bold mb-4 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
-                  <FiUser className="mr-2" /> Profile Information
-                </h3>
-
-                <div className="space-y-4">
-                  {/* Username */}
-                  <div>
-                    <label htmlFor="username" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                      Username
-                    </label>
-                    <div className="relative">
-                      <FiUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        id="username"
-                        type="text"
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        disabled={!isEditing}
-                        className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
-                          isEditing
-                            ? `border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                isDark ? "bg-gray-700 text-gray-200" : "bg-white"
-                              }`
-                            : `border-gray-200 ${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-50"}`
-                        }`}
-                        placeholder="Enter your username"
-                        autoComplete="username"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Email */}
-                  <div>
-                    <label htmlFor="email" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <FiMail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                      <input
-                        id="email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        disabled={!isEditing}
-                        className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${
-                          isEditing
-                            ? `border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 ${
-                                isDark ? "bg-gray-700 text-gray-200" : "bg-white"
-                              }`
-                            : `border-gray-200 ${isDark ? "bg-gray-700 text-gray-400" : "bg-gray-50"}`
-                        }`}
-                        placeholder="Enter your email"
-                        autoComplete="email"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* Password Fields - Only show when editing */}
-                  {isEditing && (
-                    <>
-                      {isEmailUser && (
-                        <div>
-                          <label htmlFor="currentPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                            Current Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(required to change email or password)</span>
-                          </label>
-                          <div className="relative">
-                            <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                            <input
-                              id="currentPassword"
-                              type={showCurrentPassword ? "text" : "password"}
-                              value={currentPassword}
-                              onChange={(e) => {
-                                setCurrentPassword(e.target.value);
-                                setCurrentPasswordError("");
-                              }}
-                              className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                                currentPasswordError ? "border-red-500" : "border-gray-300"
-                              } focus:border-blue-500 focus:ring-2 ${
-                                currentPasswordError ? "focus:ring-red-200" : "focus:ring-blue-200"
-                              } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
-                              placeholder="Enter current password"
-                              autoComplete="current-password"
-                              required={password || (email !== user?.email)}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                            >
-                              {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
-                            </button>
-                          </div>
-                          {currentPasswordError && (
-                            <p className="text-xs text-red-600 mt-1">{currentPasswordError}</p>
-                          )}
-                        </div>
-                      )}
-
-                      <div>
-                        <label htmlFor="password" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                          New Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(optional)</span>
-                        </label>
-                        <div className="relative">
-                          <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                          <input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            value={password}
-                            onChange={(e) => {
-                              setPassword(e.target.value);
-                              setPasswordError("");
-                            }}
-                            className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                              passwordError ? "border-red-500" : "border-blue-300"
-                            } focus:border-blue-500 focus:ring-2 ${
-                              passwordError ? "focus:ring-red-200" : "focus:ring-blue-200"
-                            } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
-                            placeholder="Enter new password"
-                            autoComplete="new-password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            {showPassword ? <FiEyeOff /> : <FiEye />}
-                          </button>
-                        </div>
-                        <p className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                          Must be at least 8 characters, with uppercase and number.
-                        </p>
-                        {passwordError && <p className="text-xs text-red-600 mt-1">{passwordError}</p>}
-                      </div>
-
-                      <div>
-                        <label htmlFor="confirmPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                          Confirm New Password
-                        </label>
-                        <div className="relative">
-                          <FiLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                          <input
-                            id="confirmPassword"
-                            type={showConfirmPassword ? "text" : "password"}
-                            value={confirmPassword}
-                            onChange={(e) => {
-                              setConfirmPassword(e.target.value);
-                              setConfirmPasswordError("");
-                            }}
-                            className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
-                              confirmPasswordError ? "border-red-500" : "border-blue-300"
-                            } focus:border-blue-500 focus:ring-2 ${
-                              confirmPasswordError ? "focus:ring-red-200" : "focus:ring-blue-200"
-                            } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
-                            placeholder="Confirm new password"
-                            autoComplete="new-password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                          >
-                            {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
-                          </button>
-                        </div>
-                        {confirmPasswordError && <p className="text-xs text-red-600 mt-1">{confirmPasswordError}</p>}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Save Button - Only show when editing */}
-                  {isEditing && (
-                    <button
-                      onClick={handleSave}
-                      disabled={isSaveDisabled}
-                      className="w-full bg-gradient-to-r from-emerald-500 to-green-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
-                    >
-                      <FiSave />
-                      <span>{saving ? "Saving..." : "Save Changes"}</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Achievements Section */}
-              <div
-                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
-                  isDark
-                    ? "bg-gray-800 border-gray-700 text-gray-200"
-                    : "bg-white border-gray-200 text-gray-900"
-                }`}
-              >
-                <h3 className={`text-lg sm:text-xl font-bold mb-4 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
-                  <FiAward className="mr-2" /> Achievements
-                </h3>
-                <div className="grid grid-cols-1 gap-3">
-                  {achievements.length > 0 ? (
-                    achievements.map((achievement, index) => (
-                      <div
-                        key={index}
-                        className={`rounded-xl p-4 border ${
-                          isDark ? "bg-yellow-800/20 border-yellow-600/30" : "bg-yellow-50 border-amber-200"
-                        }`}
-                      >
-                        <div className="flex items-center space-x-3">
-                          <div className="text-2xl flex-shrink-0">{achievement.icon}</div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className={`font-bold text-sm sm:text-base ${isDark ? "text-yellow-300" : "text-amber-800"}`}>
-                              {achievement.name}
-                            </h4>
-                            <p className={`text-xs sm:text-sm ${isDark ? "text-yellow-400" : "text-amber-600"} truncate`}>
-                              {achievement.description}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={`text-center py-8 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
-                      <FiTrendingUp className="mx-auto text-3xl mb-3 opacity-50" />
-                      <p className="text-sm">Start earning points to unlock achievements!</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Account Actions */}
-              <div
-                className={`rounded-2xl p-4 sm:p-6 shadow-lg border transition-colors duration-500 ${
-                  isDark
-                    ? "bg-gray-800 border-gray-700 text-gray-200"
-                    : "bg-white border-gray-200 text-gray-900"
-                }`}
-              >
-                <h3 className={`text-lg sm:text-xl font-bold mb-4 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
-                  Account Actions
-                </h3>
-                <div className="flex flex-col gap-3">
-                  <button
-                    onClick={handleLogout}
-                    className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-3 px-4 rounded-xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
-                  >
-                    <FiLogOut />
-                    <span>Logout</span>
+                    <FiX className="text-lg" />
                   </button>
                   <button
-                    onClick={handleDeleteAccount}
-                    className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-3 px-4 rounded-xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-2"
+                    onClick={handleSave}
+                    disabled={isSaveDisabled}
+                    className="bg-gradient-to-r from-emerald-500 to-green-600 text-white p-2 rounded-xl font-semibold hover:from-emerald-600 hover:to-green-700 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    <FiTrash2 />
-                    <span>Delete Account</span>
+                    {saving ? (
+                      <div className="animate-spin w-6 h-6 border-2 border-white border-t-transparent rounded-full"></div>
+                    ) : (
+                      <FiCheck className="text-lg" />
+                    )}
                   </button>
                 </div>
-              </div>
-
-              {/* Bottom Spacing for Mobile */}
-              <div className="h-4"></div>
+              )}
             </div>
-          
-  
+
+            <div className="space-y-6">
+              {/* Enhanced Username Input */}
+              <div>
+                <label htmlFor="username" className={`block text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  Username
+                </label>
+                <div className="relative">
+                  <FiUser className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                  <input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    disabled={!isEditing}
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 transition-all duration-300 text-lg ${
+                      isEditing
+                        ? `border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-200/50 ${
+                            isDark ? "bg-gray-700 text-gray-200" : "bg-white"
+                          }`
+                        : `border-gray-200 ${isDark ? "bg-gray-700/50 text-gray-400" : "bg-gray-50"}`
+                    }`}
+                    placeholder="Enter your username"
+                    autoComplete="username"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Enhanced Email Input */}
+              <div>
+                <label htmlFor="email" className={`block text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                  Email Address
+                </label>
+                <div className="relative">
+                  <FiMail className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                  <input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={!isEditing}
+                    className={`w-full pl-12 pr-4 py-4 rounded-xl border-2 transition-all duration-300 text-lg ${
+                      isEditing
+                        ? `border-blue-300 focus:border-blue-500 focus:ring-4 focus:ring-blue-200/50 ${
+                            isDark ? "bg-gray-700 text-gray-200" : "bg-white"
+                          }`
+                        : `border-gray-200 ${isDark ? "bg-gray-700/50 text-gray-400" : "bg-gray-50"}`
+                    }`}
+                    placeholder="Enter your email"
+                    autoComplete="email"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Enhanced Password Fields - Only show when editing */}
+              {isEditing && (
+                <div className="space-y-6 pt-6 border-t border-gray-200 dark:border-gray-600">
+                  {isEmailUser && (
+                    <div>
+                      <label htmlFor="currentPassword" className={`block text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                        Current Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(required for security changes)</span>
+                      </label>
+                      <div className="relative">
+                        <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                        <input
+                          id="currentPassword"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => {
+                            setCurrentPassword(e.target.value);
+                            setCurrentPasswordError("");
+                          }}
+                          className={`w-full pl-12 pr-14 py-4 rounded-xl border-2 text-lg ${
+                            currentPasswordError ? "border-red-500" : "border-gray-300"
+                          } focus:border-blue-500 focus:ring-4 ${
+                            currentPasswordError ? "focus:ring-red-200/50" : "focus:ring-blue-200/50"
+                          } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                          placeholder="Enter current password"
+                          autoComplete="current-password"
+                          required={password || (email !== user?.email)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                          {showCurrentPassword ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
+                        </button>
+                      </div>
+                      {currentPasswordError && (
+                        <p className="text-sm text-red-600 mt-2 flex items-center">
+                          <span className="w-1 h-1 bg-red-600 rounded-full mr-2"></span>
+                          {currentPasswordError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label htmlFor="password" className={`block text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                      New Password <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>(optional)</span>
+                    </label>
+                    <div className="relative">
+                      <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                      <input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          setPasswordError("");
+                        }}
+                        className={`w-full pl-12 pr-14 py-4 rounded-xl border-2 text-lg ${
+                          passwordError ? "border-red-500" : "border-blue-300"
+                        } focus:border-blue-500 focus:ring-4 ${
+                          passwordError ? "focus:ring-red-200/50" : "focus:ring-blue-200/50"
+                        } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                        placeholder="Enter new password"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showPassword ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
+                      </button>
+                    </div>
+                    <p className={`text-sm mt-2 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                      Must be at least 8 characters, with uppercase and number.
+                    </p>
+                    {passwordError && (
+                      <p className="text-sm text-red-600 mt-2 flex items-center">
+                        <span className="w-1 h-1 bg-red-600 rounded-full mr-2"></span>
+                        {passwordError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="confirmPassword" className={`block text-sm font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
+                      Confirm New Password
+                    </label>
+                    <div className="relative">
+                      <FiLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                      <input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setConfirmPasswordError("");
+                        }}
+                        className={`w-full pl-12 pr-14 py-4 rounded-xl border-2 text-lg ${
+                          confirmPasswordError ? "border-red-500" : "border-blue-300"
+                        } focus:border-blue-500 focus:ring-4 ${
+                          confirmPasswordError ? "focus:ring-red-200/50" : "focus:ring-blue-200/50"
+                        } ${isDark ? "bg-gray-700 text-gray-200" : "bg-white"} transition-all duration-300`}
+                        placeholder="Confirm new password"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                      >
+                        {showConfirmPassword ? <FiEyeOff className="text-lg" /> : <FiEye className="text-lg" />}
+                      </button>
+                    </div>
+                    {confirmPasswordError && (
+                      <p className="text-sm text-red-600 mt-2 flex items-center">
+                        <span className="w-1 h-1 bg-red-600 rounded-full mr-2"></span>
+                        {confirmPasswordError}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Enhanced Achievements Section */}
+          <div
+            className={`rounded-2xl p-6 sm:p-8 shadow-xl border transition-all duration-500 ${
+              isDark
+                ? "bg-gray-800/95 border-gray-700/50 backdrop-blur-sm"
+                : "bg-white/95 border-gray-200/50 backdrop-blur-sm"
+            }`}
+          >
+            <h3 className={`text-xl sm:text-2xl font-bold mb-6 flex items-center ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+              <FiAward className="mr-3 text-2xl" /> Achievements
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {achievements.length > 0 ? (
+                achievements.map((achievement, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-2xl p-5 border transition-all duration-300 hover:scale-105 hover:shadow-lg ${
+                      isDark ? "bg-yellow-800/20 border-yellow-600/30" : "bg-yellow-50 border-amber-200"
+                    }`}
+                    style={{
+                      animationDelay: `${index * 0.1}s`,
+                      animation: 'fadeInUp 0.6s ease-out forwards',
+                    }}
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="text-3xl flex-shrink-0 animate-pulse">{achievement.icon}</div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-bold text-lg ${isDark ? "text-yellow-300" : "text-amber-800"}`}>
+                          {achievement.name}
+                        </h4>
+                        <p className={`text-sm ${isDark ? "text-yellow-400" : "text-amber-600"}`}>
+                          {achievement.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className={`text-center py-12 col-span-full ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  <div className="relative">
+                    <FiTrendingUp className="mx-auto text-6xl mb-4 opacity-30 animate-pulse" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="w-16 h-16 border-4 border-dashed border-gray-300 rounded-full animate-spin opacity-20"></div>
+                    </div>
+                  </div>
+                  <p className="text-lg font-medium mb-2">No Achievements Yet</p>
+                  <p className="text-sm">Start earning points to unlock your first achievement!</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Enhanced Account Actions */}
+          <div
+            className={`rounded-2xl p-6 sm:p-8 shadow-xl border transition-all duration-500 ${
+              isDark
+                ? "bg-gray-800/95 border-gray-700/50 backdrop-blur-sm"
+                : "bg-white/95 border-gray-200/50 backdrop-blur-sm"
+            }`}
+          >
+            <h3 className={`text-xl sm:text-2xl font-bold mb-6 ${isDark ? "text-gray-200" : "text-gray-800"}`}>
+              Account Actions
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button
+                onClick={handleLogout}
+                className="w-full bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 rounded-2xl font-semibold hover:from-orange-600 hover:to-red-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-3 hover:scale-105 active:scale-95 group"
+              >
+                <FiLogOut className="text-xl transition-transform group-hover:-translate-x-1" />
+                <span className="text-lg">Logout</span>
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="w-full bg-gradient-to-r from-red-500 to-red-600 text-white py-4 px-6 rounded-2xl font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center space-x-3 hover:scale-105 active:scale-95 group"
+              >
+                <FiTrash2 className="text-xl transition-transform group-hover:rotate-12" />
+                <span className="text-lg">Delete Account</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Bottom Spacing */}
+          <div className="h-8"></div>
+        </div>
       </div>
+
+      {/* Custom CSS for animations */}
+      <style jsx>{`
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

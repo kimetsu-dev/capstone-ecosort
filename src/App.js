@@ -113,9 +113,6 @@ const MobileWelcome = () => {
         {/* Footer */}
         <div className="text-center mt-8 pt-4 rounded-xl">
           <div className="flex justify-between items-center text-white/80 text-xs bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <div>
-              <p>Bagong collectong Day every Sunday morning</p>
-            </div>
             <div className="text-right">
               <p>CONTACT US:</p>
               <p>09234567890</p>

@@ -1,10 +1,11 @@
-import { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
 import { FiSettings } from "react-icons/fi";
-import Settings from "./Settings"; // Adjust the relative path if needed
+import Settings from "./Settings";
+import ScheduleManager from "./AdminPanel/ScheduleManager";
 import {
   doc,
   getDoc,
@@ -21,7 +22,6 @@ import {
 } from "firebase/firestore";
 
 import WasteTypesManager from "./AdminPanel/WasteTypesManager";
-
 import StatsSummary from "./AdminPanel/StatsSummary";
 import RewardsTab from "./AdminPanel/RewardsTab";
 import ReportsTab from "./AdminPanel/ReportsTab";
@@ -104,12 +104,12 @@ export default function AdminPanel() {
       const userDoc = doc(db, "users", user.uid);
       const docSnap = await getDoc(userDoc);
       if (docSnap.exists()) {
-        setProfile(docSnap.data()); // set directly without spreading prev profile
+        setProfile(docSnap.data());
       }
     };
     fetchProfile();
+    
     const q = query(collection(db, "waste_types"), orderBy("name"));
-
     const unsubscribeWasteTypes = onSnapshot(q, (snapshot) => {
       const map = {};
       snapshot.docs.forEach((doc) => {
@@ -179,7 +179,6 @@ export default function AdminPanel() {
       });
 
       await updateRedemptionStatus(redemption.id, "claimed");
-
       showToast(`Redemption claimed and points deducted`, "success");
     } catch (error) {
       console.error("Failed to mark redemption claimed:", error);
@@ -191,7 +190,6 @@ export default function AdminPanel() {
     setLoading(true);
     try {
       const submissionRef = doc(db, "waste_submissions", submissionId);
-
       await updateDoc(submissionRef, {
         status: "rejected",
         rejectedAt: serverTimestamp(),
@@ -435,6 +433,13 @@ export default function AdminPanel() {
       shortLabel: "Waste",
       description: "Configure waste categories",
     },
+    {
+      id: "schedules",
+      label: "Schedules", 
+      icon: "📅",
+      shortLabel: "Schedule",
+      description: "Manage collection schedules",
+    },
   ];
 
   return (
@@ -477,22 +482,18 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div>
-                <button
-                  onClick={() => navigate("/settings")}
-                  className={`
-                    p-2 rounded-lg text-xl transition-colors duration-200
-                    ${isDark
-                      ? "bg-gray-700 text-gray-200 hover:bg-green-800 hover:text-emerald-400"
-                      : "bg-gray-100 text-slate-800 hover:bg-green-50 hover:text-emerald-600"
-                    }
-                  `}
-                  title="Settings"
-                  aria-label="Settings"
-                >
-                  <FiSettings />
-                </button>
-                </div>
+              <button
+                onClick={() => navigate("/settings")}
+                className={`p-2 rounded-lg text-xl transition-colors duration-200 ${
+                  isDark
+                    ? "bg-gray-700 text-gray-200 hover:bg-green-800 hover:text-emerald-400"
+                    : "bg-gray-100 text-slate-800 hover:bg-green-50 hover:text-emerald-600"
+                }`}
+                title="Settings"
+                aria-label="Settings"
+              >
+                <FiSettings />
+              </button>
 
               <div
                 className="flex items-center space-x-2 cursor-pointer group"
@@ -537,7 +538,7 @@ export default function AdminPanel() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-3 lg:py-6 space-y-4 lg:space-y-6">
-        {/* Stats Summary */}
+        {/* Stats Summary for Dashboard */}
         {activeTab === "dashboard" && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-4">
             {[
@@ -559,26 +560,24 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Tab Navigation Container */}
+        {/* Tab Navigation */}
         <div
           className={`rounded-lg lg:rounded-xl shadow-sm border overflow-hidden ${
             isDark ? "bg-gray-800 border-gray-600" : "bg-white border-slate-200/50"
           }`}
         >
-          {/* Mobile horizontal scroll tabs */}
+          {/* Mobile tabs */}
           <div className="lg:hidden border-b border-slate-200">
             <div className="flex overflow-x-auto scroll-container px-1 py-2">
               {tabConfig.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    relative flex flex-col items-center justify-center min-w-[80px] px-3 py-2 mx-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all
-                    ${activeTab === tab.id
+                  className={`relative flex flex-col items-center justify-center min-w-[80px] px-3 py-2 mx-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                    activeTab === tab.id
                       ? 'text-indigo-600 bg-indigo-50 shadow-sm'
                       : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
-                    }
-                  `}
+                  }`}
                 >
                   <span className="text-base mb-1">{tab.icon}</span>
                   <span className="truncate">{tab.shortLabel || tab.label}</span>
@@ -592,20 +591,18 @@ export default function AdminPanel() {
             </div>
           </div>
 
-          {/* Desktop tab navigation */}
+          {/* Desktop tabs */}
           <div className="hidden lg:block">
             <nav className="flex overflow-x-auto">
               {tabConfig.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`
-                    relative flex items-center space-x-2 px-4 py-3 font-medium text-sm whitespace-nowrap transition-all duration-200
-                    ${activeTab === tab.id
+                  className={`relative flex items-center space-x-2 px-4 py-3 font-medium text-sm whitespace-nowrap transition-all duration-200 ${
+                    activeTab === tab.id
                       ? 'text-indigo-600 bg-indigo-50 border-b-2 border-indigo-600'
                       : 'text-slate-600 hover:text-slate-800 hover:bg-slate-50'
-                    }
-                  `}
+                  }`}
                 >
                   <span className="text-base">{tab.icon}</span>
                   <span>{tab.label}</span>
@@ -676,14 +673,16 @@ export default function AdminPanel() {
                 </div>
               </div>
             )}
+
+            {/* Settings Tab */}
             {activeTab === "settings" && (
               <Settings showToast={showToast} isDark={isDark} />
             )}
 
-
             {/* Waste Types Tab */}
             {activeTab === "wasteTypes" && (
-              <WasteTypesManager isDark={isDark} />)}
+              <WasteTypesManager isDark={isDark} />
+            )}
 
             {/* Submissions Tab */}
             {activeTab === "submissions" && (
@@ -772,7 +771,12 @@ export default function AdminPanel() {
               </div>
             )}
 
-            {/* Rewards Tab */}
+            {/* Schedules Tab */}
+            {activeTab === "schedules" && (
+              <ScheduleManager isDark={isDark} showToast={showToast} />
+            )}
+
+            {/* Other Tab Components */}
             {activeTab === "rewards" && (
               <RewardsTab
                 rewards={rewards}
@@ -794,7 +798,6 @@ export default function AdminPanel() {
               />
             )}
 
-            {/* Reports Tab */}
             {activeTab === "reports" && (
               <ReportsTab
                 reports={reports}
@@ -806,14 +809,23 @@ export default function AdminPanel() {
               />
             )}
 
-            {/* Users Tab */}
             {activeTab === "users" && (
-              <UsersTab users={users} setUsers={setUsers} setPointsModal={setPointsModal} isDark={isDark} />
+              <UsersTab 
+                users={users} 
+                setUsers={setUsers} 
+                setPointsModal={setPointsModal} 
+                isDark={isDark} 
+              />
             )}
 
-            {/* Transactions Tab */}
             {activeTab === "transactions" && (
-              <TransactionsTab transactions={transactions} users={users} formatTimestamp={formatTimestamp} showSigns={true} isDark={isDark} />
+              <TransactionsTab 
+                transactions={transactions} 
+                users={users} 
+                formatTimestamp={formatTimestamp} 
+                showSigns={true} 
+                isDark={isDark} 
+              />
             )}
 
             {/* Redemptions Tab */}
@@ -838,180 +850,76 @@ export default function AdminPanel() {
                     <p className="text-slate-500 text-sm lg:text-base">No users have redeemed rewards yet.</p>
                   </div>
                 ) : (
-                  <div
-                    className={`rounded-lg shadow-sm border overflow-hidden ${
-                      isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"
-                    }`}
-                  >
-                    {/* Desktop table view */}
-                    <div className="hidden lg:block overflow-x-auto">
-                      <table className="w-full">
-                        <thead
-                          className={`${
-                            isDark ? "bg-gray-700 border-gray-600" : "bg-slate-50 border-slate-200"
-                          } border-b`}
-                        >
-                          <tr>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              User Email
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Reward
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Code
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Status
-                            </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider">
-                              Date
-                            </th>
-                            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider">
-                              Actions
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className={`${isDark ? "divide-gray-600" : "divide-slate-200"} divide-y`}>
-                          {redemptions.map((redemption) => (
-                            <tr
-                              key={redemption.id}
-                              className={`${isDark ? "hover:bg-gray-700" : "hover:bg-slate-50"} transition-colors`}
-                            >
-                              <td className="px-4 py-3 text-sm truncate max-w-[150px]">
-                                {getUserEmail(redemption.userId)}
-                              </td>
-                              <td className="px-4 py-3 text-sm truncate max-w-[120px]">
-                                {getRewardName(redemption.rewardId)}
-                              </td>
-                              <td className="px-4 py-3 text-sm font-mono text-gray-400">{redemption.redemptionCode}</td>
-                              <td className="px-4 py-3">
-                                <span
-                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                    redemption.status === "pending"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : redemption.status === "claimed"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  {redemption.status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-400">
-                                {redemption.redeemedAt?.toDate ? redemption.redeemedAt.toDate().toLocaleDateString() : "N/A"}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <div className="flex justify-center space-x-1">
-                                  {redemption.status === "pending" && (
-                                    <>
-                                      <button
-                                        onClick={() => markRedemptionClaimed(redemption)}
-                                        className="px-2 py-1 text-white bg-green-600 rounded text-xs font-medium hover:bg-green-700 transition-colors"
-                                      >
-                                        Claim
-                                      </button>
-                                      <button
-                                        onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
-                                        className="px-2 py-1 text-white bg-red-600 rounded text-xs font-medium hover:bg-red-700 transition-colors"
-                                      >
-                                        Cancel
-                                      </button>
-                                    </>
-                                  )}
-                                  {(redemption.status === "claimed" || redemption.status === "cancelled") && (
-                                    <span className="text-gray-500 italic text-xs">{redemption.status}</span>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Mobile card view */}
-                    <div className={`${isDark ? "divide-gray-700" : "divide-slate-200"} lg:hidden divide-y`}>
-                      {redemptions.map((redemption) => (
-                        <div
-                          key={redemption.id}
-                          className={`p-3 space-y-3 rounded-lg ${
-                            isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
-                          }`}
-                        >
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            <div>
-                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                User
-                              </span>
-                              <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                                {getUserEmail(redemption.userId)}
-                              </div>
-                            </div>
-                            <div>
-                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                Reward
-                              </span>
-                              <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                                {getRewardName(redemption.rewardId)}
-                              </div>
-                            </div>
-                            <div>
-                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                Code
-                              </span>
-                              <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                                {redemption.redemptionCode}
-                              </div>
-                            </div>
-                            <div>
-                              <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                Status
-                              </span>
-                              <div className="mt-1">
-                                <span
-                                  className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                    redemption.status === "pending"
-                                      ? "bg-yellow-100 text-yellow-800"
-                                      : redemption.status === "claimed"
-                                      ? "bg-green-100 text-green-800"
-                                      : "bg-red-100 text-red-800"
-                                  }`}
-                                >
-                                  {redemption.status}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className={`text-xs ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                  <div className="space-y-3">
+                    {redemptions.map((redemption) => (
+                      <div
+                        key={redemption.id}
+                        className={`p-3 space-y-3 rounded-lg ${
+                          isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
+                        }`}
+                      >
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div>
                             <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                              Date
+                              User
                             </span>
-                            <div className="text-sm mt-1">
-                              {redemption.redeemedAt?.toDate
-                                ? redemption.redeemedAt.toDate().toLocaleDateString()
-                                : "N/A"}
+                            <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
+                              {getUserEmail(redemption.userId)}
                             </div>
                           </div>
-                          {redemption.status === "pending" && (
-                            <div className="flex space-x-2 pt-2">
-                              <button
-                                onClick={() => markRedemptionClaimed(redemption)}
-                                className="flex-1 px-3 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
-                              >
-                                Mark Claimed
-                              </button>
-                              <button
-                                onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
-                                className="flex-1 px-3 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-                              >
-                                Cancel
-                              </button>
+                          <div>
+                            <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                              Reward
+                            </span>
+                            <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
+                              {getRewardName(redemption.rewardId)}
                             </div>
-                          )}
+                          </div>
+                          <div>
+                            <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                              Status
+                            </span>
+                            <div className="mt-1">
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                  redemption.status === "pending"
+                                    ? "bg-yellow-100 text-yellow-800"
+                                    : redemption.status === "claimed"
+                                    ? "bg-green-100 text-green-800"
+                                    : "bg-red-100 text-red-800"
+                                }`}
+                              >
+                                {redemption.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                              Code
+                            </span>
+                            <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                              {redemption.redemptionCode}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                    </div>
+                        {redemption.status === "pending" && (
+                          <div className="flex space-x-2 pt-2">
+                            <button
+                              onClick={() => markRedemptionClaimed(redemption)}
+                              className="flex-1 px-3 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
+                            >
+                              Mark Claimed
+                            </button>
+                            <button
+                              onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
+                              className="flex-1 px-3 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1055,67 +963,57 @@ export default function AdminPanel() {
                 isDark={isDark}
               />
             )}
+          </div>
+        </div>
 
-            {/* Toast Notification */}
-            {toast.visible && (
-              <div
-                className={`
-                  fixed top-4 left-4 right-4 lg:top-6 lg:right-6 lg:left-auto px-4 py-3 lg:px-6 lg:py-4 rounded-xl lg:rounded-2xl text-white shadow-2xl transition-all duration-300 z-50 backdrop-blur-sm transform lg:max-w-sm
-                  ${toast.visible ? "translate-y-0 opacity-100" : "-translate-y-full lg:translate-y-0 lg:translate-x-full opacity-0"}
-                  ${
-                    toast.type === "success"
-                      ? "bg-gradient-to-r from-emerald-500 to-teal-600"
-                      : toast.type === "error"
-                      ? "bg-gradient-to-r from-red-500 to-rose-600"
-                      : "bg-gradient-to-r from-blue-500 to-indigo-600"
-                  }
-                `}
-                role="alert"
-                aria-live="assertive"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`
-                      w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-xs lg:text-sm font-bold
-                      bg-white/20
-                    `}
-                  >
-                    {toast.type === "success" && "✓"}
-                    {toast.type === "error" && "✗"}
-                    {toast.type === "info" && "i"}
-                  </div>
-                  <span className="font-medium text-sm lg:text-base">{toast.message}</span>
-                </div>
+        {/* Toast Notification */}
+        {toast.visible && (
+          <div
+            className={`fixed top-4 left-4 right-4 lg:top-6 lg:right-6 lg:left-auto px-4 py-3 lg:px-6 lg:py-4 rounded-xl lg:rounded-2xl text-white shadow-2xl transition-all duration-300 z-50 backdrop-blur-sm transform lg:max-w-sm ${
+              toast.visible ? "translate-y-0 opacity-100" : "-translate-y-full lg:translate-y-0 lg:translate-x-full opacity-0"
+            } ${
+              toast.type === "success"
+                ? "bg-gradient-to-r from-emerald-500 to-teal-600"
+                : toast.type === "error"
+                ? "bg-gradient-to-r from-red-500 to-rose-600"
+                : "bg-gradient-to-r from-blue-500 to-indigo-600"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center text-xs lg:text-sm font-bold bg-white/20">
+                {toast.type === "success" && "✓"}
+                {toast.type === "error" && "✗"}
+                {toast.type === "info" && "i"}
               </div>
-            )}
-
+              <span className="font-medium text-sm lg:text-base">{toast.message}</span>
+            </div>
+          </div>
+        )}
+        </main>
             <style jsx>{`
               .scroll-container {
-  overflow-x: auto;
-  scrollbar-width: thin; /* Firefox */
-  scrollbar-color: #9ca3af transparent;
-  -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
-}
+                overflow-x: auto;
+                scrollbar-width: thin; /* Firefox */
+                scrollbar-color: #9ca3af transparent;
+                -webkit-overflow-scrolling: touch; /* smooth scrolling on iOS */
+              }
 
-.scroll-container::-webkit-scrollbar {
-  height: 8px;
-  display: block; /* force visibility */
-}
+              .scroll-container::-webkit-scrollbar {
+                height: 8px;
+                display: block; /* force visibility */
+              }
 
-.scroll-container::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 4px;
-}
+              .scroll-container::-webkit-scrollbar-track {
+                background: transparent;
+                border-radius: 4px;
+              }
 
-.scroll-container::-webkit-scrollbar-thumb {
-  background-color: #9ca3af;
-  border-radius: 4px;
-}
+              .scroll-container::-webkit-scrollbar-thumb {
+                background-color: #9ca3af;
+                border-radius: 4px;
+              }
 
             `}</style>
           </div>
-          </div>
-      </main>
-    </div>
   );
 }

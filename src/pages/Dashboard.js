@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiBell } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
+import { DashboardCalendar } from "../components/DashboardCalendar";
 
 import {
   doc,
@@ -20,10 +21,7 @@ import {
   FaTrophy,
   FaFileAlt,
   FaCoins,
-  FaCalendarAlt,
 } from "react-icons/fa";
-import Calendar from "react-calendar";
-import "react-calendar/dist/Calendar.css";
 
 const MENU_ITEMS = [
   {
@@ -68,25 +66,6 @@ const MENU_ITEMS = [
   },
 ];
 
-// Helper to parse Firestore date string to Date object
-function parseDate(dateStr) {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  return new Date(year, month - 1, day);
-}
-
-// Helper to format date to YYYY-MM-DD string
-function formatDateToString(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-// Helper to get weekday abbreviation
-function getWeekdayAbbr(date) {
-  return date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase();
-}
-
 export default function Dashboard() {
   const themeContext = useTheme();
   const [userName, setUserName] = useState(null);
@@ -96,17 +75,12 @@ export default function Dashboard() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [showCalendar, setShowCalendar] = useState(false);
-  const [garbageSchedule, setGarbageSchedule] = useState([]);
-  const [garbageScheduleData, setGarbageScheduleData] = useState({}); // Store full schedule data
   const dropdownRef = useRef(null);
-  const calendarRef = useRef(null);
   const navigate = useNavigate();
   const [loadingUser, setLoadingUser] = useState(true);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
-  const [loadingSchedule, setLoadingSchedule] = useState(true);
 
-  // Firestore listeners for user data, notifications, and garbage collection
+  // Firestore listeners
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -137,7 +111,10 @@ export default function Dashboard() {
       user.uid,
       "userNotifications"
     );
-    const notificationsQuery = query(notificationsRef, orderBy("createdAt", "desc"));
+    const notificationsQuery = query(
+      notificationsRef,
+      orderBy("createdAt", "desc")
+    );
     const unsubscribeNotifications = onSnapshot(
       notificationsQuery,
       (snapshot) => {
@@ -161,74 +138,33 @@ export default function Dashboard() {
       }
     );
 
-    // Enhanced garbage collection schedule listener with full data
-    const garbageRef = collection(db, "garbage_schedule");
-    const unsubscribeGarbage = onSnapshot(
-      garbageRef,
-      (snapshot) => {
-        const scheduleData = {};
-        const dates = [];
-        
-        snapshot.docs.forEach((doc) => {
-          const data = doc.data();
-          if (data.date) {
-            dates.push(data.date);
-            scheduleData[data.date] = {
-              time: data.time || 'TBD',
-              id: doc.id,
-              ...data
-            };
-          }
-        });
-        
-        setGarbageSchedule(dates);
-        setGarbageScheduleData(scheduleData);
-        setLoadingSchedule(false);
-      },
-      (error) => {
-        console.error("Garbage schedule listener error:", error);
-        setLoadingSchedule(false);
-      }
-    );
-
     return () => {
       unsubscribeUser();
       unsubscribeNotifications();
-      unsubscribeGarbage();
     };
   }, []);
 
-  // Outside click handlers to close dropdowns and calendar
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setShowNotifications(false);
       }
-      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
-        setShowCalendar(false);
-      }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Keyboard event handler for calendar toggle
+  // Close dropdown on Escape
   useEffect(() => {
     function handleKeyDown(event) {
-      if (event.key === 'Escape') {
-        setShowCalendar(false);
-        setShowNotifications(false);
-      }
+      if (event.key === "Escape") setShowNotifications(false);
     }
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Current time updater for greeting
+  // Update time
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -242,31 +178,9 @@ export default function Dashboard() {
   const { styles, isDark } = themeContext;
 
   const getThemeClass = (styleKey, fallback = "") =>
-    styles && styles[styleKey] ? styles[styleKey] : fallback;
+    styles?.[styleKey] || fallback;
 
-  // Check if a date has garbage collection
-  function isGarbageDay(date) {
-    const dateString = formatDateToString(date);
-    return garbageSchedule.includes(dateString);
-  }
-
-  // Get garbage collection info for a date
-  function getGarbageInfo(date) {
-    const dateString = formatDateToString(date);
-    return garbageScheduleData[dateString] || null;
-  }
-
-  // Check if date is today
-  function isToday(date) {
-    const today = new Date();
-    return (
-      date.getDate() === today.getDate() &&
-      date.getMonth() === today.getMonth() &&
-      date.getFullYear() === today.getFullYear()
-    );
-  }
-
-  // Greeting based on time
+  // Greeting
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return "Good Morning";
@@ -274,35 +188,11 @@ export default function Dashboard() {
     return "Good Evening";
   };
 
-  // Calendar toggle handler
-  const toggleCalendar = () => {
-    setShowCalendar((prev) => !prev);
-  };
-
-  // Calendar keyboard handler
-  const handleCalendarKeyDown = (event) => {
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      toggleCalendar();
-    }
-  };
-
-  // Date selection handler
-  const handleDateChange = (date) => {
-    setSelectedDate(date);
-    setShowCalendar(false);
-  };
-
-  // Notification toggle handler
-  const toggleNotifications = () => {
-    setShowNotifications((prev) => !prev);
-  };
-
-  // Mark notification as read
+  // Mark notifications read
   const markAsRead = async (id) => {
     try {
       setNotifications((prev) =>
-        prev.map((notif) => (notif.id === id ? { ...notif, read: true } : notif))
+        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
 
@@ -315,7 +205,6 @@ export default function Dashboard() {
     }
   };
 
-  // Mark all notifications as read
   const markAllAsRead = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -327,7 +216,7 @@ export default function Dashboard() {
     });
 
     try {
-      setNotifications((prev) => prev.map((notif) => ({ ...notif, read: true })));
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       setUnreadCount(0);
       setShowNotifications(false);
       await batch.commit();
@@ -336,11 +225,23 @@ export default function Dashboard() {
     }
   };
 
-  // Get selected date info
-  const selectedDateInfo = getGarbageInfo(selectedDate);
-  const selectedDateWeekday = getWeekdayAbbr(selectedDate);
+  // Check if date is today
+  const isToday = (date) => {
+    const today = new Date();
+    return (
+      date.getDate() === today.getDate() &&
+      date.getMonth() === today.getMonth() &&
+      date.getFullYear() === today.getFullYear()
+    );
+  };
+const toggleNotifications = () => {
+  setShowNotifications((prev) => !prev);
+};
+
   const isSelectedDateToday = isToday(selectedDate);
-  const isSelectedDateGarbageDay = isGarbageDay(selectedDate);
+  const selectedDateWeekday = selectedDate
+    .toLocaleDateString("en-US", { weekday: "short" })
+    .toUpperCase();
 
   return (
     <div
@@ -412,22 +313,25 @@ export default function Dashboard() {
                 )} text-lg transition-colors`}
               />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 text-xs font-bold rounded-full bg-gradient-to-r from-red-500 to-pink-600 text-white flex items-center justify-center animate-pulse">
-                  {unreadCount > 9 ? "9+" : unreadCount}
-                </span>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
+                  <span className="text-white text-xs font-bold">{unreadCount}</span>
+                </div>
               )}
             </button>
 
             <button
               onClick={() => navigate("/profile")}
-              className={`relative p-2.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 rounded-xl hover:shadow-lg ${getThemeClass(
-                "glowEffect",
-                "shadow-lg"
-              )} transition-all duration-300 active:scale-95 touch-manipulation`}
+              className={`relative w-10 h-10 flex items-center justify-center 
+                bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 
+                rounded-full hover:shadow-lg ${getThemeClass(
+                  "glowEffect",
+                  "shadow-lg"
+                )} transition-all duration-300 active:scale-95 touch-manipulation`}
               aria-label="Profile"
             >
-              <FiUser className="text-white text-lg" />
+              <FiUser className="w-5 h-5 text-white" />
             </button>
+
 
             {/* Notifications Dropdown */}
             {showNotifications && (
@@ -524,44 +428,56 @@ export default function Dashboard() {
               <div className="flex justify-between items-center mb-4">
                 <div>
                   <h2
-                    className={`text-lg font-bold ${getThemeClass(
+                    className={`text-2xl font-extrabold ${getThemeClass(
                       "textPrimary",
                       "text-gray-900 dark:text-white"
-                    )} mb-1`}
+                    )} mb-1 animate-fade-in-up`}
                   >
-                    {loadingUser ? "Loading..." : `${getGreeting()}, ${userName || "User"}!`}
+                    {loadingUser
+                      ? "Loading..."
+                      : (
+                        <>
+                          {getGreeting()}{" "}
+                          <span
+                            className={`
+                              ${getThemeClass("textAccent", "text-emerald-600 dark:text-emerald-400")}
+                              select-text
+                            `}
+                            aria-label="User name"
+                          >
+                            {userName || "User"}{' '}
+                            <span role="img" aria-label="waving hand" className="inline-block animate-wave">👋</span>
+                          </span>
+                        </>
+                      )
+                    }
                   </h2>
+
                   <p
-                    className={`text-sm ${getThemeClass(
+                    className={`inline-flex items-center space-x-1 text-xl font-semibold ${getThemeClass(
                       "textSecondary",
-                      "text-gray-600 dark:text-gray-400"
-                    )}`}
+                      "text-gray-700 dark:text-gray-300"
+                    )} select-none`}
+                    aria-label={`User eco points: ${points || 0}`}
                   >
-                    {loadingUser ? "Fetching points..." : `You have ${points || 0} points`}
+                    <FaCoins className="text-amber-500 dark:text-yellow-400 text-lg" />
+                    <span>
+                      {loadingUser ? "Fetching points..." : `Eco Points: ${points || 0}`}
+                    </span>
                   </p>
                 </div>
 
                 {/* Enhanced Calendar Collection Widget */}
                 <div className="text-center relative">
-                  <button
-                    onClick={toggleCalendar}
-                    onKeyDown={handleCalendarKeyDown}
-                    className={`w-12 h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg mb-1 transition-all duration-200 hover:scale-105 active:scale-95 ${
-                      showCalendar ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-transparent' : ''
-                    }`}
-                    aria-label={`${showCalendar ? 'Close' : 'Open'} garbage collection calendar`}
-                    aria-expanded={showCalendar}
-                    aria-describedby="collection-info"
-                  >
-                    <FaCalendarAlt className="text-white text-base" />
-                    {isSelectedDateGarbageDay && !showCalendar && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                    )}
-                  </button>
+                  <DashboardCalendar 
+                    selectedDate={selectedDate}
+                    setSelectedDate={setSelectedDate}
+                    isDark={isDark}
+                  />
                   
-                  <div id="collection-info">
+                  <div className="mt-1">
                     <p
-                      className={`text-base font-black ${getThemeClass(
+                      className={`text-lg font-black ${getThemeClass(
                         "textPrimary",
                         "text-gray-900 dark:text-white"
                       )} ${isSelectedDateToday ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
@@ -569,23 +485,16 @@ export default function Dashboard() {
                       {selectedDateWeekday}
                     </p>
                     <p
-                      className={`text-xs ${getThemeClass(
+                      className={`text-xs font-mono ${getThemeClass(
                         "textMuted",
                         "text-gray-600 dark:text-gray-400"
-                      )} font-mono`}
+                      )}`}
                     >
-                      {isSelectedDateGarbageDay ? 'COLLECTION' : 'NO PICKUP'}
+                      {selectedDate.toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric' 
+                      })}
                     </p>
-                    {isSelectedDateGarbageDay && selectedDateInfo?.time && (
-                      <p
-                        className={`text-xs ${getThemeClass(
-                          "textMuted",
-                          "text-gray-600 dark:text-gray-400"
-                        )} font-mono mt-0.5`}
-                      >
-                        {selectedDateInfo.time}
-                      </p>
-                    )}
                   </div>
                 </div>
               </div>
@@ -659,111 +568,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Calendar Modal */}
-      {showCalendar && (
-        <>
-          {/* Backdrop overlay */}
-          <div 
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9998] animate-backdrop-appear modal-backdrop"
-            onClick={() => setShowCalendar(false)}
-            aria-hidden="true"
-          />
-          
-          <div
-            ref={calendarRef}
-            className={`fixed top-1/2 left-1/2 ${getThemeClass(
-              "cardBackground",
-              "bg-white dark:bg-gray-800"
-            )} ${getThemeClass(
-              "backdropBlur",
-              "backdrop-blur-xl"
-            )} p-4 rounded-2xl shadow-2xl border ${getThemeClass(
-              "cardBorder",
-              "border-gray-200 dark:border-gray-700"
-            )} z-[9999] w-[320px] max-w-[90vw] max-h-[80vh] overflow-auto animate-modal-appear calendar-modal`}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Garbage collection calendar"
-          >
-            {loadingSchedule ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-2 border-emerald-500 border-t-transparent mx-auto mb-3"></div>
-                <p className={`text-sm ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
-                  Loading schedule...
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="mb-3">
-                  <h3 className={`text-sm font-semibold ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")} mb-1`}>
-                    Collection Schedule
-                  </h3>
-                  <p className={`text-xs ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
-                    Green dates have collection
-                  </p>
-                </div>
-                
-                <Calendar
-                  value={selectedDate}
-                  onChange={handleDateChange}
-                  className={`w-full ${isDark ? 'dark-calendar' : 'light-calendar'}`}
-                  tileClassName={({ date }) => {
-                    const classes = [];
-                    
-                    if (isToday(date)) {
-                      classes.push(isDark ? 
-                        'bg-blue-600 text-white font-bold rounded-lg shadow-md' :
-                        'bg-blue-500 text-white font-bold rounded-lg shadow-md'
-                      );
-                    } else if (isGarbageDay(date)) {
-                      classes.push(isDark ? 
-                        'bg-emerald-600 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-700' :
-                        'bg-emerald-500 text-white font-bold rounded-lg shadow-sm hover:bg-emerald-600'
-                      );
-                    } else {
-                      classes.push(isDark ? 
-                        'text-gray-300 hover:bg-gray-700 rounded-lg' :
-                        'text-gray-700 hover:bg-gray-100 rounded-lg'
-                      );
-                    }
-                    
-                    return classes.join(' ');
-                  }}
-                  formatShortWeekday={(locale, date) => 
-                    date.toLocaleDateString(locale, { weekday: 'narrow' })
-                  }
-                  showNavigation={true}
-                  showNeighboringMonth={false}
-                />
-                
-                {/* Selected Date Info */}
-                <div className={`mt-3 p-3 rounded-lg ${isDark ? 'bg-gray-700' : 'bg-gray-50'}`}>
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <p className={`text-sm font-semibold ${getThemeClass("textPrimary", "text-gray-900 dark:text-white")}`}>
-                        {selectedDate.toLocaleDateString('en-US', { 
-                          weekday: 'long', 
-                          month: 'short', 
-                          day: 'numeric' 
-                        })}
-                      </p>
-                      <p className={`text-xs ${getThemeClass("textSecondary", "text-gray-600 dark:text-gray-400")}`}>
-                        {isSelectedDateGarbageDay ? 
-                          `Collection at ${selectedDateInfo?.time || 'TBD'}` : 
-                          'No collection scheduled'
-                        }
-                      </p>
-                    </div>
-                    {isSelectedDateGarbageDay && (
-                      <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
-        </>
-      )}
+
 
       <style>{`
         @keyframes float {
@@ -877,6 +682,17 @@ export default function Dashboard() {
             opacity: 1; 
           }
         }
+
+        @keyframes wave {
+          0% { transform: rotate(0deg); }
+          10% { transform: rotate(14deg); }
+          20% { transform: rotate(-8deg); }
+          30% { transform: rotate(14deg); }
+          40% { transform: rotate(-4deg); }
+          50% { transform: rotate(10deg); }
+          60% { transform: rotate(0deg); }
+          100% { transform: rotate(0deg); }
+        }
         
         .animate-float { 
           animation: float 4s ease-in-out infinite; 
@@ -932,140 +748,40 @@ export default function Dashboard() {
           -webkit-backdrop-filter: blur(4px);
         }
 
-        /* Calendar modal positioning improvements */
-        .calendar-modal {
-          transform: translate(-50%, -50%) scale(1);
-          transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        /* Mobile-specific optimizations */
+        @media (max-width: 640px) {
+          .backdrop-blur-xl {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+          }
+          
+          /* Reduce animation intensity on mobile */
+          .animate-float,
+          .animate-float-reverse,
+          .animate-bounce-slow {
+            animation-duration: 3s;
+          }
+          
+          .animate-pulse-slow {
+            animation-duration: 1.5s;
+          }
+
+          /* Optimize for smaller screens */
+          .min-w-0 {
+            min-width: 0;
+          }
+
+          /* Better text wrapping */
+          .leading-tight {
+            line-height: 1.1;
+          }
+
+          .leading-relaxed {
+            line-height: 1.4;
+          }
         }
 
-        .calendar-modal.entering {
-          transform: translate(-50%, -50%) scale(0.9);
-          opacity: 0;
-        }
-
-        /* Calendar-specific styles */
-        .react-calendar {
-          width: 100% !important;
-          background: transparent !important;
-          border: none !important;
-          font-family: inherit !important;
-          line-height: 1.125em !important;
-        }
-
-        .react-calendar__navigation {
-          height: 44px !important;
-          margin-bottom: 1rem !important;
-        }
-
-        .react-calendar__navigation button {
-          min-width: 44px !important;
-          background: transparent !important;
-          border: none !important;
-          border-radius: 0.5rem !important;
-          font-size: 1rem !important;
-          font-weight: 600 !important;
-          color: ${isDark ? '#e5e7eb' : '#374151'} !important;
-          transition: all 0.2s ease !important;
-        }
-
-        .react-calendar__navigation button:hover {
-          background: ${isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(243, 244, 246, 0.8)'} !important;
-          transform: scale(1.05) !important;
-        }
-
-        .react-calendar__navigation button:active {
-          transform: scale(0.95) !important;
-        }
-
-        .react-calendar__navigation__label {
-          font-weight: bold !important;
-          color: ${isDark ? '#f9fafb' : '#111827'} !important;
-        }
-
-        .react-calendar__month-view__weekdays {
-          text-align: center !important;
-          text-transform: uppercase !important;
-          font-weight: 600 !important;
-          font-size: 0.75rem !important;
-          color: ${isDark ? '#9ca3af' : '#6b7280'} !important;
-          margin-bottom: 0.5rem !important;
-        }
-
-        .react-calendar__month-view__weekdays__weekday {
-          padding: 0.5rem !important;
-          border: none !important;
-          background: none !important;
-        }
-
-        .react-calendar__month-view__days {
-          gap: 2px !important;
-        }
-
-        .react-calendar__tile {
-          max-width: 100% !important;
-          padding: 0.75rem 0.5rem !important;
-          background: transparent !important;
-          border: none !important;
-          font-size: 0.875rem !important;
-          font-weight: 500 !important;
-          transition: all 0.2s ease !important;
-          cursor: pointer !important;
-          position: relative !important;
-          min-height: 40px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-        }
-
-        .react-calendar__tile:hover {
-          transform: scale(1.05) !important;
-        }
-
-        .react-calendar__tile:active {
-          transform: scale(0.95) !important;
-        }
-
-        .react-calendar__tile--active {
-          background: ${isDark ? '#1f2937' : '#f3f4f6'} !important;
-          border-radius: 0.5rem !important;
-          color: ${isDark ? '#10b981' : '#059669'} !important;
-          font-weight: 700 !important;
-        }
-
-        .react-calendar__tile--now {
-          position: relative !important;
-        }
-
-        .react-calendar__tile--now::after {
-          content: '' !important;
-          position: absolute !important;
-          bottom: 2px !important;
-          left: 50% !important;
-          transform: translateX(-50%) !important;
-          width: 4px !important;
-          height: 4px !important;
-          background: currentColor !important;
-          border-radius: 50% !important;
-        }
-
-        /* Dark/Light calendar theme adjustments */
-        .dark-calendar .react-calendar__tile {
-          color: #e5e7eb !important;
-        }
-
-        .light-calendar .react-calendar__tile {
-          color: #374151 !important;
-        }
-
-        .dark-calendar .react-calendar__tile--neighboringMonth {
-          color: #6b7280 !important;
-        }
-
-        .light-calendar .react-calendar__tile--neighboringMonth {
-          color: #9ca3af !important;
-        }
-
-        /* Mobile-optimized touch interactions */
+        /* Touch interactions */
         .touch-manipulation {
           touch-action: manipulation;
           -webkit-tap-highlight-color: transparent;
@@ -1076,10 +792,6 @@ export default function Dashboard() {
           transform: scale(0.95);
         }
 
-        .active\\:scale-\\[0\\.98\\]:active {
-          transform: scale(0.98);
-        }
-
         .group-active\\:scale-110:active {
           transform: scale(1.1);
         }
@@ -1088,7 +800,7 @@ export default function Dashboard() {
           width: 100%;
         }
 
-        /* Custom scrollbar - mobile optimized */
+        /* Custom scrollbar */
         ::-webkit-scrollbar {
           width: 4px;
         }

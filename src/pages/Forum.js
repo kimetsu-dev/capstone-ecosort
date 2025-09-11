@@ -23,7 +23,7 @@ import {
   getDownloadURL,
 } from "firebase/storage";
 
-// SVG Icon Components (retained as in original)
+// SVG Icon Components
 const MapPinIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path
@@ -115,37 +115,104 @@ const XIcon = (props) => (
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
-const ArrowLeft = (props) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24" >
+const ArrowLeftIcon = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
   </svg>
 );
-
+const SearchIcon = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+const FilterIcon = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+  </svg>
+);
 
 // Firebase Storage instance
 const storage = getStorage();
 
+// Status badge component
+function StatusBadge({ status, isDark }) {
+  if (!status || status === 'unknown' || status === 'pending') {
+    return null;
+  }
 
+  const getStatusConfig = (status) => {
+    switch (status.toLowerCase()) {
+      case 'in review':
+        return {
+          bg: isDark ? 'bg-blue-700/80' : 'bg-blue-100',
+          text: isDark ? 'text-blue-200' : 'text-blue-800',
+          border: isDark ? 'border-blue-500/50' : 'border-blue-200',
+          label: 'In Review'
+        };
+      case 'resolved':
+        return {
+          bg: isDark ? 'bg-emerald-700/80' : 'bg-emerald-100',
+          text: isDark ? 'text-emerald-200' : 'text-emerald-800',
+          border: isDark ? 'border-emerald-500/50' : 'border-emerald-200',
+          label: 'Resolved'
+        };
+      default:
+        return {
+          bg: isDark ? 'bg-gray-700/80' : 'bg-gray-100',
+          text: isDark ? 'text-gray-200' : 'text-gray-800',
+          border: isDark ? 'border-gray-500/50' : 'border-gray-200',
+          label: status
+        };
+    }
+  };
+
+  const config = getStatusConfig(status);
+
+  return (
+    <span
+      className={`px-2.5 py-1 rounded-full text-xs font-medium border whitespace-nowrap select-none ${config.bg} ${config.text} ${config.border}`}
+    >
+      {config.label}
+    </span>
+  );
+}
+
+// Enhanced Toast Component
 function Toast({ visible, message, type }) {
   if (!visible) return null;
-  const bg =
-    type === "error"
-      ? "bg-red-600"
-      : type === "success"
-      ? "bg-green-600"
-      : "bg-blue-600";
+  
+  const getToastStyles = (type) => {
+    switch (type) {
+      case "error":
+        return "bg-red-500 border-red-400";
+      case "success":
+        return "bg-emerald-500 border-emerald-400";
+      case "info":
+        return "bg-blue-500 border-blue-400";
+      default:
+        return "bg-gray-500 border-gray-400";
+    }
+  };
+
   return (
     <div
-      className={`fixed bottom-6 right-6 px-6 py-3 rounded shadow-lg text-white z-50 select-none ${bg}`}
+      className={`fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 px-4 py-3 rounded-lg shadow-lg text-white z-50 select-none border-l-4 ${getToastStyles(type)} animate-fade-in`}
       role="alert"
       aria-live="assertive"
     >
-      {message}
+      <div className="flex items-center gap-2">
+        {type === "error" && <AlertTriangleIcon className="h-5 w-5 flex-shrink-0" />}
+        {type === "success" && <div className="h-5 w-5 flex-shrink-0 rounded-full bg-white/20 flex items-center justify-center">✓</div>}
+        <span className="text-sm font-medium">{message}</span>
+      </div>
     </div>
   );
 }
 
-function FilterTabs({ filterType, setFilterType, isDark }) {
+// Enhanced Filter Component
+function FilterTabs({ filterType, setFilterType, isDark, searchQuery, setSearchQuery }) {
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
   const categoryOptions = [
     { id: "all", label: "All Reports", icon: "📋" },
     { id: "illegal_dumping", label: "Illegal Dumping", icon: "🚯" },
@@ -155,36 +222,105 @@ function FilterTabs({ filterType, setFilterType, isDark }) {
     { id: "noise", label: "Noise", icon: "🔊" },
     { id: "other", label: "Other", icon: "❓" },
   ];
+
   return (
-    <div
-      className={`flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100`}
-      role="tablist"
-      aria-label="Report categories"
-    >
-      {categoryOptions.map((f) => (
+    <div className="mb-6">
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative">
+          <SearchIcon className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+          <input
+            type="text"
+            placeholder="Search reports by location or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              isDark 
+                ? 'bg-gray-800 border-gray-600 text-gray-200 placeholder-gray-400' 
+                : 'bg-white border-gray-200 text-gray-900 placeholder-gray-500'
+            }`}
+          />
+        </div>
+      </div>
+
+      {/* Desktop Filters */}
+      <div className="hidden sm:flex gap-2 overflow-x-auto scrollbar-hide">
+        {categoryOptions.map((filter) => (
+          <button
+            key={filter.id}
+            onClick={() => setFilterType(filter.id)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              filterType === filter.id
+                ? "bg-indigo-500 text-white shadow-lg transform scale-105"
+                : isDark
+                ? "bg-gray-800 text-gray-200 hover:bg-gray-700 border border-gray-600"
+                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 shadow-sm hover:shadow"
+            }`}
+            role="tab"
+            aria-selected={filterType === filter.id}
+          >
+            <span aria-hidden="true" className="text-sm">{filter.icon}</span>
+            <span className="font-medium text-sm">{filter.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Mobile Filter Toggle */}
+      <div className="sm:hidden">
         <button
-          key={f.id}
-          onClick={() => setFilterType(f.id)}
-          className={`flex items-center gap-2 px-4 py-2 rounded-full whitespace-nowrap transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-            filterType === f.id
-              ? "bg-indigo-500 text-white shadow-lg"
-              : isDark
-              ? "bg-gray-700 text-gray-200 hover:bg-gray-600 border border-gray-600"
-              : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
+          onClick={() => setShowMobileFilters(!showMobileFilters)}
+          className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-colors ${
+            isDark 
+              ? 'bg-gray-800 border-gray-600 text-gray-200 hover:bg-gray-700' 
+              : 'bg-white border-gray-200 text-gray-900 hover:bg-gray-50'
           }`}
-          role="tab"
-          aria-selected={filterType === f.id}
-          tabIndex={filterType === f.id ? 0 : -1}
-          type="button"
         >
-          <span aria-hidden="true">{f.icon}</span>
-          <span className="font-medium">{f.label}</span>
+          <div className="flex items-center gap-2">
+            <FilterIcon className="h-5 w-5" />
+            <span className="font-medium">
+              {categoryOptions.find(f => f.id === filterType)?.label || 'Filter'}
+            </span>
+          </div>
+          <div className={`transform transition-transform ${showMobileFilters ? 'rotate-180' : ''}`}>
+            ↓
+          </div>
         </button>
-      ))}
+
+        {/* Mobile Filter Options */}
+        {showMobileFilters && (
+          <div className={`mt-2 rounded-xl border overflow-hidden ${
+            isDark ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'
+          }`}>
+            {categoryOptions.map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => {
+                  setFilterType(filter.id);
+                  setShowMobileFilters(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                  filterType === filter.id
+                    ? 'bg-indigo-500 text-white'
+                    : isDark
+                    ? 'text-gray-200 hover:bg-gray-700'
+                    : 'text-gray-900 hover:bg-gray-50'
+                } ${filter.id !== categoryOptions[categoryOptions.length - 1].id ? 'border-b' : ''} ${
+                  isDark ? 'border-gray-600' : 'border-gray-200'
+                }`}
+              >
+                <span className="text-lg">{filter.icon}</span>
+                <span className="font-medium">{filter.label}</span>
+                {filterType === filter.id && <span className="ml-auto">✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
+// Enhanced Comment List
 function CommentList({ comments = [], isDark }) {
   const formatTimeAgo = (ts) => {
     if (!ts) return "N/A";
@@ -197,52 +333,28 @@ function CommentList({ comments = [], isDark }) {
   };
 
   return (
-    <div
-      className={`p-4 space-y-3 max-h-60 overflow-y-auto scrollbar-thin scrollbar-thumb-indigo-400 scrollbar-track-indigo-100 ${
-        isDark ? "bg-gray-800" : ""
-      }`}
-      aria-live="polite"
-    >
+    <div className={`p-4 space-y-4 max-h-80 overflow-y-auto ${isDark ? "bg-gray-800/50" : "bg-gray-50/50"}`}>
       {comments.length === 0 ? (
-        <div
-          className={`${
-            isDark ? "text-gray-400" : "text-slate-400"
-          } text-sm select-none`}
-        >
-          No comments yet
+        <div className={`text-center py-6 ${isDark ? "text-gray-400" : "text-slate-400"}`}>
+          <MessageCircleIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No comments yet. Be the first to comment!</p>
         </div>
       ) : (
         comments.map((comment, idx) => (
-          <div key={idx} className="flex gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold select-none">
+          <div key={idx} className="flex gap-3 animate-fade-in">
+            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold select-none flex-shrink-0">
               {comment.user?.charAt(0).toUpperCase() || "U"}
             </div>
-            <div
-              className={`flex-1 rounded-xl p-3 shadow-sm ${
-                isDark ? "bg-gray-700" : "bg-white"
-              }`}
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span
-                  className={`font-semibold text-sm ${
-                    isDark ? "text-gray-200" : "text-slate-800"
-                  } select-text break-words`}
-                >
+            <div className={`flex-1 rounded-xl p-3 shadow-sm ${isDark ? "bg-gray-700" : "bg-white"}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`font-semibold text-sm ${isDark ? "text-gray-200" : "text-slate-800"}`}>
                   {comment.user || "Anonymous"}
                 </span>
-                <span
-                  className={`text-xs ${
-                    isDark ? "text-gray-400" : "text-slate-500"
-                  } select-text`}
-                >
+                <span className={`text-xs ${isDark ? "text-gray-400" : "text-slate-500"}`}>
                   {formatTimeAgo(comment.timestamp)}
                 </span>
               </div>
-              <p
-                className={`${
-                  isDark ? "text-gray-300" : "text-slate-700"
-                } text-sm whitespace-pre-wrap break-words`}
-              >
+              <p className={`${isDark ? "text-gray-300" : "text-slate-700"} text-sm leading-relaxed break-words`}>
                 {comment.text}
               </p>
             </div>
@@ -253,6 +365,7 @@ function CommentList({ comments = [], isDark }) {
   );
 }
 
+// Enhanced Report Item Component
 function ReportItem({
   report,
   currentUser,
@@ -269,26 +382,26 @@ function ReportItem({
   const commentCount = report.comments?.length || 0;
 
   function getSeverityColor(severity) {
-    // Adjusted for dark mode backgrounds and text
     switch (severity) {
       case "high":
         return isDark
-          ? "bg-red-700 text-red-300 border-red-600"
+          ? "bg-red-900/50 text-red-200 border-red-500/50"
           : "bg-red-100 text-red-800 border-red-200";
       case "medium":
         return isDark
-          ? "bg-yellow-700 text-yellow-300 border-yellow-600"
+          ? "bg-yellow-900/50 text-yellow-200 border-yellow-500/50"
           : "bg-yellow-100 text-yellow-800 border-yellow-200";
       case "low":
         return isDark
-          ? "bg-green-700 text-green-300 border-green-600"
+          ? "bg-green-900/50 text-green-200 border-green-500/50"
           : "bg-green-100 text-green-800 border-green-200";
       default:
         return isDark
-          ? "bg-gray-700 text-gray-300 border-gray-600"
+          ? "bg-gray-700/50 text-gray-300 border-gray-500/50"
           : "bg-gray-100 text-gray-800 border-gray-200";
     }
   }
+
   function formatTimeAgo(ts) {
     if (!ts) return "N/A";
     const date = ts instanceof Date ? ts : new Date(ts.seconds * 1000);
@@ -301,61 +414,48 @@ function ReportItem({
 
   return (
     <article
-      className={`rounded-2xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden focus:outline-none focus:ring-2 ${
-        isDark
-          ? "bg-gray-800 focus:ring-indigo-400"
-          : "bg-white focus:ring-indigo-600"
-      }`}
+      className={`rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border ${
+        isDark 
+          ? "bg-gray-800 border-gray-700 hover:border-gray-600" 
+          : "bg-white border-gray-100 hover:border-gray-200"
+      } animate-fade-in`}
       tabIndex={0}
       aria-label={`Report from ${report.location}`}
     >
-      <div className="p-6 pb-4 md:p-8">
+      <div className="p-4 sm:p-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between mb-4 gap-4 md:gap-0">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg select-none">
-              {report.location.charAt(0).toUpperCase()}
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4 gap-3">
+          <div className="flex items-start gap-3">
+            <div
+              className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-lg font-bold select-none flex-shrink-0"
+              aria-label={`Report author: ${report.authorUsername || "Unknown"}`}
+            >
+              {(report.authorUsername?.charAt(0) || "U").toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <MapPinIcon
-                  className={`h-5 w-5 shrink-0 ${
-                    isDark ? "text-gray-300" : "text-slate-500"
-                  }`}
-                  aria-hidden="true"
-                />
-                <span
-                  className={`font-semibold ${
-                    isDark ? "text-gray-200" : "text-slate-800"
-                  }`}
-                >
-                  {report.location}
-                </span>
-                <span
-                  className={`px-3 py-1 rounded-full text-xs font-medium border whitespace-nowrap select-none ${
-                    getSeverityColor(report.severity)
-                  }`}
-                >
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <MapPinIcon className={`h-4 w-4 flex-shrink-0 ${isDark ? "text-gray-400" : "text-slate-500"}`} />
+                  <span className={`font-semibold text-sm sm:text-base ${isDark ? "text-gray-200" : "text-slate-800"}`}>
+                    {report.location}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className={`px-2.5 py-1 rounded-full text-xs font-medium border ${getSeverityColor(report.severity)}`}>
                   {report.severity?.toUpperCase() || "REPORTED"}
                 </span>
+                <StatusBadge status={report.status} isDark={isDark} />
               </div>
 
-              {/* Display author username */}
-              <div
-                className={`text-sm select-text mb-1 ${
-                  isDark ? "text-gray-400" : "text-slate-600"
-                }`}
-              >
-                Reported by:{" "}
-                <span className="font-semibold">{report.authorUsername || "Unknown"}</span>
+              <div className={`text-xs sm:text-sm mb-1 ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                Reported by: <span className="font-medium">{report.authorUsername || "Unknown"}</span>
               </div>
 
-              <div
-                className={`flex items-center gap-2 text-sm select-none ${
-                  isDark ? "text-gray-400" : "text-slate-500"
-                }`}
-              >
-                <ClockIcon className="h-4 w-4" aria-hidden="true" />
+              <div className={`flex items-center gap-1.5 text-xs sm:text-sm ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                <ClockIcon className="h-3.5 w-3.5" />
                 <span>{formatTimeAgo(report.submittedAt)}</span>
               </div>
             </div>
@@ -363,21 +463,21 @@ function ReportItem({
         </div>
 
         {/* Description */}
-        <p
-          className={`leading-relaxed mb-4 whitespace-pre-wrap break-words ${
-            isDark ? "text-gray-300" : "text-slate-700"
-          }`}
-        >
-          {report.description}
-        </p>
+        {report.description && (
+          <div className="mb-4">
+            <p className={`${isDark ? "text-gray-300" : "text-slate-700"} text-sm sm:text-base leading-relaxed break-words`}>
+              {report.description}
+            </p>
+          </div>
+        )}
 
         {/* Media */}
         {report.mediaUrl && (
-          <div className="mb-4 rounded-xl overflow-hidden max-h-[320px] md:max-h-80">
-            {/\\.(mp4|webm|ogg)$/i.test(report.mediaUrl) ? (
+          <div className="mb-4 rounded-xl overflow-hidden">
+            {/\.(mp4|webm|ogg)$/i.test(report.mediaUrl) ? (
               <video
                 controls
-                className="w-full h-full object-cover rounded-xl"
+                className="w-full max-h-64 sm:max-h-80 object-cover rounded-xl"
                 preload="metadata"
                 aria-label="Reported video content"
               >
@@ -388,7 +488,7 @@ function ReportItem({
               <img
                 src={report.mediaUrl}
                 alt="Report evidence"
-                className="w-full max-h-80 object-cover rounded-xl hover:scale-105 transition-transform duration-300"
+                className="w-full max-h-64 sm:max-h-80 object-cover rounded-xl hover:scale-105 transition-transform duration-300 cursor-pointer"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = `https://placehold.co/600x400/E0E7FF/4338CA?text=Image+Error`;
@@ -399,37 +499,35 @@ function ReportItem({
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap md:flex-nowrap items-center gap-4 pt-3 border-t border-slate-100">
+        <div className="flex items-center gap-2 sm:gap-4 pt-3 border-t border-opacity-50 border-gray-200">
           <button
             onClick={() => handleLike(report.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
               isLiked
-                ? "bg-blue-50 text-blue-600"
+                ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
                 : isDark
                 ? "hover:bg-gray-700 text-gray-300"
-                : "hover:bg-slate-50 text-slate-600"
+                : "hover:bg-gray-100 text-slate-600"
             }`}
             aria-pressed={isLiked}
             aria-label={`Like this report, ${likeCount} ${likeCount === 1 ? "like" : "likes"}`}
-            type="button"
           >
-            <ThumbsUpIcon filled={isLiked} aria-hidden="true" className="h-5 w-5" />
+            <ThumbsUpIcon filled={isLiked} className="h-4 w-4" />
             <span className="font-medium">{likeCount}</span>
-            <span className="text-sm select-none">Like{likeCount !== 1 ? "s" : ""}</span>
+            <span className="hidden sm:inline">Like{likeCount !== 1 ? "s" : ""}</span>
           </button>
+          
           <button
             onClick={() => toggleComments(report.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-              isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-slate-50 text-slate-600"
+            className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+              isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-slate-600"
             }`}
             aria-expanded={isCommentsExpanded}
             aria-controls={`comments-${report.id}`}
-            aria-label="Show or hide comments"
-            type="button"
           >
-            <MessageCircleIcon aria-hidden="true" className="h-5 w-5" />
+            <MessageCircleIcon className="h-4 w-4" />
             <span className="font-medium">{commentCount}</span>
-            <span className="text-sm select-none">Comment{commentCount !== 1 ? "s" : ""}</span>
+            <span className="hidden sm:inline">Comment{commentCount !== 1 ? "s" : ""}</span>
           </button>
         </div>
       </div>
@@ -438,16 +536,14 @@ function ReportItem({
       {(isCommentsExpanded || commentCount > 0) && (
         <section
           id={`comments-${report.id}`}
-          className={`border-t border-slate-100 ${
-            isDark ? "bg-gray-700/50" : "bg-slate-50/50"
-          }`}
-          aria-live="polite"
+          className={`border-t ${isDark ? "border-gray-700" : "border-gray-100"}`}
         >
           <CommentList comments={report.comments} isDark={isDark} />
-          {/* Add new comment */}
-          <div className={`p-4 border-t border-slate-100 ${isDark ? "bg-gray-800" : "bg-white"}`}>
+          
+          {/* Add Comment Form */}
+          <div className={`p-4 border-t ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-gray-50"}`}>
             <div className="flex gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 select-none">
+              <div className="w-8 h-8 bg-gradient-to-br from-indigo-400 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
                 {currentUser?.email?.charAt(0).toUpperCase() || "U"}
               </div>
               <form
@@ -456,7 +552,6 @@ function ReportItem({
                   commentSubmit(report.id);
                 }}
                 className="flex-1 flex gap-2"
-                aria-label="Add a new comment form"
               >
                 <input
                   type="text"
@@ -468,25 +563,20 @@ function ReportItem({
                       [report.id]: e.target.value,
                     }))
                   }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      commentSubmit(report.id);
-                    }
-                  }}
-                  className={`flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow ${
-                    isDark ? "bg-gray-700 border-gray-600 text-gray-300" : "bg-white border-gray-300 text-gray-900"
+                  className={`flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
+                    isDark 
+                      ? "bg-gray-700 border-gray-600 text-gray-300 placeholder-gray-400" 
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
                   }`}
                   aria-label="Write a comment"
-                  spellCheck="true"
                 />
                 <button
                   type="submit"
                   disabled={!commentText[report.id]?.trim()}
-                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   aria-label="Send comment"
                 >
-                  <SendIcon aria-hidden="true" className="h-5 w-5" />
+                  <SendIcon className="h-4 w-4" />
                 </button>
               </form>
             </div>
@@ -502,10 +592,11 @@ export default function Forum() {
   const [commentText, setCommentText] = useState({});
   const [expandedComments, setExpandedComments] = useState({});
   const [filterType, setFilterType] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
-
+  
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
@@ -517,25 +608,19 @@ export default function Forum() {
   const [newReportMediaUrl, setNewReportMediaUrl] = useState("");
   const [newReportFile, setNewReportFile] = useState(null);
   const [loadingReportSubmit, setLoadingReportSubmit] = useState(false);
+  
   const themeContext = useTheme();
   const { isDark } = themeContext || {};
   const navigate = useNavigate();
+  const [username, setUsername] = useState(null);
 
-  const getThemeClass = (styleKey, fallback = "") => {
-    return themeContext?.styles && themeContext.styles[styleKey]
-      ? themeContext.styles[styleKey]
-      : fallback;
-  };
-
-  const reportsCollectionPath = "violation_reports";
+  const reportsCollectionPath = "violation_reports"; 
 
   // Toast utility
   const showToast = useCallback((message, type = "info") => {
     setToast({ visible: true, message, type });
     setTimeout(() => setToast({ visible: false, message: "", type: "info" }), 4000);
   }, []);
-
-  const [username, setUsername] = useState(null);
 
   // Auth state listener
   useEffect(() => {
@@ -547,7 +632,7 @@ export default function Forum() {
     return () => unsubscribe();
   }, []);
 
-  // Real-time reports fetching for violation_reports
+  // Real-time reports fetching
   useEffect(() => {
     if (loadingAuth) return;
     setLoading(true);
@@ -564,12 +649,13 @@ export default function Forum() {
           submittedAt: doc.data().submittedAt?.toDate ? doc.data().submittedAt.toDate() : new Date(),
           likes: doc.data().likes || [],
           comments: doc.data().comments || [],
+          status: doc.data().status || 'pending',
         }));
         setReports(fetchedReports);
         setLoading(false);
       },
       (err) => {
-        setError("Failed to fetch reports. Check permissions and network.");
+        setError("Failed to fetch reports. Please check your connection and try again.");
         setLoading(false);
       }
     );
@@ -577,34 +663,48 @@ export default function Forum() {
     return () => unsubscribe();
   }, [loadingAuth]);
 
-  // File upload handler and new report submission
+  // File upload handler
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
-      setNewReportFile(e.target.files[0]);
+      const file = e.target.files[0];
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      
+      if (file.size > maxSize) {
+        showToast("File size must be less than 10MB", "error");
+        e.target.value = '';
+        return;
+      }
+      
+      setNewReportFile(file);
     } else {
       setNewReportFile(null);
     }
   };
 
-  // Use Geolocation to fill location input
+  // Geolocation handler
   const useMyLocation = () => {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      showToast("Geolocation is not supported by your browser", "error");
       return;
     }
+    
+    setLoadingReportSubmit(true);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
         setNewReportLocation(`Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`);
         showToast("Location set from your current position", "success");
+        setLoadingReportSubmit(false);
       },
       (error) => {
         console.error(error);
-        alert("Unable to fetch your location");
+        showToast("Unable to access your location. Please enter manually.", "error");
+        setLoadingReportSubmit(false);
       }
     );
   };
 
+  // Report submission handler
   const handleReportSubmit = async (e) => {
     e.preventDefault();
 
@@ -627,37 +727,37 @@ export default function Forum() {
         const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${newReportFile.name}`);
         await uploadBytes(fileRef, newReportFile);
         uploadedMediaUrl = await getDownloadURL(fileRef);
-      } else {
+      } else if (newReportMediaUrl.trim()) {
         uploadedMediaUrl = newReportMediaUrl.trim();
       }
 
-      // Fetch username to store with report
+      // Fetch username
       let usernameToSave = currentUser.email || currentUser.uid;
       try {
         const userDoc = await getDoc(doc(db, "users", currentUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          if (userData.username) usernameToSave = userData.username;
+        if (userDoc.exists() && userDoc.data().username) {
+          usernameToSave = userDoc.data().username;
         }
       } catch (err) {
-        console.error("Failed to fetch username for report submission:", err);
+        console.error("Failed to fetch username:", err);
       }
 
       await addDoc(collection(db, reportsCollectionPath), {
-        location: newReportLocation,
-        description: newReportDescription,
+        location: newReportLocation.trim(),
+        description: newReportDescription.trim(),
         severity: newReportSeverity,
         category: newReportCategory,
-        mediaUrl: uploadedMediaUrl || "",
+        mediaUrl: uploadedMediaUrl,
         submittedAt: serverTimestamp(),
         likes: [],
         comments: [],
         authorId: currentUser.uid,
         authorEmail: currentUser.email,
         authorUsername: usernameToSave,
+        status: 'pending',
       });
 
-      // Reset form and close modal
+      // Reset form
       setShowReportModal(false);
       setNewReportLocation("");
       setNewReportDescription("");
@@ -667,8 +767,8 @@ export default function Forum() {
       setNewReportFile(null);
       showToast("Report submitted successfully!", "success");
     } catch (error) {
+      console.error("Error submitting report:", error);
       showToast("Failed to submit report. Please try again.", "error");
-      console.error(error);
     } finally {
       setLoadingReportSubmit(false);
     }
@@ -677,9 +777,10 @@ export default function Forum() {
   // Like toggle handler
   const handleLike = async (reportId) => {
     if (!currentUser) {
-      showToast("Please log in to like a report.", "info");
+      showToast("Please log in to like reports.", "info");
       return;
     }
+    
     const reportRef = doc(db, reportsCollectionPath, reportId);
     const report = reports.find((r) => r.id === reportId);
 
@@ -702,6 +803,7 @@ export default function Forum() {
       showToast("Please log in to comment.", "info");
       return;
     }
+    
     const text = commentText[reportId]?.trim();
     if (!text) {
       showToast("Comment cannot be empty.", "error");
@@ -709,7 +811,6 @@ export default function Forum() {
     }
 
     const reportRef = doc(db, reportsCollectionPath, reportId);
-
     const comment = {
       text,
       user: username || currentUser.email || currentUser.uid || "anonymous",
@@ -736,112 +837,145 @@ export default function Forum() {
     }));
   };
 
-  // Filtered reports by category
-  const filteredReports =
-    filterType === "all" ? reports : reports.filter((report) => report.category === filterType);
+  // Filtered and searched reports
+  const filteredReports = reports
+    .filter((report) => filterType === "all" || report.category === filterType)
+    .filter((report) => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        report.location?.toLowerCase().includes(query) ||
+        report.description?.toLowerCase().includes(query) ||
+        report.authorUsername?.toLowerCase().includes(query)
+      );
+    });
 
-  // Loading and error UI
+  // Loading state
   if (loadingAuth || (loading && !error)) {
     return (
-      <main
-        className={`min-h-screen flex flex-col items-center justify-center ${
-          isDark ? "bg-gray-900 text-white" : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
-        } px-4 text-center`}
-      >
-        <div className={`animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-4`} />
-        <p className="text-lg select-none">Loading application...</p>
+      <main className={`min-h-screen flex flex-col items-center justify-center ${
+        isDark ? "bg-gray-900 text-white" : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
+      } px-4`}>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-indigo-500 mb-4" />
+        <p className="text-lg font-medium">Loading reports...</p>
       </main>
     );
   }
 
+  // Error state
   if (error && !loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-red-50 px-4">
-        <section
-          className="bg-white rounded-lg p-8 shadow-lg text-center max-w-md mx-auto"
-          role="alert"
-          aria-live="assertive"
-        >
-          <AlertTriangleIcon className="text-red-500 text-6xl mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-red-700 mb-2">Error Loading Data</h2>
-          <p className="text-gray-700 select-text">{error}</p>
+      <main className={`min-h-screen flex items-center justify-center px-4 ${
+        isDark ? "bg-gray-900" : "bg-red-50"
+      }`}>
+        <section className={`rounded-2xl p-8 shadow-lg text-center max-w-md mx-auto ${
+          isDark ? "bg-gray-800 text-white" : "bg-white"
+        }`}>
+          <AlertTriangleIcon className={`w-16 h-16 mx-auto mb-4 ${
+            isDark ? "text-red-400" : "text-red-500"
+          }`} />
+          <h2 className={`text-xl font-bold mb-2 ${
+            isDark ? "text-red-300" : "text-red-700"
+          }`}>Error Loading Reports</h2>
+          <p className={isDark ? "text-gray-300" : "text-gray-700"}>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Retry
+          </button>
         </section>
       </main>
     );
   }
 
   return (
-    <div
-      className={`min-h-screen transition-colors duration-300 ${
-        isDark
-          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
-          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
-      }`}
-    >
-      {/* Header */}
-      <header
-        className={`${
-          isDark ? "bg-gray-800/80" : "bg-white/80"
-        } backdrop-blur-md border-b ${
-          isDark ? "border-gray-700" : "border-slate-200"
-        } sticky top-0 z-50 shadow-sm`}
-      >
-        <div className="max-w-4xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-4 flex-1 min-w-0">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
-              aria-label="Back to Dashboard"
-              type="button"
-            >
-              <ArrowLeft />
-              <span className="font-medium">Dashboard</span>
-            </button>
+    <div className={`min-h-screen transition-colors duration-300 ${
+      isDark
+        ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
+        : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
+    }`}>
+      {/* Enhanced Header */}
+      <header className={`${
+        isDark ? "bg-gray-800/90" : "bg-white/90"
+      } backdrop-blur-md border-b ${
+        isDark ? "border-gray-700" : "border-slate-200"
+      } sticky top-0 z-50 shadow-sm`}>
+        <div className="max-w-6xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0 flex-1">
+              <button
+                onClick={() => navigate("/dashboard")}
+                className={`flex items-center gap-2 transition-colors hover:scale-105 ${
+                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                }`}
+                aria-label="Back to Dashboard"
+              >
+                <ArrowLeftIcon className="h-5 w-5" />
+                <span className="font-medium hidden sm:inline">Dashboard</span>
+              </button>
+
+              <div className="min-w-0 flex-1">
+                <h1 className="font-bold text-xl sm:text-2xl truncate"><center>
+                  Community Reports
+                </center></h1>
+              </div>
+            </div>
 
             <button
-              onClick={() => navigate("/profile")}
-              className="p-2 hover:bg-slate-100 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              aria-label="Go to Profile"
+              onClick={() => setShowReportModal(true)}
+              className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2.5 sm:px-6 sm:py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
               type="button"
             >
-              <UserIcon className="text-slate-600 h-6 w-6" />
+              <PlusIcon className="h-5 w-5" />
+              <span className="hidden sm:inline">Report Issue</span>
+              <span className="sm:hidden">Report</span>
             </button>
-            <div className="min-w-0 overflow-hidden">
-              <h1 className="font-bold text-xl text-ellipsis whitespace-nowrap overflow-hidden">
-                Community Reports
-              </h1>
-              <p className="text-sm text-slate-600 truncate select-text">ECOSORT</p>
-            </div>
           </div>
-          <button
-            onClick={() => setShowReportModal(true)}
-            className="flex items-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-5 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-rose-500"
-            aria-label="Open report submission modal"
-            type="button"
-          >
-            <PlusIcon className="h-5 w-5" />
-            <span className="hidden sm:inline">Report Issue</span>
-          </button>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6" role="main">
-        <FilterTabs filterType={filterType} setFilterType={setFilterType} isDark={isDark} />
+      {/* Main Content */}
+      <main className="max-w-6xl mx-auto px-4 py-6">
+        <FilterTabs 
+          filterType={filterType} 
+          setFilterType={setFilterType} 
+          isDark={isDark}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+        />
+
+        {/* Reports Grid */}
         <div className="space-y-6">
           {filteredReports.length === 0 ? (
-            <section
-              aria-live="polite"
-              className={`text-center py-12 rounded-2xl shadow-sm select-none ${
-                isDark ? "bg-gray-800 text-gray-400" : "bg-white text-slate-600"
-              }`}
-            >
-              <AlertTriangleIcon
-                className={`w-16 h-16 mx-auto mb-4 ${
-                  isDark ? "text-gray-500" : "text-slate-400"
-                }`}
-              />
-              <h3 className="text-xl font-semibold mb-2">No reports found</h3>
-              <p>Be the first to report an issue in your community!</p>
+            <section className={`text-center py-16 rounded-2xl shadow-sm ${
+              isDark ? "bg-gray-800 text-gray-400" : "bg-white text-slate-600"
+            }`}>
+              {searchQuery ? (
+                <div>
+                  <SearchIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No reports found</h3>
+                  <p className="mb-4">No reports match your search criteria.</p>
+                  <button
+                    onClick={() => setSearchQuery("")}
+                    className="text-indigo-600 hover:text-indigo-700 font-medium"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <AlertTriangleIcon className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-xl font-semibold mb-2">No reports yet</h3>
+                  <p className="mb-6">Be the first to report an issue in your community!</p>
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="bg-indigo-600 text-white px-6 py-2 rounded-full hover:bg-indigo-700 transition-colors"
+                  >
+                    Submit First Report
+                  </button>
+                </div>
+              )}
             </section>
           ) : (
             filteredReports.map((report) => (
@@ -862,225 +996,212 @@ export default function Forum() {
         </div>
       </main>
 
-      {/* Report Submission Modal */}
+      {/* Enhanced Report Modal */}
       {showReportModal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="report-modal-title"
-        >
-          <div
-            className={`rounded-xl shadow-2xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto ${
-              isDark ? "bg-gray-900 text-white" : "bg-white text-slate-900"
-            }`}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <h2
-                id="report-modal-title"
-                className={`text-xl font-bold select-none ${
-                  isDark ? "text-white" : "text-slate-800"
-                }`}
-              >
-                Submit New Report
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowReportModal(false)}
-                className={`rounded focus:outline-none focus:ring-2 ${
-                  isDark ? "text-gray-400 hover:text-white focus:ring-indigo-500" : "text-gray-500 hover:text-gray-700 focus:ring-indigo-600"
-                }`}
-                aria-label="Close report submission"
-              >
-                <XIcon className="h-6 w-6" />
-              </button>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className={`rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden ${
+            isDark ? "bg-gray-900 text-white" : "bg-white text-slate-900"
+          }`}>
+            {/* Modal Header */}
+            <div className={`px-6 py-4 border-b ${isDark ? "border-gray-700" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold">Submit New Report</h2>
+                <button
+                  onClick={() => setShowReportModal(false)}
+                  className={`p-2 rounded-full transition-colors ${
+                    isDark ? "text-gray-400 hover:text-white hover:bg-gray-800" : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
+                  }`}
+                  aria-label="Close modal"
+                >
+                  <XIcon className="h-5 w-5" />
+                </button>
+              </div>
             </div>
-            <form onSubmit={handleReportSubmit} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="report-location"
-                  className={`block text-sm font-medium mb-1 select-none ${
-                    isDark ? "text-gray-300" : "text-slate-700"
-                  }`}
-                >
-                  Location *
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="report-location"
-                    type="text"
-                    value={newReportLocation}
-                    onChange={(e) => setNewReportLocation(e.target.value)}
-                    className={`flex-1 p-2 rounded-md focus:outline-none focus:ring-2 ${
-                      isDark
-                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
-                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
-                    }`}
-                    placeholder="e.g., Main Street Park"
-                    required
-                    autoComplete="off"
-                    aria-required="true"
-                  />
-                  <button
-                    type="button"
-                    onClick={useMyLocation}
-                    className="px-3 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition"
-                    aria-label="Use my current location"
-                  >
-                    Use My Location
-                  </button>
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="report-description"
-                  className={`block text-sm font-medium mb-1 select-none ${
-                    isDark ? "text-gray-300" : "text-slate-700"
-                  }`}
-                >
-                  Description *
-                </label>
-                <textarea
-                  id="report-description"
-                  value={newReportDescription}
-                  onChange={(e) => setNewReportDescription(e.target.value)}
-                  rows={4}
-                  className={`w-full p-2 rounded-md resize-y focus:outline-none focus:ring-2 ${
-                    isDark
-                      ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
-                      : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
-                  }`}
-                  placeholder="Describe the issue in detail..."
-                  required
-                  aria-required="true"
-                  spellCheck="true"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label
-                    htmlFor="report-severity"
-                    className={`block text-sm font-medium mb-1 select-none ${
-                      isDark ? "text-gray-300" : "text-slate-700"
-                    }`}
-                  >
-                    Severity
-                  </label>
-                  <select
-                    id="report-severity"
-                    value={newReportSeverity}
-                    onChange={(e) => setNewReportSeverity(e.target.value)}
-                    className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
-                      isDark
-                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
-                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
-                    }`}
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-                <div>
-                  <label
-                    htmlFor="report-category"
-                    className={`block text-sm font-medium mb-1 select-none ${
-                      isDark ? "text-gray-300" : "text-slate-700"
-                    }`}
-                  >
-                    Category
-                  </label>
-                  <select
-                    id="report-category"
-                    value={newReportCategory}
-                    onChange={(e) => setNewReportCategory(e.target.value)}
-                    className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
-                      isDark
-                        ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
-                        : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
-                    }`}
-                  >
-                    <option value="illegal_dumping">Illegal Dumping</option>
-                    <option value="littering">Littering</option>
-                    <option value="environmental">Environmental</option>
-                    <option value="vandalism">Vandalism</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-              <div>
-                <label
-                  htmlFor="report-file"
-                  className={`block text-sm font-medium mb-1 select-none ${
-                    isDark ? "text-gray-300" : "text-slate-700"
-                  }`}
-                >
-                  Attach Proof (Optional)
-                </label>
-                <input
-                  id="report-file"
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={handleFileChange}
-                  className="w-full"
-                  aria-describedby="file-helptext"
-                />
-                <p
-                  id="file-helptext"
-                  className={`text-xs mt-1 select-none ${
-                    isDark ? "text-gray-400" : "text-slate-400"
-                  }`}
-                >
-                  Upload an image or video file as proof of the issue.
-                </p>
-              </div>
-              <div>
-                <label
-                  htmlFor="report-media-url"
-                  className={`block text-sm font-medium mb-1 select-none ${
-                    isDark ? "text-gray-300" : "text-slate-700"
-                  }`}
-                >
-                  Media URL (Optional)
-                </label>
-                <input
-                  id="report-media-url"
-                  type="url"
-                  value={newReportMediaUrl}
-                  onChange={(e) => setNewReportMediaUrl(e.target.value)}
-                  className={`w-full p-2 rounded-md focus:outline-none focus:ring-2 ${
-                    isDark
-                      ? "bg-gray-800 border border-gray-700 text-gray-100 focus:ring-indigo-500"
-                      : "bg-white border border-gray-300 text-gray-900 focus:ring-indigo-600"
-                  }`}
-                  placeholder="URL to an image or video (if you prefer)"
-                  aria-describedby="media-url-helptext"
-                  autoComplete="off"
-                />
-                <p
-                  id="media-url-helptext"
-                  className={`text-xs mt-1 select-none ${
-                    isDark ? "text-gray-400" : "text-slate-400"
-                  }`}
-                >
-                  Provide a URL to an image or video.
-                </p>
-              </div>
 
-              <button
-                type="submit"
-                disabled={loadingReportSubmit}
-                className="w-full bg-indigo-600 text-white p-3 rounded-md font-semibold hover:bg-indigo-700 transition-colors disabled:bg-slate-400 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-600"
-                aria-busy={loadingReportSubmit}
-              >
-                {loadingReportSubmit ? "Submitting..." : "Submit Report"}
-              </button>
-            </form>
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <form onSubmit={handleReportSubmit} className="space-y-5">
+                {/* Location Field */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}>
+                    Location *
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newReportLocation}
+                      onChange={(e) => setNewReportLocation(e.target.value)}
+                      className={`flex-1 p-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        isDark
+                          ? "bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400"
+                          : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                      }`}
+                      placeholder="e.g., Main Street Park, Building A"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={useMyLocation}
+                      disabled={loadingReportSubmit}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors disabled:bg-gray-400 text-sm whitespace-nowrap"
+                    >
+                      {loadingReportSubmit ? "..." : "📍"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description Field */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}>
+                    Description *
+                  </label>
+                  <textarea
+                    value={newReportDescription}
+                    onChange={(e) => setNewReportDescription(e.target.value)}
+                    rows={4}
+                    className={`w-full p-3 rounded-xl border resize-none transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      isDark
+                        ? "bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400"
+                        : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                    }`}
+                    placeholder="Describe the issue in detail..."
+                    required
+                  />
+                </div>
+
+                {/* Severity and Category */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDark ? "text-gray-300" : "text-slate-700"
+                    }`}>
+                      Severity
+                    </label>
+                    <select
+                      value={newReportSeverity}
+                      onChange={(e) => setNewReportSeverity(e.target.value)}
+                      className={`w-full p-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        isDark
+                          ? "bg-gray-800 border-gray-600 text-gray-100"
+                          : "bg-white border-gray-300 text-gray-900"
+                      }`}
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={`block text-sm font-medium mb-2 ${
+                      isDark ? "text-gray-300" : "text-slate-700"
+                    }`}>
+                      Category
+                    </label>
+                    <select
+                      value={newReportCategory}
+                      onChange={(e) => setNewReportCategory(e.target.value)}
+                      className={`w-full p-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        isDark
+                          ? "bg-gray-800 border-gray-600 text-gray-100"
+                          : "bg-white border-gray-300 text-gray-900"
+                      }`}
+                    >
+                      <option value="illegal_dumping">Illegal Dumping</option>
+                      <option value="littering">Littering</option>
+                      <option value="environmental">Environmental</option>
+                      <option value="vandalism">Vandalism</option>
+                      <option value="noise">Noise</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* File Upload */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}>
+                    Attach Media (Optional)
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={handleFileChange}
+                    className={`w-full p-3 rounded-xl border transition-colors ${
+                      isDark
+                        ? "bg-gray-800 border-gray-600 text-gray-100 file:bg-gray-700 file:text-gray-200"
+                        : "bg-white border-gray-300 text-gray-900 file:bg-gray-100 file:text-gray-700"
+                    } file:border-0 file:rounded-lg file:px-4 file:py-2 file:mr-4`}
+                  />
+                  <p className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-slate-500"}`}>
+                    Upload images or videos (max 10MB)
+                  </p>
+                </div>
+
+                {/* Media URL */}
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${
+                    isDark ? "text-gray-300" : "text-slate-700"
+                  }`}>
+                    Or paste media URL
+                  </label>
+                  <input
+                    type="url"
+                    value={newReportMediaUrl}
+                    onChange={(e) => setNewReportMediaUrl(e.target.value)}
+                    className={`w-full p-3 rounded-xl border transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                      isDark
+                        ? "bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400"
+                        : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                    }`}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loadingReportSubmit}
+                  className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white p-3 rounded-xl font-semibold hover:from-indigo-700 hover:to-purple-700 transition-all disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  {loadingReportSubmit ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Submitting...
+                    </div>
+                  ) : (
+                    "Submit Report"
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       )}
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+      
+      {/* Add custom styles for animations */}
+      <style jsx>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
     </div>
   );
 }
