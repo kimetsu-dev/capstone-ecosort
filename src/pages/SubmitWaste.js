@@ -178,22 +178,34 @@ export default function SubmitWaste() {
 
   return (
     <>
-      <div className={`App min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
-        <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className={`App min-h-screen transition-all duration-300 ${styles.backgroundGradient} pt-12`}>
+         <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="max-w-7xl mx-auto">
+
             {/* Back Button */}
-            <div className="mb-6 sm:mb-8">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className={`flex items-center gap-2 transition-colors group ${
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-700 hover:text-gray-900"
-                }`}
-                aria-label="Back to Dashboard"
-              >
-                <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                <span className="font-medium">Dashboard</span>
-              </button>
-            </div>
+              <div
+    className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
+      isDark ? "bg-gray-900 border-b border-gray-700 shadow-lg" : "bg-white border-b border-gray-300 shadow-lg"
+    }`}
+    style={{
+      backdropFilter: 'blur(12px)',
+      WebkitBackdropFilter: 'blur(12px)',
+    }}
+  >
+    <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <button
+        onClick={() => navigate("/dashboard")}
+        className={`flex items-center gap-2 py-3 rounded-xl transition-colors group ${
+          isDark ? "text-gray-300 hover:text-white" : "text-gray-700 hover:text-gray-900"
+        }`}
+        aria-label="Back to Dashboard"
+        style={{ borderRadius: "0.75rem" }}
+      >
+        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+        <span className="font-medium">Dashboard</span>
+      </button>
+    </div>
+  </div>
 
             {/* Header Section */}
             <div className="text-center mb-4 sm:mb-6">
@@ -510,32 +522,18 @@ export default function SubmitWaste() {
       <Toast visible={toast.visible} message={toast.message} type={toast.type} onClose={closeToast} />
 
       {/* Animation keyframes */}
-      <style>{`
-        @keyframes slide-in {
-          from { 
-            opacity: 0; 
-            transform: translateY(-20px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
-        }
-        
-        @keyframes slide-down {
-          from { 
-            opacity: 0; 
-            transform: translateY(-10px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
-        }
-        
-        .animate-slide-in { animation: slide-in 0.3s ease-out forwards; }
-        .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
-      `}</style>
+     <style>{`
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slide-down {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-slide-in { animation: slide-in 0.3s ease-out forwards; }
+    .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
+  `}</style>
     </>
   );
 }

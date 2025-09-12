@@ -6,6 +6,7 @@ import { signOut } from "firebase/auth";
 import { FiSettings } from "react-icons/fi";
 import Settings from "./Settings";
 import ScheduleManager from "./AdminPanel/ScheduleManager";
+import { FiUser } from "react-icons/fi";
 import {
   doc,
   getDoc,
@@ -482,55 +483,25 @@ export default function AdminPanel() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <button
-                onClick={() => navigate("/settings")}
-                className={`p-2 rounded-lg text-xl transition-colors duration-200 ${
-                  isDark
-                    ? "bg-gray-700 text-gray-200 hover:bg-green-800 hover:text-emerald-400"
-                    : "bg-gray-100 text-slate-800 hover:bg-green-50 hover:text-emerald-600"
-                }`}
-                title="Settings"
-                aria-label="Settings"
-              >
-                <FiSettings />
-              </button>
 
               <div
-                className="flex items-center space-x-2 cursor-pointer group"
-                onClick={() => navigate("/adminprofile")}
-                title="Admin Profile"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    navigate("/adminprofile");
-                  }
-                }}
-                aria-label="Go to Admin Profile"
-              >
-                <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center group-hover:shadow-md transition-all">
-                  <span className="text-indigo-600 font-semibold text-xs lg:text-sm">
-                    {user?.email?.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span
-                  className={`hidden lg:block text-sm font-medium group-hover:text-indigo-400 transition-colors truncate max-w-32 ${
-                    isDark ? "text-gray-200" : "text-slate-700"
-                  }`}
-                >
-                  {user?.email}
-                </span>
-              </div>
-
-              <button
-                onClick={handleLogout}
-                className={`px-2 py-1.5 lg:px-3 lg:py-2 rounded-md text-xs lg:text-sm font-medium shadow-sm transition-colors ${
-                  isDark ? "bg-red-700 text-white hover:bg-red-800" : "bg-red-500 text-white hover:bg-red-600"
-                }`}
-              >
-                Logout
-              </button>
+  className="flex items-center space-x-2 cursor-pointer group"
+  onClick={() => navigate("/adminprofile")}
+  title="Admin Profile"
+  role="button"
+  tabIndex={0}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      navigate("/adminprofile");
+    }
+  }}
+  aria-label="Go to Admin Profile"
+>
+  <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center group-hover:shadow-md transition-all">
+    <FiUser className="text-indigo-600 w-4 h-4 lg:w-5 lg:h-5" />
+  </div>
+</div>
             </div>
           </div>
         </div>
@@ -542,11 +513,11 @@ export default function AdminPanel() {
         {activeTab === "dashboard" && (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 lg:gap-4">
             {[
-              { name: "Reports", value: reports.length, color: "from-red-500 to-rose-600", trend: "+12%" },
-              { name: "Users", value: users.length, color: "from-blue-500 to-indigo-600", trend: "+8%" },
-              { name: "Rewards", value: rewards.filter((r) => r.stock > 0).length, color: "from-purple-500 to-violet-600", trend: "+5%" },
-              { name: "Transactions", value: transactions.length, color: "from-green-500 to-emerald-600", trend: "+15%" },
-              { name: "Pending", value: redemptions.filter((r) => r.status === "pending").length, color: "from-yellow-400 to-yellow-600", trend: "" },
+              { name: "Reports", value: reports.length, color: "from-red-500 to-rose-600" },
+              { name: "Users", value: users.length, color: "from-blue-500 to-indigo-600" },
+              { name: "Rewards", value: rewards.filter((r) => r.stock > 0).length, color: "from-purple-500 to-violet-600" },
+              { name: "Transactions", value: transactions.length, color: "from-green-500 to-emerald-600"},
+              { name: "Pending", value: redemptions.filter((r) => r.status === "pending").length, color: "from-yellow-400 to-yellow-600"},
             ].map((stat, index) => (
               <div
                 key={index}
@@ -674,10 +645,6 @@ export default function AdminPanel() {
               </div>
             )}
 
-            {/* Settings Tab */}
-            {activeTab === "settings" && (
-              <Settings showToast={showToast} isDark={isDark} />
-            )}
 
             {/* Waste Types Tab */}
             {activeTab === "wasteTypes" && (

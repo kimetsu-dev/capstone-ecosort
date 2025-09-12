@@ -7,38 +7,34 @@ import {
   updatePassword,
   onAuthStateChanged,
   signOut,
+  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   GoogleAuthProvider,
   reauthenticateWithPopup,
-  deleteUser,
 } from "firebase/auth";
-import {
-  doc,
-  getDoc,
-  updateDoc,
-} from "firebase/firestore";
+import { doc, getDoc, updateDoc, query, collection, getDocs, orderBy } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { v4 as uuidv4 } from "uuid";
 import {
   FiUser,
   FiCamera,
-  FiEdit3,
-  FiArrowLeft,
-  FiLogOut,
-  FiTrash2,
-  FiSave,
-  FiMail,
-  FiLock,
   FiEye,
   FiEyeOff,
+  FiArrowLeft,
+  FiSettings,
+  FiLock,
+  FiMail,
+  FiCheck,
+  FiX,
 } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
 
-export default function Profile() {
-  const { isDark } = useTheme();
-  const [user, setUser] = useState(null);
-  const [isEmailUser, setIsEmailUser] = useState(false);
+export default function AdminProfile() {
+  const { isDark } = useTheme() || {};
+  const navigate = useNavigate();
+
+  const [admin, setAdmin] = useState(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
@@ -49,29 +45,33 @@ export default function Profile() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [profilePicFile, setProfilePicFile] = useState(null);
   const [profileUrl, setProfileUrl] = useState("");
-  const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [isEmailUser, setIsEmailUser] = useState(false);
+  const [scrollY, setScrollY] = useState(0);
+  const [currentPasswordError, setCurrentPasswordError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [confirmPasswordError, setConfirmPasswordError] = useState("");
-  const [currentPasswordError, setCurrentPasswordError] = useState("");
-  const [message, setMessage] = useState("");
-  const navigate = useNavigate();
+
+  // Handle scroll for sticky header animations
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (currentUser) => {
-      if (!currentUser) {
-        navigate("/");
-        return;
-      }
-      setUser(currentUser);
+      if (!currentUser) return navigate("/");
+      setAdmin(currentUser);
       setEmail(currentUser.email);
 
-      const isEmailProvider = currentUser.providerData.some(
+      const emailProviderPresent = currentUser.providerData.some(
         (provider) => provider.providerId === "password"
       );
-      setIsEmailUser(isEmailProvider);
+      setIsEmailUser(emailProviderPresent);
 
-      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      const userDoc = await getDoc(doc(db, "admins", currentUser.uid));
       if (userDoc.exists()) {
         const data = userDoc.data();
         setUsername(data.username || "");
@@ -94,14 +94,14 @@ export default function Profile() {
       return await uploadBytes(fileRef, file);
     } catch (error) {
       if (retries <= 0) throw error;
-      await new Promise((res) => setTimeout(res, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
       return uploadWithRetry(fileRef, file, retries - 1, delay * 2);
     }
   };
 
   const uploadProfilePicture = async (file) => {
     if (!file) return null;
-    const fileRef = ref(storage, `profiles/${user.uid}/${uuidv4()}`);
+    const fileRef = ref(storage, `admins/${admin.uid}/${uuidv4()}`);
     await uploadWithRetry(fileRef, file);
     return await getDownloadURL(fileRef);
   };
@@ -112,11 +112,11 @@ export default function Profile() {
         setCurrentPasswordError("Current password is required to change password or email.");
         throw new Error("Current password missing");
       }
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
-      await reauthenticateWithCredential(user, credential);
+      const credential = EmailAuthProvider.credential(admin.email, currentPassword);
+      await reauthenticateWithCredential(admin, credential);
     } else {
       const googleProvider = new GoogleAuthProvider();
-      await reauthenticateWithPopup(user, googleProvider);
+      await reauthenticateWithPopup(admin, googleProvider);
     }
   };
 
@@ -124,47 +124,51 @@ export default function Profile() {
     setPasswordError("");
     setConfirmPasswordError("");
     setCurrentPasswordError("");
-    setMessage("");
 
     if (!username.trim()) {
       alert("Username cannot be empty");
       return;
     }
+
     if (password && !validatePassword(password)) {
-      setPasswordError("Password must be at least 8 chars, with uppercase and number.");
+      setPasswordError("Password must be at least 8 characters, include 1 uppercase letter and 1 number.");
       return;
     }
+
     if (password && password !== confirmPassword) {
       setConfirmPasswordError("Passwords do not match");
       return;
     }
 
     setSaving(true);
-    try {
-      const emailChanged = email && email !== user.email;
-      const passwordChanging = !!password;
 
+    try {
+      const emailChanged = email && email !== admin.email;
+      const passwordChanging = !!password;
       if (emailChanged || passwordChanging) {
         await performReauthentication();
       }
 
-      let uploadedUrl = profileUrl;
+      const updateFields = {};
       if (profilePicFile) {
-        uploadedUrl = await uploadProfilePicture(profilePicFile);
+        const uploadedUrl = await uploadProfilePicture(profilePicFile);
         setProfileUrl(uploadedUrl);
-        await updateDoc(doc(db, "users", user.uid), { profileUrl: uploadedUrl });
+        updateFields.profileUrl = uploadedUrl;
       }
-
-      if (username.trim() && username !== user.displayName) {
-        await updateProfile(user, { displayName: username.trim() });
-        await updateDoc(doc(db, "users", user.uid), { username: username.trim() });
+      if (username.trim() && username !== admin.displayName) {
+        updateFields.username = username.trim();
       }
-
+      if (Object.keys(updateFields).length > 0) {
+        await updateDoc(doc(db, "admins", admin.uid), updateFields);
+      }
+      if (username.trim() && username !== admin.displayName) {
+        await updateProfile(admin, { displayName: username.trim() });
+      }
       if (emailChanged) {
-        await updateEmail(user, email);
+        await updateEmail(admin, email);
       }
       if (passwordChanging) {
-        await updatePassword(user, password);
+        await updatePassword(admin, password);
       }
 
       setIsEditing(false);
@@ -172,7 +176,7 @@ export default function Profile() {
       setConfirmPassword("");
       setCurrentPassword("");
       setProfilePicFile(null);
-      setMessage("Profile updated successfully.");
+      alert("Profile updated successfully");
     } catch (err) {
       console.error(err);
       if (err.code === "auth/wrong-password" || err.code === "auth/invalid-credential") {
@@ -182,13 +186,12 @@ export default function Profile() {
       } else if (err.code === "auth/popup-closed-by-user") {
         alert("Reauthentication cancelled. Please try again.");
       } else {
-        setMessage("Failed to update profile: " + (err.message || err));
+        alert("Failed to update profile: " + (err.message || err));
       }
-    } finally {
-      setSaving(false);
     }
-  };
 
+    setSaving(false);
+  };
 
   const handleLogout = async () => {
     if (window.confirm("Are you sure you want to logout?")) {
@@ -214,276 +217,217 @@ export default function Profile() {
     saving ||
     !username.trim() ||
     (password && (!validatePassword(password) || password !== confirmPassword)) ||
-    (isEmailUser && (password || (email !== user?.email)) && !currentPassword);
-
-  if (!user)
-    return <p className={`text-center mt-10 ${isDark ? "text-gray-400" : "text-gray-600"}`}>Please log in to view profile.</p>;
+    (isEmailUser && (password || (email !== admin?.email)) && !currentPassword);
 
   return (
-    <div className={`min-h-screen relative overflow-hidden p-4 sm:p-8 transition-colors duration-300 ${isDark ? "bg-gray-900 text-gray-100" : "bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-100 text-gray-900"}`}>
-      {/* Header */}
-      <div className="relative z-10 max-w-4xl mx-auto">
-        <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-y-4 sm:gap-y-0">
+    <div className={`min-h-screen relative ${isDark ? "bg-gray-900 text-gray-200" : "bg-gray-50 text-gray-900"} overflow-x-hidden`}>
+      {/* Sticky Header */}
+      <div
+        className={`fixed top-0 left-0 right-0 z-50 backdrop-blur-xl transition-all duration-300 ${
+          isDark ? "bg-gray-900/95 border-gray-700/50" : "bg-white/95 border-gray-200/50"
+        } shadow-sm border-b`}
+        style={{ backdropFilter: "blur(20px)" }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <button
             onClick={() => navigate("/adminpanel")}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${isDark ? "bg-gray-800 text-gray-300" : "bg-white text-gray-700"}`}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl font-medium hover:scale-105 transition"
           >
-            <FiArrowLeft className={isDark ? "text-gray-300" : "text-gray-700"} />
-            <span>{`Back`}</span>
+            <FiArrowLeft className="text-lg" />
+            <span>Back</span>
           </button>
-          <h1 className={`text-3xl font-bold ${isDark ? "text-white" : "text-gray-800"} text-center flex-1 sm:flex-none`}>My Profile</h1>
+
+          <h1 className="text-xl sm:text-2xl font-bold text-center flex-grow">
+            Admin Profile
+          </h1>
+
           <button
-            onClick={() => setIsEditing(!isEditing)}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 ${isEditing ? (isDark ? "bg-red-600 text-white" : "bg-red-600 text-white") : (isDark ? "bg-blue-600 text-white" : "bg-blue-600 text-white")}`}
+            onClick={() => navigate("/settings")}
+            className="flex items-center space-x-2 px-4 py-2 rounded-xl font-medium hover:scale-105 transition"
           >
-            <FiEdit3 />
-            <span>{isEditing ? "Cancel" : "Edit"}</span>
+            <FiSettings className="text-lg" />
           </button>
         </div>
+      </div>
 
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Profile Card */}
-          <div className="lg:col-span-1">
-            <div className={`rounded-3xl p-8 shadow-xl border transition-colors duration-300 ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-white/30"}`}>
-              <div className="flex flex-col items-center mb-6">
-                <div className="relative group">
-                  {profileUrl ? (
-                    <img
-                      src={profileUrl}
-                      alt="Profile"
-                      className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300"
-                    />
-                  ) : (
-                    <div className="w-32 h-32 rounded-full bg-gradient-to-br from-gray-700 via-gray-600 to-gray-800 flex items-center justify-center border-4 border-white shadow-lg group-hover:scale-105 transition-transform duration-300">
-                      <FiUser size={48} className="text-gray-300" />
-                    </div>
-                  )}
-                  {isEditing && (
-                    <label className="absolute bottom-1 right-1 bg-blue-500 rounded-full p-3 shadow-lg cursor-pointer hover:bg-blue-600 transition-colors duration-300">
-                      <FiCamera className="text-white" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => e.target.files[0] && setProfilePicFile(e.target.files[0])}
-                        disabled={saving}
-                      />
-                    </label>
-                  )}
+      {/* Main Content */}
+      <div className="pt-20 sm:pt-24 pb-6 px-4 sm:px-6 max-w-4xl mx-auto space-y-6">
+        {/* Profile Card */}
+        <div className={`rounded-2xl p-6 sm:p-8 shadow-xl border ${isDark ? "bg-gray-800/95 border-gray-700/50" : "bg-white/95 border-gray-200/50"} relative`}>
+          <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+            {/* Profile Image */}
+            <div className="relative group flex-shrink-0">
+              {profileUrl ? (
+                <img
+                  src={profileUrl}
+                  alt="Profile"
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border-4 border-white shadow-xl group-hover:scale-105 transition-all duration-300"
+                />
+              ) : (
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gray-300 flex items-center justify-center border-4 border-white shadow-xl">
+                  <FiUser size={36} className="text-gray-600" />
                 </div>
-                <h2 className={`text-2xl font-bold mt-3 ${isDark ? "text-white" : "text-gray-800"}`}>{username || "Anonymous User"}</h2>
-                <p className={isDark ? "text-gray-300" : "text-gray-600"}>{email}</p>
-              </div>
+              )}
+              {isEditing && (
+                <label className="absolute -bottom-2 -right-2 bg-blue-600 rounded-full p-3 shadow-lg cursor-pointer hover:bg-blue-700 transition-all duration-300">
+                  <FiCamera className="text-white text-sm" />
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => setProfilePicFile(e.target.files[0])}
+                  />
+                </label>
+              )}
+            </div>
+
+            {/* User Info */}
+            <div className="flex-1 text-center sm:text-left">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2">{username || "Admin"}</h2>
+              <p className={isDark ? "text-gray-400" : "text-gray-600"}>{email}</p>
             </div>
           </div>
+        </div>
 
-
-          {/* Main Content Form for Editing */}
-          <div className={`flex flex-col gap-8 rounded-3xl p-8 shadow-xl border transition-colors duration-300 ${isDark ? "bg-gray-800 border-gray-700" : "bg-white border-white/30"} lg:col-span-2`}>
-            <h3 className={`text-2xl font-bold mb-6 flex items-center ${isDark ? "text-white" : "text-gray-800"}`}>
-              <FiUser className="mr-3" /> Profile Information
+        {/* Profile Form */}
+        <div className={`rounded-2xl p-6 sm:p-8 shadow-xl border ${isDark ? "bg-gray-800/95 border-gray-700/50" : "bg-white/95 border-gray-200/50"}`}>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-xl sm:text-2xl font-bold flex items-center">
+              <FiUser className="mr-3 text-2xl" /> Profile Information
             </h3>
+            {isEditing && (
+              <button
+                onClick={() => setIsEditing(false)}
+                className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
 
-            {/* Username Input */}
+          {/* Form Fields */}
+          <div className="space-y-4">
             <div>
-              <label htmlFor="username" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                Username
-              </label>
-              <div className="relative">
-                <FiUser className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
-                <input
-                  id="username"
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={!isEditing}
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${isEditing ? (isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white text-gray-900 border-gray-300") : (isDark ? "bg-gray-900 text-gray-400 border-gray-600" : "bg-gray-50 text-gray-400 border-gray-200")}`}
-                  placeholder="Enter your username"
-                  autoComplete="username"
-                  required
-                />
-              </div>
+              <label className="block font-medium mb-1">Username</label>
+              <input
+                type="text"
+                className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={!isEditing}
+              />
             </div>
 
-            {/* Email Input */}
             <div>
-              <label htmlFor="email" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                Email Address
-              </label>
-              <div className="relative">
-                <FiMail className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={!isEditing || !isEmailUser}
-                  className={`w-full pl-10 pr-4 py-3 rounded-xl border transition-all duration-300 ${isEditing && isEmailUser ? (isDark ? "bg-gray-700 text-white border-gray-600" : "bg-white text-gray-900 border-gray-300") : (isDark ? "bg-gray-900 text-gray-400 border-gray-600" : "bg-gray-50 text-gray-400 border-gray-200")}`}
-                  placeholder="Enter your email"
-                  autoComplete="email"
-                  required
-                />
-              </div>
+              <label className="block font-medium mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={!isEditing || !isEmailUser}
+              />
             </div>
 
-            {/* Current Password */}
-            {isEmailUser && isEditing && (
+            {isEditing && isEmailUser && (
               <div>
-                <label htmlFor="currentPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                  Current Password <span className="text-gray-400">(required to change email or password)</span>
-                </label>
+                <label className="block font-medium mb-1">Current Password</label>
                 <div className="relative">
-                  <FiLock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
                   <input
-                    id="currentPassword"
                     type={showCurrentPassword ? "text" : "password"}
+                    className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     value={currentPassword}
-                    onChange={(e) => {
-                      setCurrentPassword(e.target.value);
-                      setCurrentPasswordError("");
-                    }}
-                    disabled={!isEditing}
-                    className={`w-full pl-10 pr-12 py-3 rounded-xl border ${currentPasswordError ? "border-red-500" : isDark ? "border-gray-600" : "border-blue-300"} focus:outline-none focus:ring-2 focus:ring-offset-1 ${currentPasswordError ? "focus:ring-red-500" : isDark ? "focus:ring-gray-600" : "focus:ring-blue-200"} bg-transparent transition-all duration-300 text-white`}
-                    placeholder="Enter current password"
-                    autoComplete="current-password"
-                    aria-describedby="currentPasswordError"
-                    required={password || (email !== user?.email)}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
                   />
                   <button
                     type="button"
+                    className="absolute right-3 top-2 text-gray-500"
                     onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
                   >
                     {showCurrentPassword ? <FiEyeOff /> : <FiEye />}
                   </button>
                 </div>
-                {currentPasswordError && (
-                  <p id="currentPasswordError" className="text-sm text-red-600 mt-1">
-                    {currentPasswordError}
-                  </p>
-                )}
+                {currentPasswordError && <p className="text-red-500 mt-1">{currentPasswordError}</p>}
               </div>
             )}
 
-            {/* New Password */}
             {isEditing && (
               <>
                 <div>
-                  <label htmlFor="password" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                    New Password (optional)
-                  </label>
+                  <label className="block font-medium mb-1">New Password</label>
                   <div className="relative">
-                    <FiLock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
                     <input
-                      id="password"
                       type={showPassword ? "text" : "password"}
+                      className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        setPasswordError("");
-                      }}
-                      disabled={!isEditing}
-                      className={`w-full pl-10 pr-12 py-3 rounded-xl border ${passwordError ? "border-red-500" : isDark ? "border-gray-600" : "border-blue-300"} focus:outline-none focus:ring-2 focus:ring-offset-1 ${passwordError ? "focus:ring-red-500" : isDark ? "focus:ring-gray-600" : "focus:ring-blue-200"} bg-transparent transition-all duration-300 text-white`}
-                      placeholder="Enter new password"
-                      autoComplete="new-password"
+                      onChange={(e) => setPassword(e.target.value)}
                     />
                     <button
                       type="button"
+                      className="absolute right-3 top-2 text-gray-500"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      aria-label={showPassword ? "Hide new password" : "Show new password"}
                     >
                       {showPassword ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
-                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"} mt-1`}>
-                    Must be at least 8 characters, include uppercase and number.
-                  </p>
-                  {passwordError && <p className="text-sm text-red-600 mt-1">{passwordError}</p>}
+                  {passwordError && <p className="text-red-500 mt-1">{passwordError}</p>}
                 </div>
 
-                {/* Confirm New Password */}
                 <div>
-                  <label htmlFor="confirmPassword" className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-gray-700"}`}>
-                    Confirm New Password (optional)
-                  </label>
+                  <label className="block font-medium mb-1">Confirm Password</label>
                   <div className="relative">
-                    <FiLock className={`absolute left-3 top-1/2 transform -translate-y-1/2 ${isDark ? "text-gray-500" : "text-gray-400"}`} />
                     <input
-                      id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
+                      className="w-full rounded-xl border px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       value={confirmPassword}
-                      onChange={(e) => {
-                        setConfirmPassword(e.target.value);
-                        setConfirmPasswordError("");
-                      }}
-                      disabled={!isEditing}
-                      className={`w-full pl-10 pr-12 py-3 rounded-xl border ${confirmPasswordError ? "border-red-500" : isDark ? "border-gray-600" : "border-blue-300"} focus:outline-none focus:ring-2 focus:ring-offset-1 ${confirmPasswordError ? "focus:ring-red-500" : isDark ? "focus:ring-gray-600" : "focus:ring-blue-200"} bg-transparent transition-all duration-300 text-white`}
-                      placeholder="Confirm new password"
-                      autoComplete="new-password"
+                      onChange={(e) => setConfirmPassword(e.target.value)}
                     />
                     <button
                       type="button"
+                      className="absolute right-3 top-2 text-gray-500"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                     >
                       {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
                     </button>
                   </div>
-                  {confirmPasswordError && <p className="text-sm text-red-600 mt-1">{confirmPasswordError}</p>}
+                  {confirmPasswordError && <p className="text-red-500 mt-1">{confirmPasswordError}</p>}
                 </div>
               </>
             )}
+          </div>
 
-            {/* Buttons */}
-            <div className="flex flex-wrap gap-4 mt-6">
+          {/* Buttons */}
+          <div className="flex flex-wrap gap-4 mt-6">
+            {!isEditing ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition"
+              >
+                Edit Profile
+              </button>
+            ) : (
               <button
                 onClick={handleSave}
                 disabled={isSaveDisabled}
-                className={`flex items-center space-x-2 px-4 py-3 rounded-xl shadow-lg transition-all duration-300 hover:scale-105 ${
-                  isSaveDisabled
-                    ? "bg-gray-400 cursor-not-allowed text-gray-200"
-                    : isDark
-                    ? "bg-purple-700 hover:bg-purple-800 text-white"
-                    : "bg-purple-600 hover:bg-indigo-700 text-white"
+                className={`px-6 py-3 rounded-xl text-white transition ${
+                  isSaveDisabled ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
                 }`}
               >
-                <FiSave />
-                <span className="font-semibold">Save Changes</span>
+                Save Changes
               </button>
-
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-4 py-3 rounded-xl shadow-lg bg-red-600 text-white hover:bg-red-700 transition-colors duration-300"
-              >
-                <FiLogOut />
-                <span className="font-semibold">Logout</span>
-              </button>
-
-              <button
-                onClick={handleDeleteAccount}
-                className="flex items-center space-x-2 px-4 py-3 rounded-xl shadow-lg bg-gray-300 text-gray-700 hover:bg-gray-400 transition-colors duration-300"
-              >
-                <FiTrash2 />
-                <span className="font-semibold">Delete Account</span>
-              </button>
-            </div>
-
-            {message && (
-              <div
-                className={`mt-6 p-3 rounded-lg text-center font-medium ${
-                  message === "Profile updated successfully."
-                    ? "bg-green-100 text-green-700"
-                    : "bg-red-100 text-red-700"
-                }`}
-                role="alert"
-              >
-                {message}
-              </div>
             )}
+            <button
+              onClick={handleLogout}
+              className="px-6 py-3 bg-yellow-500 text-white rounded-xl hover:bg-yellow-600 transition"
+            >
+              Logout
+            </button>
+            <button
+              onClick={handleDeleteAccount}
+              className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
+            >
+              Delete Account
+            </button>
           </div>
         </div>
       </div>
