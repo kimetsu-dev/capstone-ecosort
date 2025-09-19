@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { auth, db } from "../firebase"; // Your firebase config exports
+import { auth, db } from "../firebase";
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -14,19 +14,22 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authInitialized, setAuthInitialized] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-
-      if (!user || !user.uid) {
-        // Not logged in
-        setIsAdmin(false);
-        setLoading(false);
-        return;
-      }
-
       try {
+        setCurrentUser(user);
+
+        if (!user || !user.uid) {
+          // Not logged in - reset all states
+          setIsAdmin(false);
+          setLoading(false);
+          setAuthInitialized(true);
+          return;
+        }
+
+        // User is logged in, fetch their role
         const userDocRef = doc(db, "users", user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
@@ -36,10 +39,10 @@ export const AuthProvider = ({ children }) => {
         } else {
           console.warn("User doc not found, creating default for:", user.uid);
 
-          // Create default user doc so rules will pass
+          // Create default user doc
           await setDoc(userDocRef, {
             email: user.email,
-            role: "resident", // default role
+            role: "resident",
             totalPoints: 0,
             createdAt: new Date(),
           });
@@ -47,11 +50,12 @@ export const AuthProvider = ({ children }) => {
           setIsAdmin(false);
         }
       } catch (error) {
-        console.error("Error reading user doc:", error);
+        console.error("Error in auth state change:", error);
         setIsAdmin(false);
+      } finally {
+        setLoading(false);
+        setAuthInitialized(true);
       }
-
-      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -59,17 +63,16 @@ export const AuthProvider = ({ children }) => {
 
   // Sign in with email and password
   const loginUser = async (email, password) => {
-    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } finally {
-      setLoading(false);
+      // Don't set loading here - let onAuthStateChanged handle it
+    } catch (error) {
+      throw error;
     }
   };
 
   // Create user with email and password
   const createUser = async (email, password) => {
-    setLoading(true);
     try {
       const userCred = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCred.user;
@@ -77,32 +80,41 @@ export const AuthProvider = ({ children }) => {
       // Create Firestore user document
       await setDoc(doc(db, "users", user.uid), {
         email: user.email,
-        role: "resident", // default role
+        role: "resident",
         totalPoints: 0,
         createdAt: new Date(),
       });
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      throw error;
     }
   };
 
   // Logout user
   const logOut = async () => {
-    setLoading(true);
     try {
+      // Reset states immediately for faster UI response
+      setCurrentUser(null);
+      setIsAdmin(false);
+      setLoading(true);
+      
       await signOut(auth);
-    } finally {
-      setLoading(false);
+    } catch (error) {
+      console.error("Logout error:", error);
+      throw error;
     }
   };
 
-  if (loading) {
-    return <div>Loading...</div>; // Replace with spinner if you like
-  }
-
   return (
     <AuthContext.Provider
-      value={{ currentUser, isAdmin, loading, loginUser, createUser, logOut }}
+      value={{ 
+        currentUser, 
+        isAdmin, 
+        loading, 
+        authInitialized,
+        loginUser, 
+        createUser, 
+        logOut 
+      }}
     >
       {children}
     </AuthContext.Provider>

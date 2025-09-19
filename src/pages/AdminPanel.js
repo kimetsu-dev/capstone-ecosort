@@ -593,18 +593,29 @@ const DashboardContent = () => (
             setActiveTab(tab.id);
             setSidebarOpen(false);
           }}
-          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+          className={`w-full flex items-center space-x-3 px-4 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden ${
             isActive
-              ? `${isDark ? "bg-indigo-600 text-white" : "bg-indigo-600 text-white"} shadow-lg`
-              : `${isDark ? "text-gray-300 hover:bg-gray-700" : "text-gray-700 hover:bg-gray-100"}`
+              ? `${isDark 
+                  ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25" 
+                  : "bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-lg shadow-indigo-500/25"
+                } transform scale-[1.02]`
+              : `${isDark 
+                  ? "text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white" 
+                  : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900"
+                } hover:transform hover:scale-[1.01] border border-transparent hover:border-gray-200 dark:hover:border-gray-600`
           }`}
         >
-          <Icon className={`w-5 h-5 ${isActive ? "text-white" : ""}`} aria-hidden="true" />
-          <span className="font-medium">{tab.label}</span>
+          {isActive && (
+            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-20"></div>
+          )}
+          <Icon className={`w-5 h-5 ${isActive ? "text-white" : ""} transition-colors`} aria-hidden="true" />
+          <span className="font-medium flex-1 text-left">{tab.label}</span>
           {tab.badge > 0 && (
             <span
-              className={`ml-auto px-2 py-1 text-xs rounded-full font-medium ${
-                isActive ? "bg-white bg-opacity-20 text-white" : "bg-red-500 text-white"
+              className={`px-2 py-1 text-xs rounded-full font-semibold transition-all ${
+                isActive 
+                  ? "bg-white/20 text-white backdrop-blur-sm" 
+                  : "bg-red-500 text-white shadow-sm"
               }`}
               aria-label={`${tab.badge} new notifications`}
             >
@@ -646,13 +657,15 @@ const DashboardContent = () => (
   </div>
   <button
     onClick={handleLogout}
-    className={`mt-3 w-full flex items-center justify-center space-x-2 py-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 ${
-      isDark ? "text-gray-400" : "text-gray-500"
+    className={`mt-3 w-full flex items-center justify-center space-x-2 py-2.5 rounded-lg transition-all hover:transform hover:scale-105 ${
+      isDark 
+        ? "text-gray-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30" 
+        : "text-gray-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200"
     }`}
     aria-label="Sign out"
   >
     <FiLogOut className="w-5 h-5" aria-hidden="true" />
-    <span>Logout</span>
+    <span className="font-medium">Logout</span>
   </button>
 </div>
 </aside>

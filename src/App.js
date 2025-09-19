@@ -1,8 +1,18 @@
-import React, { useEffect } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
-import { useTheme } from "./contexts/ThemeContext";
+import React, { useEffect, useState } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { useTheme, ThemeProvider } from "./contexts/ThemeContext";
+import { useAuth } from "./contexts/AuthContext";
 import "./index.css";
 
+import BackButtonHandler from "./BackButtonHandler";
+
+/* Pages */
 import Welcome from "./pages/Welcome";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -19,25 +29,27 @@ import Leaderboard from "./pages/Leaderboard";
 import MyRedemptions from "./pages/MyRedemptions";
 import Settings from "./pages/Settings";
 
-import { useAuth } from "./contexts/AuthContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
-
+/* ---------------- MOBILE WELCOME ---------------- */
 const MobileWelcome = () => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
 
-  // Text color switches using tailwind dark variant or conditional class based on isDark
   const textPrimary = isDark ? "text-white" : "text-gray-900";
   const textSecondary = isDark ? "text-white/90" : "text-gray-700";
-  const bgCard = isDark ? "bg-white/5 border border-white/10" : "bg-white/80 border border-black/10";
+  const bgCard = isDark
+    ? "bg-white/5 border border-white/10"
+    : "bg-white/80 border border-black/10";
 
   return (
-    <div className={`min-h-screen flex flex-col overflow-hidden bg-gradient-to-br ${
-      isDark ? "from-slate-900 via-gray-900 to-emerald-900" : "from-emerald-500 to-green-500"
-    }`}>
-      {/* Top Bar with Logo and Buttons */}
+    <div
+      className={`min-h-screen flex flex-col overflow-hidden bg-gradient-to-br ${
+        isDark
+          ? "from-slate-900 via-gray-900 to-emerald-900"
+          : "from-emerald-500 to-green-500"
+      }`}
+    >
+      {/* Top Bar */}
       <div className="w-full flex justify-between items-center p-4 pb-2">
-        {/* Logo and ECOSORT left */}
         <div className="flex items-center gap-3">
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shadow-lg"
@@ -45,15 +57,20 @@ const MobileWelcome = () => {
           >
             E
           </div>
-          <h1 className={`text-xl font-bold select-none ${textPrimary}`}>ECOSORT</h1>
+          <h1 className={`text-xl font-bold select-none ${textPrimary}`}>
+            ECOSORT
+          </h1>
         </div>
 
-        {/* Login and Signup buttons right */}
         <div className="flex gap-2">
           <button
             onClick={() => navigate("/login")}
             className={`font-semibold text-sm px-4 py-2 rounded-lg transition-colors border
-              ${isDark ? "text-white hover:bg-white/20 border-white/40" : "text-gray-900 hover:bg-gray-200 border-gray-300"}`}
+              ${
+                isDark
+                  ? "text-white hover:bg-white/20 border-white/40"
+                  : "text-gray-900 hover:bg-gray-200 border-gray-300"
+              }`}
             type="button"
           >
             Login
@@ -69,9 +86,8 @@ const MobileWelcome = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Content */}
       <div className="flex-1 flex flex-col justify-center px-6 pb-8">
-        {/* Title Section */}
         <div className={`text-center mb-6 ${textPrimary}`}>
           <h2 className="text-4xl font-bold leading-tight mb-3">
             Turn Your Trash<br />
@@ -82,21 +98,20 @@ const MobileWelcome = () => {
           </p>
         </div>
 
-        {/* Illustration Area */}
         <div className="flex justify-center mb-8">
           <div className="w-32 h-32 border-8 border-white/90 rounded-full flex items-center justify-center text-white text-6xl font-bold shadow-2xl bg-white/10 backdrop-blur-sm">
             ♻
           </div>
         </div>
 
-        {/* Statistics Box */}
         <div className={`${bgCard} backdrop-blur-md rounded-xl p-5 mb-6 shadow-lg`}>
           <p className={`text-sm leading-relaxed font-medium drop-shadow-sm ${textSecondary}`}>
-            ECOSORT combines recycling rewards, community reporting, and social features to create a comprehensive platform for sustainable waste management.
+            ECOSORT combines recycling rewards, community reporting, and social
+            features to create a comprehensive platform for sustainable waste
+            management.
           </p>
         </div>
 
-        {/* Call to Action */}
         <div className="text-center">
           <p className={`text-lg font-medium mb-3 ${textSecondary}`}>
             Redeem your points for essential goods!
@@ -109,50 +124,33 @@ const MobileWelcome = () => {
             Get Started
           </button>
         </div>
-
-        {/* Footer */}
-        <div className="text-center mt-8 pt-4 rounded-xl">
-          <div className="flex justify-between items-center text-white/80 text-xs bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-            <div className="text-right">
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
 };
 
-
-
-
-
+/* ---------------- SMART WELCOME ---------------- */
 const SmartWelcome = () => {
-  const [showMobileVersion, setShowMobileVersion] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [showMobileVersion, setShowMobileVersion] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { theme } = useTheme();
-  const [systemTheme, setSystemTheme] = React.useState("light");
+  const [systemTheme, setSystemTheme] = useState("light");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     setSystemTheme(mediaQuery.matches ? "dark" : "light");
-
-    const handleChange = (e) => {
-      setSystemTheme(e.matches ? "dark" : "light");
-    };
-
+    const handleChange = (e) => setSystemTheme(e.matches ? "dark" : "light");
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const detectMobile = () => {
       const isStandalone = window.matchMedia("(display-mode: standalone)").matches;
       const isIOSStandalone = window.navigator.standalone === true;
       const isMobile = window.innerWidth <= 768;
-
       return isStandalone || isIOSStandalone || isMobile;
     };
-
     setTimeout(() => {
       setShowMobileVersion(detectMobile());
       setIsLoading(false);
@@ -163,8 +161,16 @@ const SmartWelcome = () => {
 
   if (isLoading) {
     return (
-      <div className={`h-screen flex items-center justify-center transition-colors duration-300 ${isDark ? "bg-gray-900" : "bg-emerald-50"}`}>
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold transition-colors duration-300 ${isDark ? "bg-gray-700 text-gray-100" : "bg-emerald-500 text-white"}`}>
+      <div
+        className={`h-screen flex items-center justify-center transition-colors duration-300 ${
+          isDark ? "bg-gray-900" : "bg-emerald-50"
+        }`}
+      >
+        <div
+          className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold transition-colors duration-300 ${
+            isDark ? "bg-gray-700 text-gray-100" : "bg-emerald-500 text-white"
+          }`}
+        >
           E
         </div>
       </div>
@@ -174,18 +180,15 @@ const SmartWelcome = () => {
   return showMobileVersion ? <MobileWelcome /> : <Welcome />;
 };
 
+/* ---------------- LOADING SPINNER ---------------- */
 const LoadingSpinner = () => {
   const { theme } = useTheme();
-  const [systemTheme, setSystemTheme] = React.useState("light");
+  const [systemTheme, setSystemTheme] = useState("light");
 
-  React.useEffect(() => {
+  useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     setSystemTheme(mediaQuery.matches ? "dark" : "light");
-
-    const handleChange = (e) => {
-      setSystemTheme(e.matches ? "dark" : "light");
-    };
-
+    const handleChange = (e) => setSystemTheme(e.matches ? "dark" : "light");
     mediaQuery.addEventListener("change", handleChange);
     return () => mediaQuery.removeEventListener("change", handleChange);
   }, []);
@@ -193,32 +196,90 @@ const LoadingSpinner = () => {
   const isDark = theme === "dark" || (theme === "system" && systemTheme === "dark");
 
   return (
-    <div className={`h-screen flex items-center justify-center transition-colors duration-300 ${isDark ? "bg-gray-900" : "bg-gray-50"}`}>
+    <div
+      className={`h-screen flex items-center justify-center transition-colors duration-300 ${
+        isDark ? "bg-gray-900" : "bg-gray-50"
+      }`}
+    >
       <div className="text-center">
-        <div className={`w-8 h-8 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-2 transition-colors duration-300 ${isDark ? "border-gray-400" : "border-emerald-500"}`}></div>
-        <p className={`text-sm transition-colors duration-300 ${isDark ? "text-gray-300" : "text-gray-600"}`}>Loading...</p>
+        <div
+          className={`w-8 h-8 border-4 border-t-transparent rounded-full animate-spin mx-auto mb-2 transition-colors duration-300 ${
+            isDark ? "border-gray-400" : "border-emerald-500"
+          }`}
+        ></div>
+        <p
+          className={`text-sm transition-colors duration-300 ${
+            isDark ? "text-gray-300" : "text-gray-600"
+          }`}
+        >
+          Loading...
+        </p>
       </div>
     </div>
   );
 };
 
-const ProtectedRoute = ({ element, isAdminRoute = false }) => {
-  const { currentUser, isAdmin, loading } = useAuth();
+/* ---------------- ROUTE GUARD COMPONENT ---------------- */
+const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOnly = false }) => {
+  const { currentUser, isAdmin, loading, authInitialized } = useAuth();
+  
+  // Show loading until auth is fully initialized
+  if (loading || !authInitialized) {
+    return <LoadingSpinner />;
+  }
 
-  if (loading) return <LoadingSpinner />;
-  if (!currentUser) return <Navigate to="/login" replace />;
-  if (isAdminRoute && !isAdmin) return <Navigate to="/dashboard" replace />;
+  // Public only routes (redirect authenticated users)
+  if (publicOnly && currentUser) {
+    const redirectPath = isAdmin ? "/adminpanel" : "/dashboard";
+    return <Navigate to={redirectPath} replace />;
+  }
 
-  return element;
+  // Auth required routes
+  if (requireAuth && !currentUser) {
+    return <Navigate to="/welcome" replace />;
+  }
+
+  // Admin only routes
+  if (adminOnly && (!currentUser || !isAdmin)) {
+    const redirectPath = currentUser ? "/dashboard" : "/welcome";
+    return <Navigate to={redirectPath} replace />;
+  }
+
+  // User only routes (prevent admin access)
+  if (requireAuth && !adminOnly && currentUser && isAdmin) {
+    return <Navigate to="/adminpanel" replace />;
+  }
+
+  return children;
 };
 
-// Wraps Routes and applies theme class to root div
-// Wraps Routes and applies theme class to root div
+/* ---------------- THEMED APP WRAPPER ---------------- */
 const ThemedAppWrapper = () => {
   const { theme, systemTheme } = useTheme();
-
-  // Determine active theme class for top-level container
+  const { authInitialized } = useAuth();
   const activeTheme = theme === "system" ? systemTheme : theme;
+
+  // Show initial loading screen until auth is initialized
+  if (!authInitialized) {
+    return (
+      <div className={`min-h-screen flex items-center justify-center ${
+        activeTheme === "dark" ? "bg-gray-900" : "bg-gray-50"
+      }`}>
+        <div className="text-center">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${
+            activeTheme === "dark" ? "bg-gray-700 text-gray-100" : "bg-emerald-500 text-white"
+          }`}>
+            E
+          </div>
+          <p className={`mt-2 text-sm ${
+            activeTheme === "dark" ? "text-gray-400" : "text-gray-600"
+          }`}>
+            Initializing...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -227,39 +288,151 @@ const ThemedAppWrapper = () => {
       } min-h-screen bg-white dark:bg-gray-900 transition-colors duration-300`}
     >
       <Router>
+        <BackButtonHandler />
         <Routes>
           {/* Root redirect */}
           <Route path="/" element={<Navigate to="/welcome" replace />} />
 
-          {/* Public routes */}
-          <Route path="/welcome" element={<SmartWelcome />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
+          {/* Public Routes - redirect authenticated users to their dashboard */}
+          <Route
+            path="/welcome"
+            element={
+              <RouteGuard publicOnly>
+                <SmartWelcome />
+              </RouteGuard>
+            }
+          />
 
-          {/* Protected user routes */}
-          <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} />} />
-          <Route path="/forum" element={<ProtectedRoute element={<Forum />} />} />
-          <Route path="/submitwaste" element={<ProtectedRoute element={<SubmitWaste />} />} />
-          <Route path="/rewards" element={<ProtectedRoute element={<Rewards />} />} />
-          <Route path="/report" element={<ProtectedRoute element={<Report />} />} />
-          <Route path="/profile" element={<ProtectedRoute element={<Profile />} />} />
-          <Route path="/transactions" element={<ProtectedRoute element={<Transactions />} />} />
-          <Route path="/leaderboard" element={<ProtectedRoute element={<Leaderboard />} />} />
-          <Route path="/my-redemptions" element={<ProtectedRoute element={<MyRedemptions />} />} />
-          <Route path="/adminprofile" element={<ProtectedRoute element={<AdminProfile />} />} />
-          <Route path="/settings" element={<ProtectedRoute element={<Settings />} />} />
+          <Route
+            path="/login"
+            element={
+              <RouteGuard publicOnly>
+                <Login />
+              </RouteGuard>
+            }
+          />
 
-          {/* Protected admin route */}
-          <Route path="/adminpanel" element={<ProtectedRoute element={<AdminPanel />} isAdminRoute />} />
+          <Route
+            path="/signup"
+            element={
+              <RouteGuard publicOnly>
+                <Signup />
+              </RouteGuard>
+            }
+          />
 
-          {/* Fallback */}
-          <Route path="*" element={<Navigate to="/welcome" replace />} />
+          {/* User Protected Routes - requires auth, blocks admin */}
+          <Route
+            path="/dashboard"
+            element={
+              <RouteGuard requireAuth>
+                <Dashboard />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/forum"
+            element={
+              <RouteGuard requireAuth>
+                <Forum />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/submitwaste"
+            element={
+              <RouteGuard requireAuth>
+                <SubmitWaste />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/rewards"
+            element={
+              <RouteGuard requireAuth>
+                <Rewards />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/report"
+            element={
+              <RouteGuard requireAuth>
+                <Report />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <RouteGuard requireAuth>
+                <Profile />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <RouteGuard requireAuth>
+                <Transactions />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              <RouteGuard requireAuth>
+                <Leaderboard />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/my-redemptions"
+            element={
+              <RouteGuard requireAuth>
+                <MyRedemptions />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <RouteGuard requireAuth>
+                <Settings />
+              </RouteGuard>
+            }
+          />
+
+          {/* Admin Protected Routes - requires auth and admin role */}
+          <Route
+            path="/adminpanel"
+            element={
+              <RouteGuard requireAuth adminOnly>
+                <AdminPanel />
+              </RouteGuard>
+            }
+          />
+          <Route
+            path="/adminprofile"
+            element={
+              <RouteGuard requireAuth adminOnly>
+                <AdminProfile />
+              </RouteGuard>
+            }
+          />
+
+          {/* Fallback - redirect to appropriate dashboard or welcome */}
+          <Route 
+            path="*" 
+            element={<Navigate to="/welcome" replace />}
+          />
         </Routes>
       </Router>
     </div>
   );
 };
 
+/* ---------------- APP ---------------- */
 export default function App() {
   useEffect(() => {
     const isPWA =
@@ -267,10 +440,8 @@ export default function App() {
       window.navigator.standalone === true;
 
     if (isPWA) {
-      // Add no-select class to body
       document.body.classList.add("no-select");
 
-      // Prevent copy, cut, right-click, text select, drag
       const preventDefault = (e) => e.preventDefault();
       document.addEventListener("copy", preventDefault);
       document.addEventListener("cut", preventDefault);
@@ -278,7 +449,6 @@ export default function App() {
       document.addEventListener("selectstart", preventDefault);
       document.addEventListener("dragstart", preventDefault);
 
-      // Disable saving/dragging of images
       const images = document.querySelectorAll("img");
       images.forEach((img) => img.classList.add("no-save"));
 
