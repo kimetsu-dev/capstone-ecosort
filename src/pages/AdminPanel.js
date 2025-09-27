@@ -3,11 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "../firebase";
 import { signOut } from "firebase/auth";
-import { FiSettings, FiMenu, FiX } from "react-icons/fi";
-import Settings from "./Settings";
 import ScheduleManager from "./AdminPanel/ScheduleManager";
 import { FiUser,  FiLogOut } from "react-icons/fi";
 import { 
+  FiMenu, 
+  FiX,
   FiHome, 
   FiFileText, 
   FiGift, 
@@ -23,14 +23,10 @@ import {
   getDoc,
   collection,
   onSnapshot,
-  updateDoc,
   deleteDoc,
   query,
   orderBy,
   where,
-  addDoc,
-  serverTimestamp,
-  runTransaction,
 } from "firebase/firestore";
 
 
@@ -40,37 +36,17 @@ import ReportsTab from "./AdminPanel/ReportsTab";
 import UsersTab from "./AdminPanel/UsersTab";
 import TransactionsTab from "./AdminPanel/TransactionsTab";
 
+
 import PointsModal from "./AdminPanel/Modals/PointsModal";
 import RewardModal from "./AdminPanel/Modals/RewardModal";
 import RewardPreview from "./AdminPanel/Modals/RewardPreview";
+import RedemptionsTab from "./AdminPanel/RedemptionsTab";
+import SubmissionsTab from "./AdminPanel/SubmissionsTab";
 
 import { formatTimestamp, getStatusBadge } from "../utils/helpers";
 import { useTheme } from "../contexts/ThemeContext";
 
-async function addNotification(userId, message, type = "submission_status") {
-  const notificationsRef = collection(db, "notifications", userId, "userNotifications");
-  await addDoc(notificationsRef, {
-    type,
-    message,
-    read: false,
-    createdAt: serverTimestamp(),
-  });
-}
 
-// Generic point transaction creator
-async function createPointTransaction({ userId, points, description, type = "points_awarded" }) {
-  try {
-    await addDoc(collection(db, "point_transactions"), {
-      userId,
-      points,
-      description,
-      timestamp: serverTimestamp(),
-      type,
-    });
-  } catch (error) {
-    console.error("Failed to create point transaction:", error);
-  }
-}
 
 export default function AdminPanel() {
   const { isDark } = useTheme() || {};
@@ -106,7 +82,6 @@ export default function AdminPanel() {
     imageUrl: null,
   });
 
-  const [imageUploadLoading, setImageUploadLoading] = useState(false);
   const [pointsForm, setPointsForm] = useState({ amount: "", reason: "" });
   const [pointsPerKiloMap, setPointsPerKiloMap] = useState({});
 
@@ -141,130 +116,7 @@ export default function AdminPanel() {
     setTimeout(() => setToast((prev) => ({ ...prev, visible: false })), 4000);
   }, []);
 
-  const updateRedemptionStatus = async (redemptionId, newStatus) => {
-    try {
-      const redemptionRef = doc(db, "redemptions", redemptionId);
-      await updateDoc(redemptionRef, {
-        status: newStatus,
-        ...(newStatus === "claimed" ? { claimedAt: serverTimestamp() } : {}),
-        ...(newStatus === "cancelled" ? { cancelledAt: serverTimestamp() } : {}),
-      });
-      showToast(`Redemption marked as ${newStatus}`, "success");
-    } catch (error) {
-      console.error("Failed to update redemption status:", error);
-      showToast("Failed to update redemption status", "error");
-    }
-  };
 
-  const markRedemptionClaimed = async (redemption) => {
-    if (!redemption) return;
-
-    const reward = rewards.find((r) => r.id === redemption.rewardId);
-    const rewardName = reward ? reward.name : "Unknown Reward";
-    const redemptionCode = redemption.redemptionCode || "N/A";
-
-    let cost = parseFloat(redemption.pointCost);
-    if (isNaN(cost) || cost <= 0) {
-      cost = reward ? parseFloat(reward.cost) : 0;
-      if (isNaN(cost) || cost <= 0) {
-        showToast("Invalid redemption point cost. Cannot deduct points.", "error");
-        return;
-      }
-    }
-
-    try {
-      await createPointTransaction({
-        userId: redemption.userId,
-        points: -cost,
-        description: `Redeemed reward: ${rewardName} (Code: ${redemptionCode})`,
-        type: "points_redeemed",
-      });
-
-      const userRef = doc(db, "users", redemption.userId);
-      await runTransaction(db, async (transaction) => {
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User does not exist");
-        const currentPoints = Number(userSnap.data().totalPoints) || 0;
-        const updatedPoints = currentPoints - cost;
-        if (updatedPoints < 0) throw new Error("User points cannot be negative");
-        transaction.update(userRef, { totalPoints: updatedPoints });
-      });
-
-      await updateRedemptionStatus(redemption.id, "claimed");
-      showToast(`Redemption claimed and points deducted`, "success");
-    } catch (error) {
-      console.error("Failed to mark redemption claimed:", error);
-      showToast(error.message || "Failed to claim redemption", "error");
-    }
-  };
-
-  const rejectSubmission = async (submissionId, userId) => {
-    setLoading(true);
-    try {
-      const submissionRef = doc(db, "waste_submissions", submissionId);
-      await updateDoc(submissionRef, {
-        status: "rejected",
-        rejectedAt: serverTimestamp(),
-      });
-
-      await addNotification(
-        userId,
-        "Your waste submission has been rejected. Please review the guidelines and try again."
-      );
-
-      setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submissionId));
-      showToast("Submission rejected", "success");
-    } catch (error) {
-      console.error("Error rejecting submission:", error);
-      showToast("Failed to reject submission", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const confirmSubmission = async (submission) => {
-    setLoading(true);
-    try {
-      const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
-      const awardedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
-      const userRef = doc(db, "users", submission.userId);
-
-      await createPointTransaction({
-        userId: submission.userId,
-        points: awardedPoints,
-        description: `Awarded points for waste submission (ID: ${submission.id})`,
-        type: "points_awarded",
-      });
-
-      await runTransaction(db, async (transaction) => {
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User does not exist");
-        const currentPoints = Number(userSnap.data().totalPoints) || 0;
-        const updatedPoints = currentPoints + awardedPoints;
-        if (updatedPoints < 0) throw new Error("User points cannot be negative");
-        transaction.update(userRef, { totalPoints: updatedPoints });
-      });
-
-      const submissionRef = doc(db, "waste_submissions", submission.id);
-      await updateDoc(submissionRef, {
-        status: "confirmed",
-        confirmedAt: serverTimestamp(),
-      });
-
-      await addNotification(
-        submission.userId,
-        `Your waste submission has been confirmed! You earned ${awardedPoints.toFixed(2)} points.`
-      );
-
-      setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submission.id));
-      showToast("Submission confirmed and points awarded!", "success");
-    } catch (error) {
-      console.error("Error confirming submission:", error);
-      showToast("Failed to confirm submission", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const deleteReward = async (id) => {
     if (!window.confirm("Are you sure you want to delete this reward?")) return;
@@ -278,16 +130,6 @@ export default function AdminPanel() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getUserEmail = (userId) => {
-    const u = users.find((x) => x.id === userId);
-    return u ? u.email : "Unknown User";
-  };
-
-  const getRewardName = (rewardId) => {
-    const r = rewards.find((x) => x.id === rewardId);
-    return r ? r.name : "Unknown Reward";
   };
 
   useEffect(() => {
@@ -445,57 +287,6 @@ export default function AdminPanel() {
     description: "Manage collection schedules",
   },
 ];
-
-
-const DashboardContent = () => (
-  <div className="space-y-8">
-    <div>
-      <h1 className={`text-3xl font-bold ${isDark ? "text-white" : "text-gray-900"}`}>
-        Dashboard Overview
-      </h1>
-      <p className={`mt-2 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-        Welcome to the EcoSort Management System admin panel.
-      </p>
-    </div>
-
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {pendingSubmissions.length > 0 && (
-        <button
-          onClick={() => setActiveTab("submissions")}
-          className="p-6 rounded-xl bg-orange-50 border border-orange-200 hover:bg-orange-100 transition-colors"
-        >
-          <div className="text-orange-600 font-semibold text-2xl">{pendingSubmissions.length}</div>
-          <div className="text-sm text-orange-700 mt-1">Pending Submissions</div>
-        </button>
-      )}
-
-      {redemptions.filter((r) => r.status === "pending").length > 0 && (
-        <button
-          onClick={() => setActiveTab("redemptions")}
-          className="p-6 rounded-xl bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
-        >
-          <div className="text-blue-600 font-semibold text-2xl">
-            {redemptions.filter((r) => r.status === "pending").length}
-          </div>
-          <div className="text-sm text-blue-700 mt-1">Pending Redemptions</div>
-        </button>
-      )}
-
-      {reports.filter((r) => r.status === "pending").length > 0 && (
-        <button
-          onClick={() => setActiveTab("reports")}
-          className="p-6 rounded-xl bg-red-50 border border-red-200 hover:bg-red-100 transition-colors"
-        >
-          <div className="text-red-600 font-semibold text-2xl">{reports.filter((r) => r.status === "pending").length}</div>
-          <div className="text-sm text-red-700 mt-1">Pending Reports</div>
-        </button>
-      )}
-    </div>
-
-    {/* Other dashboard quick actions can remain as is */}
-  </div>
-);
-
 
   return (
     <div
@@ -681,7 +472,7 @@ const DashboardContent = () => (
 
         {/* Main Content */}
         <div className="flex-1 min-w-0 lg:ml-64">
-          <main className="p-4 lg:p-8 space-y-6">
+          
 
             {/* Content Container */}
             <div
@@ -745,92 +536,23 @@ const DashboardContent = () => (
                   <WasteTypesManager isDark={isDark} />
                 )}
 
-                {/* Submissions Tab */}
                 {activeTab === "submissions" && (
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className={`text-2xl font-bold mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
-                        Pending Submissions ({pendingSubmissions.length})
-                      </h2>
-                      <p className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>
-                        Review and approve waste submissions from users.
-                      </p>
-                    </div>
-
-                    {loading && (
-                      <div className="flex items-center justify-center py-8">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                        <span className="ml-2 text-slate-600">Loading...</span>
-                      </div>
-                    )}
-
-                    {!loading && pendingSubmissions.length === 0 && (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">📝</span>
-                        </div>
-                        <h3 className="text-lg font-medium text-slate-900 mb-2">No pending submissions</h3>
-                        <p className="text-slate-500">All submissions have been processed.</p>
-                      </div>
-                    )}
-
-                    {!loading && pendingSubmissions.length > 0 && (
-                      <div className="space-y-4">
-                        {pendingSubmissions.map((sub) => (
-                          <div
-                            key={sub.id}
-                            className={`rounded-lg p-4 shadow-sm ${
-                              isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
-                            }`}
-                          >
-                            <div className="space-y-3">
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>User:</span>
-                                  <div className={`${isDark ? "text-gray-400" : "text-slate-600"} truncate`}>{sub.userId.slice(0, 8)}...</div>
-                                </div>
-                                <div>
-                                  <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Type:</span>
-                                  <div className={`${isDark ? "text-gray-400" : "text-slate-600"} truncate`}>{sub.type}</div>
-                                </div>
-                                <div>
-                                  <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Weight:</span>
-                                  <div className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>{sub.weight} kg</div>
-                                </div>
-                                <div>
-                                  <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Points:</span>
-                                  <div className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>{sub.points}</div>
-                                </div>
-                              </div>
-                              <div className={`${isDark ? "text-gray-400" : "text-slate-600"} text-sm`}>
-                                <span className={`font-medium ${isDark ? "text-gray-300" : "text-slate-700"}`}>Submitted:</span>
-                                <div className="mt-1">
-                                  {sub.submittedAt?.toDate ? sub.submittedAt.toDate().toLocaleString() : "N/A"}
-                                </div>
-                              </div>
-                              <div className="flex space-x-2 pt-2">
-                                <button
-                                  onClick={() => confirmSubmission(sub)}
-                                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-medium text-sm"
-                                  disabled={loading}
-                                >
-                                  Confirm
-                                </button>
-                                <button
-                                  onClick={() => rejectSubmission(sub.id, sub.userId)}
-                                  className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-colors font-medium text-sm"
-                                  disabled={loading}
-                                >
-                                  Reject
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <SubmissionsTab
+                    pendingSubmissions={pendingSubmissions}
+                    setPendingSubmissions={setPendingSubmissions}
+                    pointsPerKiloMap={pointsPerKiloMap}
+                    users={users}
+                    loading={loading}
+                    setLoading={setLoading}
+                    showToast={showToast}
+                    isDark={isDark}
+                  />
                 )}
+                      
+                      </div>
+                    
+                  </div>
+                
 
                 {/* Schedules Tab */}
                 {activeTab === "schedules" && (
@@ -853,7 +575,7 @@ const DashboardContent = () => (
                     rewardForm={rewardForm}
                     setRewardForm={setRewardForm}
                     deleteReward={deleteReward}
-                    loading={loading || imageUploadLoading}
+                    loading={loading}
                     showToast={showToast}
                     isDark={isDark}
                   />
@@ -889,103 +611,21 @@ const DashboardContent = () => (
                   />
                 )}
 
-                {/* Redemptions Tab */}
+                 {/* Redemptions Tab */}
                 {activeTab === "redemptions" && (
-                  <div className="space-y-6">
-                    <div>
-                      <h2 className={`text-2xl font-bold mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
-                        Redemptions Management
-                      </h2>
-                      <p className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>
-                        Manage reward redemption requests from users.
-                      </p>
-                    </div>
-                    {redemptions.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="w-16 h-16 mx-auto mb-4 bg-slate-100 rounded-full flex items-center justify-center">
-                          <span className="text-2xl">🎫</span>
-                        </div>
-                        <h3 className="text-lg font-medium text-slate-900 mb-2">
-                          No redemption requests
-                        </h3>
-                        <p className="text-slate-500">No users have redeemed rewards yet.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {redemptions.map((redemption) => (
-                          <div
-                            key={redemption.id}
-                            className={`p-4 space-y-3 rounded-lg ${
-                              isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
-                            }`}
-                          >
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div>
-                                <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                  User
-                                </span>
-                                <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                                  {getUserEmail(redemption.userId)}
-                                </div>
-                              </div>
-                              <div>
-                                <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                  Reward
-                                </span>
-                                <div className={`text-sm truncate mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                                  {getRewardName(redemption.rewardId)}
-                                </div>
-                              </div>
-                              <div>
-                                <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                  Status
-                                </span>
-                                <div className="mt-1">
-                                  <span
-                                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                      redemption.status === "pending"
-                                        ? "bg-yellow-100 text-yellow-800"
-                                        : redemption.status === "claimed"
-                                        ? "bg-green-100 text-green-800"
-                                        : "bg-red-100 text-red-800"
-                                    }`}
-                                  >
-                                    {redemption.status}
-                                  </span>
-                                </div>
-                              </div>
-                              <div>
-                                <span className={`font-medium uppercase tracking-wider ${isDark ? "text-gray-400" : "text-slate-500"}`}>
-                                  Code
-                                </span>
-                                <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                                  {redemption.redemptionCode}
-                                </div>
-                              </div>
-                            </div>
-                            {redemption.status === "pending" && (
-                              <div className="flex space-x-2 pt-2">
-                                <button
-                                  onClick={() => markRedemptionClaimed(redemption)}
-                                  className="flex-1 px-3 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors"
-                                >
-                                  Mark Claimed
-                                </button>
-                                <button
-                                  onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
-                                  className="flex-1 px-3 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <RedemptionsTab
+                    redemptions={redemptions}
+                    users={users}
+                    rewards={rewards}
+                    showToast={showToast}
+                    isDark={isDark}
+                  />
                 )}
-              </div>
+                          </div>
+                      
+                 
+                
+            
             </div>
 
             {/* Modals */}
@@ -1010,7 +650,7 @@ const DashboardContent = () => (
                 setRewardModal={setRewardModal}
                 rewardForm={rewardForm}
                 setRewardForm={setRewardForm}
-                loading={loading || imageUploadLoading}
+                loading={loading}
                 setLoading={setLoading}
                 showToast={showToast}
                 isDark={isDark}
@@ -1050,9 +690,9 @@ const DashboardContent = () => (
                 </div>
               </div>
             )}
-          </main>
         </div>
-      </div>
-    </div>
+  
+
+      
   );
 }

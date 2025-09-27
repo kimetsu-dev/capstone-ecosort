@@ -7,7 +7,6 @@ import {
   updatePassword,
   onAuthStateChanged,
   signOut,
-  deleteUser,
   EmailAuthProvider,
   reauthenticateWithCredential,
   GoogleAuthProvider,
@@ -200,18 +199,7 @@ export default function AdminProfile() {
     }
   };
 
-  const handleDeleteAccount = async () => {
-    if (window.confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      try {
-        await deleteUser(auth.currentUser);
-        alert("Account deleted.");
-        navigate("/");
-      } catch (err) {
-        console.error(err);
-        alert("Failed to delete account.");
-      }
-    }
-  };
+  
 
   const isSaveDisabled =
     saving ||
@@ -242,10 +230,11 @@ export default function AdminProfile() {
           </h1>
 
           <button
-            onClick={() => navigate("/settings")}
+            onClick={() => navigate("/adminsettings")}
             className="flex items-center space-x-2 px-4 py-2 rounded-xl font-medium hover:scale-105 transition"
           >
             <FiSettings className="text-lg" />
+            <span className="hidden sm:inline">Settings</span>
           </button>
         </div>
       </div>
@@ -422,12 +411,7 @@ export default function AdminProfile() {
             >
               Logout
             </button>
-            <button
-              onClick={handleDeleteAccount}
-              className="px-6 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 transition"
-            >
-              Delete Account
-            </button>
+           
           </div>
         </div>
       </div>

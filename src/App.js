@@ -420,6 +420,14 @@ const ThemedAppWrapper = () => {
               </RouteGuard>
             }
           />
+          <Route
+            path="/adminsettings"
+            element={
+              <RouteGuard requireAuth adminOnly>
+                <Settings />
+              </RouteGuard>
+            }
+          />
 
           {/* Fallback - redirect to appropriate dashboard or welcome */}
           <Route 

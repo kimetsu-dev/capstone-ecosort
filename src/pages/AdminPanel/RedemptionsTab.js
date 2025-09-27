@@ -172,9 +172,21 @@ const RedemptionsTab = ({
   };
 
   const getUserName = (userId) => {
-    const user = users.find((u) => u.id === userId);
-    return user ? (user.displayName || user.name || "Unknown User") : "Unknown User";
-  };
+  const user = users.find((u) => u.id === userId);
+  
+  // Debug: Log the user object to see available fields
+  console.log("User data for", userId, ":", user);
+  
+  if (!user) return "Unknown User";
+  
+  // Check all possible name fields
+  return user.displayName || 
+         user.name || 
+         user.username || 
+         user.firstName || 
+         user.email?.split('@')[0] || // Fallback to email username part
+         "Unknown User";
+};
 
   const getRewardName = (rewardId) => {
     const reward = rewards.find((r) => r.id === rewardId);
@@ -250,27 +262,17 @@ const RedemptionsTab = ({
       <div>
         <div className="flex items-center gap-2 mb-2">
           <h2 className={`text-2xl font-bold ${isDark ? "text-gray-100" : "text-slate-800"}`}>
-            Live Redemption Management
+            Redemption Management
           </h2>
-          {!isStatsLoading && (
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-              <span className={`text-sm ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                Live
-              </span>
-            </div>
-          )}
         </div>
         <p className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>
-          Manage reward redemption requests from users with real-time analytics.
+          Manage reward redemption requests from users.
         </p>
       </div>
 
       {/* Enhanced Live Stats Dashboard */}
       <div>
-        <h3 className={`text-lg font-semibold mb-4 ${isDark ? "text-gray-200" : "text-slate-800"}`}>
-          Live Redemption Analytics
-        </h3>
+        
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           <StatsCard
@@ -278,49 +280,6 @@ const RedemptionsTab = ({
             value={liveStats.total}
             bgColor={isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"}
             isLoading={isStatsLoading}
-            icon="🎫"
-          />
-          
-          <StatsCard
-            title="Pending Review"
-            value={liveStats.pending}
-            bgColor={isDark ? "bg-yellow-900 border-yellow-700 text-yellow-200" : "bg-yellow-50 border-yellow-200 text-yellow-900"}
-            isLoading={isStatsLoading}
-            icon="⏳"
-          />
-          
-          <StatsCard
-            title="Successfully Claimed"
-            value={liveStats.successful}
-            bgColor={isDark ? "bg-green-900 border-green-700 text-green-200" : "bg-green-50 border-green-200 text-green-900"}
-            isLoading={isStatsLoading}
-            icon="✅"
-          />
-          
-          <StatsCard
-            title="Cancelled"
-            value={liveStats.cancelled}
-            bgColor={isDark ? "bg-red-900 border-red-700 text-red-200" : "bg-red-50 border-red-200 text-red-900"}
-            isLoading={isStatsLoading}
-            icon="❌"
-          />
-          
-          <StatsCard
-            title="Success Rate"
-            value={`${liveStats.successRate.toFixed(1)}%`}
-            bgColor={isDark ? "bg-blue-900 border-blue-700 text-blue-200" : "bg-blue-50 border-blue-200 text-blue-900"}
-            isLoading={isStatsLoading}
-            icon="📈"
-            subtitle={liveStats.total > 0 ? `${liveStats.successful}/${liveStats.successful + liveStats.cancelled}` : "N/A"}
-          />
-          
-          <StatsCard
-            title="Points Redeemed"
-            value={liveStats.totalPointsRedeemed.toLocaleString()}
-            bgColor={isDark ? "bg-purple-900 border-purple-700 text-purple-200" : "bg-purple-50 border-purple-200 text-purple-900"}
-            isLoading={isStatsLoading}
-            icon="💎"
-            subtitle="Total claimed"
           />
         </div>
       </div>
@@ -343,7 +302,7 @@ const RedemptionsTab = ({
         }`}>
           <div className="text-2xl font-bold text-green-600">{claimedRedemptions.length}</div>
           <div className={`text-sm ${isDark ? "text-gray-400" : "text-slate-600"}`}>
-            Completed Today
+            Completed 
           </div>
           <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
             Successfully processed
@@ -453,14 +412,14 @@ const RedemptionsTab = ({
                             onClick={() => markRedemptionClaimed(redemption)}
                             className="flex-1 px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors flex items-center justify-center space-x-2"
                           >
-                            <span>✓</span>
+                            
                             <span>Mark Claimed</span>
                           </button>
                           <button
                             onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
                             className="flex-1 px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center space-x-2"
                           >
-                            <span>✗</span>
+                         
                             <span>Cancel</span>
                           </button>
                         </div>
