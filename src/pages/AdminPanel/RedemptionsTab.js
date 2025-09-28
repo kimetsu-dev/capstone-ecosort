@@ -272,9 +272,7 @@ const RedemptionsTab = ({
 
       {/* Enhanced Live Stats Dashboard */}
       <div>
-        
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <StatsCard
             title="Total Redemptions"
             value={liveStats.total}
@@ -285,8 +283,8 @@ const RedemptionsTab = ({
       </div>
 
       {/* Quick Status Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className={`p-4 rounded-lg border ${
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className={`p-4 rounded-lg border transition-all hover:shadow-md ${
           isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"
         }`}>
           <div className="text-2xl font-bold text-yellow-600">{pendingRedemptions.length}</div>
@@ -297,7 +295,7 @@ const RedemptionsTab = ({
             Waiting for approval
           </div>
         </div>
-        <div className={`p-4 rounded-lg border ${
+        <div className={`p-4 rounded-lg border transition-all hover:shadow-md ${
           isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"
         }`}>
           <div className="text-2xl font-bold text-green-600">{claimedRedemptions.length}</div>
@@ -308,7 +306,7 @@ const RedemptionsTab = ({
             Successfully processed
           </div>
         </div>
-        <div className={`p-4 rounded-lg border ${
+        <div className={`p-4 rounded-lg border transition-all hover:shadow-md ${
           isDark ? "bg-gray-800 border-gray-700" : "bg-white border-slate-200"
         }`}>
           <div className="text-2xl font-bold text-red-600">{cancelledRedemptions.length}</div>
@@ -349,14 +347,14 @@ const RedemptionsTab = ({
                   return (
                     <div
                       key={redemption.id}
-                      className={`p-4 rounded-lg border-l-4 border-l-yellow-400 ${
+                      className={`p-4 rounded-lg border-l-4 border-l-yellow-400 transition-all hover:shadow-md ${
                         isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
                       }`}
                     >
                       <div className="space-y-3">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div className="flex flex-col sm:flex-row justify-between items-start">
+                          <div className="flex-1 w-full">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                               <div>
                                 <span className={`font-medium uppercase tracking-wider text-xs ${
                                   isDark ? "text-gray-400" : "text-slate-500"
@@ -385,41 +383,50 @@ const RedemptionsTab = ({
                                   </div>
                                 )}
                               </div>
-                              <div>
-                                <span className={`font-medium uppercase tracking-wider text-xs ${
-                                  isDark ? "text-gray-400" : "text-slate-500"
-                                }`}>
-                                  Code & Date
-                                </span>
-                                <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                                  {redemption.redemptionCode}
+                              <div className="sm:col-span-2 grid grid-cols-2 gap-4">
+                                <div>
+                                  <span className={`font-medium uppercase tracking-wider text-xs ${
+                                    isDark ? "text-gray-400" : "text-slate-500"
+                                  }`}>
+                                    Redemption Code
+                                  </span>
+                                  <div className={`text-sm font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                                    {redemption.redemptionCode}
+                                  </div>
                                 </div>
-                                <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                  {formatDate(redemption.redeemedAt)}
+                                <div>
+                                  <span className={`font-medium uppercase tracking-wider text-xs ${
+                                    isDark ? "text-gray-400" : "text-slate-500"
+                                  }`}>
+                                    Date
+                                  </span>
+                                  <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
+                                    {formatDate(redemption.redeemedAt)}
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
-                            getStatusBadgeStyle(redemption.status)
-                          }`}>
-                            {redemption.status}
-                          </span>
+                          <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                              getStatusBadgeStyle(redemption.status)
+                            }`}>
+                              {redemption.status}
+                            </span>
+                          </div>
                         </div>
                         
-                        <div className="flex space-x-2 pt-3 border-t border-gray-200 dark:border-gray-600">
+                        <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2 pt-3 border-t border-gray-200 dark:border-gray-600">
                           <button
                             onClick={() => markRedemptionClaimed(redemption)}
-                            className="flex-1 px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                            className="flex-1 px-4 py-2.5 text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                           >
-                            
                             <span>Mark Claimed</span>
                           </button>
                           <button
                             onClick={() => updateRedemptionStatus(redemption.id, "cancelled")}
-                            className="flex-1 px-4 py-2 text-white bg-red-600 rounded-lg hover:bg-red-700 text-sm font-medium transition-colors flex items-center justify-center space-x-2"
+                            className="flex-1 px-4 py-2.5 text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                           >
-                         
                             <span>Cancel</span>
                           </button>
                         </div>
@@ -443,13 +450,13 @@ const RedemptionsTab = ({
                   return (
                     <div
                       key={redemption.id}
-                      className={`p-4 rounded-lg ${
+                      className={`p-4 rounded-lg transition-all hover:shadow-md ${
                         isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
                       }`}
                     >
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                      <div className="flex flex-col sm:flex-row justify-between items-start">
+                        <div className="flex-1 w-full">
+                          <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-4 text-sm">
                             <div>
                               <span className={`font-medium uppercase tracking-wider text-xs ${
                                 isDark ? "text-gray-400" : "text-slate-500"
@@ -495,26 +502,24 @@ const RedemptionsTab = ({
                                 Date
                               </span>
                               <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                Redeemed: {formatDate(redemption.redeemedAt)}
+                                <div>Redeemed: {formatDate(redemption.redeemedAt)}</div>
+                                {redemption.claimedAt && (
+                                  <div>Claimed: {formatDate(redemption.claimedAt)}</div>
+                                )}
+                                {redemption.cancelledAt && (
+                                  <div>Cancelled: {formatDate(redemption.cancelledAt)}</div>
+                                )}
                               </div>
-                              {redemption.claimedAt && (
-                                <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                  Claimed: {formatDate(redemption.claimedAt)}
-                                </div>
-                              )}
-                              {redemption.cancelledAt && (
-                                <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                  Cancelled: {formatDate(redemption.cancelledAt)}
-                                </div>
-                              )}
                             </div>
                           </div>
                         </div>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
-                          getStatusBadgeStyle(redemption.status)
-                        }`}>
-                          {redemption.status}
-                        </span>
+                        <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                            getStatusBadgeStyle(redemption.status)
+                          }`}>
+                            {redemption.status}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );

@@ -10,8 +10,10 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { useTheme } from "../../contexts/ThemeContext";
 
 export default function WasteTypesManager() {
+  const { isDark } = useTheme();
   const [wasteTypes, setWasteTypes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newWasteTypeName, setNewWasteTypeName] = useState("");
@@ -114,8 +116,12 @@ export default function WasteTypesManager() {
     return (
       <div className="flex items-center justify-center min-h-64">
         <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-          <span className="text-gray-600">Loading waste types...</span>
+          <div className={`animate-spin rounded-full h-8 w-8 border-b-2 ${
+            isDark ? "border-green-400" : "border-green-600"
+          }`}></div>
+          <span className={isDark ? "text-gray-300" : "text-gray-600"}>
+            Loading waste types...
+          </span>
         </div>
       </div>
     );
@@ -124,17 +130,37 @@ export default function WasteTypesManager() {
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Waste Types Management</h2>
-        <p className="text-gray-600">Manage waste types and their points per kilogram</p>
+      <div className={`rounded-lg shadow-sm border p-6 ${
+        isDark 
+          ? "bg-gray-800 border-gray-700" 
+          : "bg-white border-gray-200"
+      }`}>
+        <h2 className={`text-2xl font-bold mb-2 ${
+          isDark ? "text-gray-100" : "text-gray-800"
+        }`}>
+          Waste Types Management
+        </h2>
+        <p className={isDark ? "text-gray-400" : "text-gray-600"}>
+          Manage waste types and their points per kilogram
+        </p>
       </div>
 
       {/* Add new waste type form */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Add New Waste Type</h3>
+      <div className={`rounded-lg shadow-sm border p-6 ${
+        isDark 
+          ? "bg-gray-800 border-gray-700" 
+          : "bg-white border-gray-200"
+      }`}>
+        <h3 className={`text-lg font-semibold mb-4 ${
+          isDark ? "text-gray-100" : "text-gray-800"
+        }`}>
+          Add New Waste Type
+        </h3>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 ${
+              isDark ? "text-gray-300" : "text-gray-700"
+            }`}>
               Waste Type Name
             </label>
             <input
@@ -142,11 +168,17 @@ export default function WasteTypesManager() {
               placeholder="e.g., Plastic Bottles"
               value={newWasteTypeName}
               onChange={(e) => setNewWasteTypeName(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+                isDark 
+                  ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400" 
+                  : "border-gray-300 bg-white text-gray-900"
+              }`}
             />
           </div>
           <div className="w-full sm:w-40">
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className={`block text-sm font-medium mb-1 ${
+              isDark ? "text-gray-300" : "text-gray-700"
+            }`}>
               Points per kg
             </label>
             <input
@@ -156,7 +188,11 @@ export default function WasteTypesManager() {
               placeholder="0.00"
               value={newWastePoints}
               onChange={(e) => setNewWastePoints(e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+              className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+                isDark 
+                  ? "border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-400" 
+                  : "border-gray-300 bg-white text-gray-900"
+              }`}
             />
           </div>
           <div className="flex items-end">
@@ -172,56 +208,96 @@ export default function WasteTypesManager() {
       </div>
 
       {/* Waste types list */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800">Current Waste Types</h3>
-          <p className="text-sm text-gray-600 mt-1">
+      <div className={`rounded-lg shadow-sm border overflow-hidden ${
+        isDark 
+          ? "bg-gray-800 border-gray-700" 
+          : "bg-white border-gray-200"
+      }`}>
+        <div className={`px-6 py-4 border-b ${
+          isDark ? "border-gray-700" : "border-gray-200"
+        }`}>
+          <h3 className={`text-lg font-semibold ${
+            isDark ? "text-gray-100" : "text-gray-800"
+          }`}>
+            Current Waste Types
+          </h3>
+          <p className={`text-sm mt-1 ${
+            isDark ? "text-gray-400" : "text-gray-600"
+          }`}>
             {wasteTypes.length} waste type{wasteTypes.length !== 1 ? 's' : ''} configured
           </p>
         </div>
 
         {wasteTypes.length === 0 ? (
           <div className="p-12 text-center">
-            <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
-              <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center ${
+              isDark ? "bg-gray-700" : "bg-gray-100"
+            }`}>
+              <svg className={`w-8 h-8 ${
+                isDark ? "text-gray-500" : "text-gray-400"
+              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No waste types yet</h3>
-            <p className="text-gray-500">Add your first waste type to get started.</p>
+            <h3 className={`text-lg font-medium mb-2 ${
+              isDark ? "text-gray-100" : "text-gray-900"
+            }`}>
+              No waste types yet
+            </h3>
+            <p className={isDark ? "text-gray-400" : "text-gray-500"}>
+              Add your first waste type to get started.
+            </p>
           </div>
         ) : (
           <>
             {/* Desktop table view */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className={isDark ? "bg-gray-700" : "bg-gray-50"}>
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      isDark ? "text-gray-300" : "text-gray-500"
+                    }`}>
                       Waste Type Name
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      isDark ? "text-gray-300" : "text-gray-500"
+                    }`}>
                       Points per kg
                     </th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
+                      isDark ? "text-gray-300" : "text-gray-500"
+                    }`}>
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className={`divide-y ${
+                  isDark ? "divide-gray-700" : "divide-gray-200"
+                }`}>
                   {wasteTypes.map((wt) => (
-                    <tr key={wt.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={wt.id} className={`transition-colors ${
+                      isDark ? "hover:bg-gray-700" : "hover:bg-gray-50"
+                    }`}>
                       <td className="px-6 py-4">
                         {editingId === wt.id ? (
                           <input
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                              isDark 
+                                ? "border-gray-600 bg-gray-700 text-gray-100" 
+                                : "border-gray-300 bg-white text-gray-900"
+                            }`}
                             aria-label="Edit waste type name"
                           />
                         ) : (
-                          <span className="text-gray-900 font-medium">{wt.name}</span>
+                          <span className={`font-medium ${
+                            isDark ? "text-gray-100" : "text-gray-900"
+                          }`}>
+                            {wt.name}
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -232,11 +308,17 @@ export default function WasteTypesManager() {
                             step="0.01"
                             value={editPoints}
                             onChange={(e) => setEditPoints(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                              isDark 
+                                ? "border-gray-600 bg-gray-700 text-gray-100" 
+                                : "border-gray-300 bg-white text-gray-900"
+                            }`}
                             aria-label="Edit points per kilogram"
                           />
                         ) : (
-                          <span className="text-gray-900">{wt.pointsPerKilo}</span>
+                          <span className={isDark ? "text-gray-100" : "text-gray-900"}>
+                            {wt.pointsPerKilo}
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-center">
@@ -285,13 +367,17 @@ export default function WasteTypesManager() {
             </div>
 
             {/* Mobile card view */}
-            <div className="md:hidden divide-y divide-gray-200">
+            <div className={`md:hidden divide-y ${
+              isDark ? "divide-gray-700" : "divide-gray-200"
+            }`}>
               {wasteTypes.map((wt) => (
                 <div key={wt.id} className="p-4 space-y-3">
                   <div className="flex justify-between items-start">
                     <div className="flex-1 space-y-2">
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? "text-gray-400" : "text-gray-500"
+                        }`}>
                           Waste Type Name
                         </label>
                         {editingId === wt.id ? (
@@ -299,15 +385,25 @@ export default function WasteTypesManager() {
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                              isDark 
+                                ? "border-gray-600 bg-gray-700 text-gray-100" 
+                                : "border-gray-300 bg-white text-gray-900"
+                            }`}
                             aria-label="Edit waste type name"
                           />
                         ) : (
-                          <span className="text-gray-900 font-medium">{wt.name}</span>
+                          <span className={`font-medium ${
+                            isDark ? "text-gray-100" : "text-gray-900"
+                          }`}>
+                            {wt.name}
+                          </span>
                         )}
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+                        <label className={`block text-xs font-medium uppercase tracking-wider mb-1 ${
+                          isDark ? "text-gray-400" : "text-gray-500"
+                        }`}>
                           Points per kg
                         </label>
                         {editingId === wt.id ? (
@@ -317,11 +413,17 @@ export default function WasteTypesManager() {
                             step="0.01"
                             value={editPoints}
                             onChange={(e) => setEditPoints(e.target.value)}
-                            className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                            className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent ${
+                              isDark 
+                                ? "border-gray-600 bg-gray-700 text-gray-100" 
+                                : "border-gray-300 bg-white text-gray-900"
+                            }`}
                             aria-label="Edit points per kilogram"
                           />
                         ) : (
-                          <span className="text-gray-900">{wt.pointsPerKilo}</span>
+                          <span className={isDark ? "text-gray-100" : "text-gray-900"}>
+                            {wt.pointsPerKilo}
+                          </span>
                         )}
                       </div>
                     </div>
