@@ -166,7 +166,7 @@ export default function Welcome() {
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <div className="relative">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 bg-gradient-to-br from-emerald-500 via-teal-500 to-green-600 rounded-lg sm:rounded-xl flex items-center justify-center text-white font-bold text-sm sm:text-lg md:text-xl shadow-lg">E</div>
-                <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full animate-pulse"></div>
+
               </div>
               <div>
                 <span className={`text-lg sm:text-xl md:text-2xl lg:text-3xl font-black bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent`}>
@@ -202,8 +202,8 @@ export default function Welcome() {
       {/* Hero Section */}
       <section className={`relative z-10 px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-16 items-center">
-            <div className="space-y-6 sm:space-y-8 lg:space-y-10 text-center lg:text-left">
+          <div className="flex justify-center items-center">
+            <div className="space-y-6 sm:space-y-8 lg:space-y-10 text-center max-w-4xl">
               <div className="space-y-4 sm:space-y-6">
                 <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black leading-tight ${styles.text.primary}`}>
                   <span className="block bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
@@ -213,7 +213,7 @@ export default function Welcome() {
                   
                   </span>
                 </h1>
-                <p className={`text-sm sm:text-base lg:text-lg xl:text-xl leading-relaxed max-w-2xl mx-auto lg:mx-0 ${styles.text.secondary}`}>
+                <p className={`text-sm sm:text-base lg:text-lg xl:text-xl leading-relaxed max-w-2xl mx-auto ${styles.text.secondary}`}>
                   Transforming communities.
                   <span className="font-semibold text-emerald-700"> Recycle for rewards</span>, 
                   <span className="font-semibold text-red-600"> report issues</span>, and 
@@ -221,54 +221,8 @@ export default function Welcome() {
                 </p>
               </div>
                     
-              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
-                <button
-                  onClick={() => navigate('/signup')}
-                  className="group bg-emerald-500 text-white px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-semibold text-sm sm:text-base shadow-md hover:shadow-lg hover:bg-emerald-600 transition-all duration-200 transform hover:-translate-y-1 flex items-center justify-center gap-2"
-                >
-                  <span className="whitespace-nowrap">Start Your Journey</span>
-                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-2 transition-transform duration-300 flex-shrink-0" />
-                </button>
-              </div>
-
+              
               <InstallPWAButton />
-            </div>
-
-            {/* Hero Visual */}
-            <div className="relative order-first lg:order-last">
-              <div className={`border rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 shadow-2xl backdrop-blur-xl ${styles.card}`}>
-                <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                  <div className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center space-y-2 sm:space-y-3 shadow-lg ${
-                    isDark ? 'bg-slate-800/60' : 'bg-white/80'
-                  }`}>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-emerald-500 to-green-600 rounded-lg sm:rounded-xl mx-auto flex items-center justify-center">
-                      <CoinsIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                    </div>
-                    <h3 className={`font-bold text-sm sm:text-base ${styles.text.primary}`}>Earn Rewards</h3>
-                    <p className={`text-xs sm:text-sm ${styles.text.secondary}`}>EcoPoints for recycling</p>
-                  </div>
-                  
-                  <div className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center space-y-2 sm:space-y-3 shadow-lg ${
-                    isDark ? 'bg-slate-800/60' : 'bg-white/80'
-                  }`}>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-red-500 to-pink-600 rounded-lg sm:rounded-xl mx-auto flex items-center justify-center">
-                      <ReportIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                    </div>
-                    <h3 className={`font-bold text-sm sm:text-base ${styles.text.primary}`}>Report Issues</h3>
-                    <p className={`text-xs sm:text-sm ${styles.text.secondary}`}>Keep community clean</p>
-                  </div>
-                  
-                  <div className={`rounded-xl sm:rounded-2xl p-4 sm:p-6 text-center space-y-2 sm:space-y-3 shadow-lg col-span-2 ${
-                    isDark ? 'bg-slate-800/60' : 'bg-white/80'
-                  }`}>
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-lg sm:rounded-xl mx-auto flex items-center justify-center">
-                      <CommunityIcon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                    </div>
-                    <h3 className={`font-bold text-sm sm:text-base ${styles.text.primary}`}>Community Hub</h3>
-                    <p className={`text-xs sm:text-sm ${styles.text.secondary}`}>Connect and collaborate</p>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -336,68 +290,7 @@ export default function Welcome() {
         </div>
       </section>
 
-      {/* Benefits Section */}
-      <section className="relative z-10 py-12 sm:py-16 lg:py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center">
-            <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-              <div className="space-y-3 sm:space-y-4 lg:space-y-6">
-                <div className={`inline-flex items-center gap-2 rounded-full px-4 sm:px-6 py-2 sm:py-3 font-medium shadow-lg backdrop-blur-xl text-xs sm:text-sm ${
-                  isDark 
-                    ? 'bg-slate-800/70 border border-emerald-500/30 text-emerald-300' 
-                    : 'bg-white/70 border border-emerald-200/30 text-emerald-800'
-                }`}>
-                  <SparkleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                  <span>Why Choose ECOSORT</span>
-                </div>
-                <h2 className={`text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black ${styles.text.primary}`}>Make an Impact</h2>
-                <p className={`text-sm sm:text-base lg:text-lg xl:text-xl leading-relaxed ${styles.text.secondary}`}>
-                  Join your neighbors in creating cleaner, more sustainable communities.
-                </p>
-              </div>
-
-              <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className={`flex items-start gap-2 sm:gap-3 p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl shadow-sm hover:shadow-md transition-all duration-300 ${
-                    isDark ? 'bg-slate-800/60' : 'bg-white/80'
-                  }`}>
-                    <div className={`w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                      isDark ? 'bg-gradient-to-br from-emerald-800/60 to-green-800/60' : 'bg-gradient-to-br from-emerald-100 to-green-200'
-                    }`}>
-                      <CheckIcon className={`w-2.5 h-2.5 sm:w-3 sm:h-3 lg:w-4 lg:h-4 ${
-                        isDark ? 'text-emerald-400' : 'text-emerald-600'
-                      }`} />
-                    </div>
-                    <span className={`text-xs sm:text-sm lg:text-base font-medium ${styles.text.primary}`}>{benefit}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className={`rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur-xl border ${styles.card}`}>
-                <div className="text-center space-y-4 sm:space-y-6">
-                  <div className="text-4xl sm:text-5xl lg:text-6xl">🌱</div>
-                  <div className="space-y-3 sm:space-y-4">
-                    <h3 className={`text-lg sm:text-xl lg:text-2xl font-bold ${styles.text.primary}`}>Environmental Impact</h3>
-                    <p className={`text-xs sm:text-sm lg:text-base leading-relaxed ${styles.text.secondary}`}>
-                      Every action contributes to a cleaner, more sustainable environment for your community and future generations.
-                    </p>
-                    <div className={`rounded-lg sm:rounded-xl p-3 sm:p-4 ${
-                      isDark ? 'bg-slate-800/60' : 'bg-white/80'
-                    }`}>
-                      <div className={`font-semibold text-sm sm:text-base ${
-                        isDark ? 'text-emerald-400' : 'text-emerald-600'
-                      }`}>Join the Movement</div>
-                      <div className={`text-xs sm:text-sm mt-1 ${styles.text.secondary}`}>Start making a difference today</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+     
 
       {/* CTA Section */}
       <section className={`relative z-10 py-12 sm:py-16 lg:py-24 overflow-hidden ${
@@ -447,37 +340,11 @@ export default function Welcome() {
                 Start Your Journey
               </button>
 
-              <button
-                onClick={() => {
-                  const element = document.querySelector('[data-section="features"]');
-                  if (element) element.scrollIntoView({ behavior: "smooth" });
-                }}
-                className={`group px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-bold text-sm sm:text-base transition-all duration-200 backdrop-blur-sm flex-1 ${
-                  isDark 
-                    ? 'border-2 border-emerald-400/50 text-emerald-300 hover:bg-emerald-400/10 hover:border-emerald-300' 
-                    : 'border-2 border-white/30 text-white hover:bg-white/10 hover:border-white'
-                }`}
-              >
-                Learn More
-              </button>
+              
             </div>
 
-            <div className={`flex flex-wrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 pt-4 sm:pt-6 text-xs sm:text-sm ${
-              isDark ? 'text-gray-300' : 'text-emerald-200'
-            }`}>
-              <div className="flex items-center gap-2">
-                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-medium">Free to Join</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-medium">Instant Rewards</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="font-medium">Community Driven</span>
-              </div>
-            </div>
+            
+            
           </div>
         </div>
       </section>
@@ -535,16 +402,7 @@ export default function Welcome() {
                   <span className="text-green-400">📱</span>
                   <span>Mobile app available</span>
                 </div>
-                <div className={`backdrop-blur-sm p-3 sm:p-4 rounded-lg sm:rounded-xl lg:rounded-2xl border mt-3 sm:mt-4 lg:mt-6 ${
-                  isDark 
-                    ? 'bg-gradient-to-r from-slate-800/30 to-emerald-900/30 border-emerald-700/20' 
-                    : 'bg-gradient-to-r from-emerald-900/30 to-teal-900/30 border-emerald-800/20'
-                }`}>
-                  <p className="text-[10px] sm:text-xs lg:text-sm text-emerald-200 flex items-center gap-2">
-                    <span>🌍</span>
-                    Community support available
-                  </p>
-                </div>
+                
               </div>
             </div>
           </div>
@@ -552,13 +410,8 @@ export default function Welcome() {
           <div className="border-t border-gray-700 mt-6 sm:mt-8 lg:mt-12 pt-4 sm:pt-6 lg:pt-8 text-center">
             <div className="flex flex-col gap-3 sm:gap-4">
               <span className="text-gray-400 text-[10px] sm:text-xs lg:text-sm">
-                &copy; 2025 ECOSORT. Building sustainable communities through proper waste management.
+                &copy; 2025 ECOSORT. All rights reserved.
               </span>
-              <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 lg:gap-6 text-[10px] sm:text-xs lg:text-sm text-gray-400">
-                <span className="hover:text-emerald-400 transition-colors cursor-pointer">Privacy Policy</span>
-                <span className="hover:text-emerald-400 transition-colors cursor-pointer">Terms of Service</span>
-                <span className="hover:text-emerald-400 transition-colors cursor-pointer">Community Guidelines</span>
-              </div>
             </div>
           </div>
         </div>
