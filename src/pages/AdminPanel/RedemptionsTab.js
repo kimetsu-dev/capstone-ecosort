@@ -3,7 +3,6 @@ import {
   doc, 
   updateDoc, 
   serverTimestamp, 
-  runTransaction, 
   addDoc, 
   collection,
   onSnapshot,
@@ -127,39 +126,11 @@ const RedemptionsTab = ({
   const markRedemptionClaimed = async (redemption) => {
     if (!redemption) return;
 
-    const reward = rewards.find((r) => r.id === redemption.rewardId);
-    const rewardName = reward ? reward.name : "Unknown Reward";
-    const redemptionCode = redemption.redemptionCode || "N/A";
-
-    let cost = parseFloat(redemption.pointCost);
-    if (isNaN(cost) || cost <= 0) {
-      cost = reward ? parseFloat(reward.cost) : 0;
-      if (isNaN(cost) || cost <= 0) {
-        showToast("Invalid redemption point cost. Cannot deduct points.", "error");
-        return;
-      }
-    }
-
     try {
-      await createPointTransaction({
-        userId: redemption.userId,
-        points: -cost,
-        description: `Redeemed reward: ${rewardName} (Code: ${redemptionCode})`,
-        type: "points_redeemed",
-      });
-
-      const userRef = doc(db, "users", redemption.userId);
-      await runTransaction(db, async (transaction) => {
-        const userSnap = await transaction.get(userRef);
-        if (!userSnap.exists()) throw new Error("User does not exist");
-        const currentPoints = Number(userSnap.data().totalPoints) || 0;
-        const updatedPoints = currentPoints - cost;
-        if (updatedPoints < 0) throw new Error("User points cannot be negative");
-        transaction.update(userRef, { totalPoints: updatedPoints });
-      });
-
+      // Simply update the redemption status to claimed
+      // Points should have already been deducted when the redemption was created
       await updateRedemptionStatus(redemption.id, "claimed");
-      showToast(`Redemption claimed and points deducted`, "success");
+      showToast(`Redemption marked as claimed successfully`, "success");
     } catch (error) {
       console.error("Failed to mark redemption claimed:", error);
       showToast(error.message || "Failed to claim redemption", "error");
@@ -172,21 +143,21 @@ const RedemptionsTab = ({
   };
 
   const getUserName = (userId) => {
-  const user = users.find((u) => u.id === userId);
-  
-  // Debug: Log the user object to see available fields
-  console.log("User data for", userId, ":", user);
-  
-  if (!user) return "Unknown User";
-  
-  // Check all possible name fields
-  return user.displayName || 
-         user.name || 
-         user.username || 
-         user.firstName || 
-         user.email?.split('@')[0] || // Fallback to email username part
-         "Unknown User";
-};
+    const user = users.find((u) => u.id === userId);
+    
+    // Debug: Log the user object to see available fields
+    console.log("User data for", userId, ":", user);
+    
+    if (!user) return "Unknown User";
+    
+    // Check all possible name fields
+    return user.displayName || 
+           user.name || 
+           user.username || 
+           user.firstName || 
+           user.email?.split('@')[0] || // Fallback to email username part
+           "Unknown User";
+  };
 
   const getRewardName = (rewardId) => {
     const reward = rewards.find((r) => r.id === rewardId);
