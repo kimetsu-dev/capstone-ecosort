@@ -63,6 +63,16 @@ const MobileWelcome = () => {
         </div>
 
         <div className="flex gap-2">
+          
+
+          <button
+            onClick={() => navigate("/signup")}
+            className="bg-white hover:bg-gray-100 text-emerald-600 font-semibold text-sm px-5 py-2 rounded-lg shadow-lg transition-colors"
+            type="button"
+          >
+            Sign Up
+          </button>
+
           <button
             onClick={() => navigate("/login")}
             className={`font-semibold text-sm px-4 py-2 rounded-lg transition-colors border
@@ -74,14 +84,6 @@ const MobileWelcome = () => {
             type="button"
           >
             Login
-          </button>
-
-          <button
-            onClick={() => navigate("/signup")}
-            className="bg-white hover:bg-gray-100 text-emerald-600 font-semibold text-sm px-5 py-2 rounded-lg shadow-lg transition-colors"
-            type="button"
-          >
-            Sign Up
           </button>
         </div>
       </div>
