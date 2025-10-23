@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUser } from "react-icons/fi";
+import { FiUser, FiMenu, FiX, FiLogOut, FiChevronRight } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
 import { DashboardCalendar } from "../components/DashboardCalendar";
 import NotificationCenter from "../components/NotificationCenter";
+import SubmitWaste from "./SubmitWaste";
+import Rewards from "./Rewards";
+import Forum from "./Forum";
+import Leaderboard from "./Leaderboard";
+import Transactions from "./Transactions";
 
 import {
   doc,
@@ -11,107 +16,172 @@ import {
   collection,
   query,
   orderBy,
-  updateDoc,
-  writeBatch,
+  limit,
+  getDocs,
+  where,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
+import { signOut } from "firebase/auth";
 import {
   FaRecycle,
   FaGift,
   FaExclamationTriangle,
   FaTrophy,
   FaFileAlt,
-  FaCoins,
+  FaHome,
+  FaClock,
+  FaCalendarAlt,
+  FaMapMarkerAlt,
+  FaCheckCircle,
+  FaChartLine,
 } from "react-icons/fa";
 
 const MENU_ITEMS = [
-  {
-    id: "submit",
-    title: "Submit Waste",
-    icon: FaRecycle,
-    color: "from-emerald-400 via-teal-500 to-green-600",
-    route: "/submitwaste",
-  },
-  {
-    id: "rewards",
-    title: "Redeem Rewards",
-    icon: FaGift,
-    color: "from-amber-400 via-orange-500 to-yellow-600",
-    route: "/rewards",
-  },
-  {
-    id: "report",
-    title: "Report Forum",
-    icon: FaExclamationTriangle,
-    color: "from-red-400 via-rose-500 to-pink-600",
-    route: "/forum",
-  },
-  {
-    id: "leaderboard",
-    title: "Leaderboard",
-    icon: FaTrophy,
-    color: "from-blue-400 via-indigo-500 to-purple-600",
-    route: "/leaderboard",
-  },
-  {
-    id: "transactions",
-    title: "Transactions",
-    icon: FaFileAlt,
-    color: "from-gray-400 via-slate-500 to-gray-600",
-    route: "/transactions",
-  },
+  { id: "overview", title: "Overview", icon: FaHome, color: "from-blue-400 via-indigo-500 to-purple-600" },
+  { id: "submit", title: "Submit Waste", icon: FaRecycle, color: "from-emerald-400 via-teal-500 to-green-600" },
+  { id: "rewards", title: "Redeem Rewards", icon: FaGift, color: "from-amber-400 via-orange-500 to-yellow-600" },
+  { id: "report", title: "Report Forum", icon: FaExclamationTriangle, color: "from-red-400 via-rose-500 to-pink-600" },
+  { id: "leaderboard", title: "Leaderboard", icon: FaTrophy, color: "from-blue-400 via-indigo-500 to-purple-600" },
+  { id: "transactions", title: "Transactions", icon: FaFileAlt, color: "from-gray-400 via-slate-500 to-gray-600" },
 ];
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-  static getDerivedStateFromError(error) {
-    return { hasError: true, error };
-  }
-  componentDidCatch(error, errorInfo) {
-    console.error('Dashboard Error:', error, errorInfo);
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-          <div className="text-center p-8">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Please try refreshing the page.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-            >
-              Refresh Page
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+const DAY_MAP = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
 
 export default function Dashboard() {
   const themeContext = useTheme();
   const [userName, setUserName] = useState(null);
   const [points, setPoints] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [showNotifications, setShowNotifications] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const dropdownRef = useRef(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [collectionSchedules, setCollectionSchedules] = useState([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(true);
   const navigate = useNavigate();
   const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [error, setError] = useState(null);
+  const [isPWA, setIsPWA] = useState(false);
 
-  // Firestore listeners for user data and notifications
+  useEffect(() => {
+    const checkPWA = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = window.navigator.standalone === true;
+      setIsPWA(isStandalone || isIOSStandalone);
+    };
+    checkPWA();
+  }, []);
+
+  useEffect(() => {
+    const schedulesRef = collection(db, "collection_schedules");
+    const schedulesQuery = query(
+      schedulesRef,
+      where("isActive", "==", true)
+    );
+
+    const unsubscribe = onSnapshot(
+      schedulesQuery,
+      (snapshot) => {
+        const schedulesData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setCollectionSchedules(schedulesData);
+        setLoadingSchedules(false);
+      },
+      (error) => {
+        console.error("Error fetching schedules:", error);
+        setLoadingSchedules(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  const getNextCollectionDate = () => {
+    if (collectionSchedules.length === 0) {
+      return null;
+    }
+
+    const today = new Date();
+    const currentDay = today.getDay();
+    const currentTime = today.getHours() * 60 + today.getMinutes();
+
+    let nearestCollection = null;
+    let minDaysAway = Infinity;
+
+    for (const schedule of collectionSchedules) {
+      const scheduleDayNum = DAY_MAP[schedule.day.toLowerCase()];
+      
+      const [startHours, startMinutes] = schedule.startTime.split(':').map(Number);
+      const scheduleTime = startHours * 60 + startMinutes;
+
+      let daysUntil = scheduleDayNum - currentDay;
+      
+      if (daysUntil < 0 || (daysUntil === 0 && currentTime >= scheduleTime)) {
+        daysUntil += 7;
+      }
+
+      if (daysUntil < minDaysAway) {
+        minDaysAway = daysUntil;
+        const collectionDate = new Date(today);
+        collectionDate.setDate(today.getDate() + daysUntil);
+        collectionDate.setHours(startHours, startMinutes, 0, 0);
+        
+        nearestCollection = {
+          date: collectionDate,
+          schedule: schedule
+        };
+      }
+    }
+
+    return nearestCollection;
+  };
+
+  const getWeekCollectionDates = () => {
+    if (collectionSchedules.length === 0) {
+      return [];
+    }
+
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay());
+    
+    const collectionDates = [];
+
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(startOfWeek);
+      date.setDate(startOfWeek.getDate() + i);
+      const dayNum = date.getDay();
+
+      const daySchedule = collectionSchedules.find(
+        schedule => DAY_MAP[schedule.day.toLowerCase()] === dayNum
+      );
+
+      if (daySchedule) {
+        const [hours, minutes] = daySchedule.startTime.split(':').map(Number);
+        date.setHours(hours, minutes, 0, 0);
+        
+        collectionDates.push({
+          date: date,
+          schedule: daySchedule
+        });
+      }
+    }
+
+    return collectionDates;
+  };
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) {
@@ -140,67 +210,82 @@ export default function Dashboard() {
       }
     );
 
-    const notificationsRef = collection(db, "notifications", user.uid, "userNotifications");
-    const notificationsQuery = query(notificationsRef, orderBy("createdAt", "desc"));
-    const unsubscribeNotifications = onSnapshot(
-      notificationsQuery,
-      (snapshot) => {
-        const notifList = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        // Defensive: Ensure notifList is always array
-        const filteredNotifs = Array.isArray(notifList)
-          ? notifList.filter(
-              (notif) =>
-                notif.message &&
-                (notif.message.toLowerCase().includes("approved") ||
-                 notif.message.toLowerCase().includes("confirmed"))
-            )
-          : [];
-
-        setNotifications(filteredNotifs);
-        setUnreadCount(
-          Array.isArray(filteredNotifs)
-            ? filteredNotifs.filter((n) => !n.read).length
-            : 0
-        );
-        setLoadingNotifications(false);
-      },
-      (error) => {
-        console.error("Notifications listener error:", error);
-        setLoadingNotifications(false);
-      }
-    );
-
     return () => {
       unsubscribeUser();
-      unsubscribeNotifications();
     };
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setShowNotifications(false);
+    const fetchRecentActivity = async () => {
+      const user = auth.currentUser;
+      if (!user) return;
+
+      try {
+        setLoadingActivity(true);
+        
+        const wasteQuery = query(
+          collection(db, "wasteSubmissions"),
+          orderBy("submittedAt", "desc"),
+          limit(5)
+        );
+        const wasteSnapshot = await getDocs(wasteQuery);
+        
+        const transactionsQuery = query(
+          collection(db, "transactions"),
+          orderBy("createdAt", "desc"),
+          limit(5)
+        );
+        const transactionsSnapshot = await getDocs(transactionsQuery);
+
+        const activities = [];
+        
+        wasteSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.userId === user.uid) {
+            activities.push({
+              id: doc.id,
+              type: "waste_submission",
+              description: `Submitted ${data.wasteType || "waste"} - ${data.weight || 0}kg`,
+              points: data.pointsEarned || 0,
+              timestamp: data.submittedAt?.toDate() || new Date(),
+              icon: FaRecycle,
+              color: "emerald"
+            });
+          }
+        });
+
+        transactionsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.userId === user.uid) {
+            activities.push({
+              id: doc.id,
+              type: data.type === "redemption" ? "reward_redemption" : "points_earned",
+              description: data.type === "redemption" 
+                ? `Redeemed ${data.rewardName || "reward"}` 
+                : `Earned ${data.amount || 0} points`,
+              points: data.type === "redemption" ? -Math.abs(data.amount || 0) : (data.amount || 0),
+              timestamp: data.createdAt?.toDate() || new Date(),
+              icon: data.type === "redemption" ? FaGift : FaTrophy,
+              color: data.type === "redemption" ? "amber" : "blue"
+            });
+          }
+        });
+
+        activities.sort((a, b) => b.timestamp - a.timestamp);
+        
+        setRecentActivity(activities.slice(0, 5));
+        setLoadingActivity(false);
+      } catch (error) {
+        console.error("Error fetching activity:", error);
+        setLoadingActivity(false);
       }
+    };
+
+    if (auth.currentUser) {
+      fetchRecentActivity();
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close dropdown on Escape key
-  useEffect(() => {
-    function handleKeyDown(event) {
-      if (event.key === "Escape") setShowNotifications(false);
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  // Update currentTime every second
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -216,7 +301,6 @@ export default function Dashboard() {
   const getThemeClass = (styleKey, fallback = "") =>
     styles?.[styleKey] || fallback;
 
-  // Greeting based on time
   const getGreeting = () => {
     const hour = currentTime.getHours();
     if (hour < 12) return "Good Morning";
@@ -224,60 +308,24 @@ export default function Dashboard() {
     return "Good Evening";
   };
 
-  // Mark a notification as read
-  const markAsRead = async (id) => {
-    try {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n))
-      );
-      setUnreadCount((prev) => Math.max(0, prev - 1));
+  const handleNavigation = (item) => {
+    if (isPWA) {
+      navigate(`/${item.id}`);
+    } else {
+      setActiveTab(item.id);
+    }
+    setSidebarOpen(false);
+  };
 
-      const user = auth.currentUser;
-      if (!user) return;
-      const notifRef = doc(db, "notifications", user.uid, "userNotifications", id);
-      await updateDoc(notifRef, { read: true });
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      navigate("/login");
     } catch (error) {
-      console.error("Failed to mark notification as read:", error);
+      console.error("Sign out error:", error);
     }
   };
 
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    const user = auth.currentUser;
-    if (!user) return;
-    const batch = writeBatch(db);
-    const unreadNotifs = notifications.filter((n) => !n.read);
-    unreadNotifs.forEach((notif) => {
-      const notifRef = doc(db, "notifications", user.uid, "userNotifications", notif.id);
-      batch.update(notifRef, { read: true });
-    });
-
-    try {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      setUnreadCount(0);
-      setShowNotifications(false);
-      await batch.commit();
-    } catch (error) {
-      console.error("Failed to mark all notifications as read:", error);
-    }
-  };
-
-  // Toggle notifications dropdown
-  const toggleNotifications = () => {
-    setShowNotifications((prev) => !prev);
-  };
-
-  // Navigation helper
-  const handleNavigation = (route) => {
-    try {
-      navigate(route);
-    } catch (error) {
-      console.error("Navigation error:", error);
-      window.location.href = route;
-    }
-  };
-
-  // Check if a date is today
   const isToday = (date) => {
     if (!(date instanceof Date) || isNaN(date.getTime())) return false;
     const today = new Date();
@@ -288,185 +336,158 @@ export default function Dashboard() {
     );
   };
 
+  const formatRelativeTime = (date) => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now - date) / 1000);
+    
+    if (diffInSeconds < 60) return "Just now";
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  };
+
+  const formatTime = (time) => {
+    try {
+      const [hours, minutes] = time.split(":");
+      const date = new Date();
+      date.setHours(parseInt(hours), parseInt(minutes));
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return time;
+    }
+  };
+
+  const formatTimeRange = (start, end) => {
+    return `${formatTime(start)} - ${formatTime(end)}`;
+  };
+
+  const nextCollection = getNextCollectionDate();
+  const weekCollectionDates = getWeekCollectionDates();
   const isSelectedDateToday = isToday(selectedDate);
-  const selectedDateWeekday = selectedDate
-    .toLocaleDateString("en-US", { weekday: "short" })
-    .toUpperCase();
 
-  return (
-    <div
-      className={`min-h-screen transition-all duration-500 ${getThemeClass(
-        "backgroundGradient",
-        "bg-gray-50 dark:bg-gray-900"
-      )} relative overflow-hidden`}
-      style={{
-        "--theme-accent-color": isDark ? "#10b981" : "#059669",
-        "--theme-secondary-color": isDark ? "#3b82f6" : "#1d4ed8",
-        "--theme-background": isDark ? "#111827" : "#f9fafb",
-        "--theme-surface": isDark ? "#1f2937" : "#ffffff",
-        "--theme-border": isDark ? "#374151" : "#e5e7eb",
-      }}
-    >
-      <div className="relative z-10 px-3 py-4 max-w-7xl mx-auto">
-        {/* Header */}
-        <header className="flex justify-between items-center mb-4 animate-slide-down">
-          <div className="flex items-center space-x-2">
-            <div className="relative">
-              <div
-                className={`w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ${getThemeClass(
-                  "glowEffect",
-                  "shadow-lg"
-                )}`}
-              >
-                <span className="text-white text-lg font-bold">E</span>
-              </div>
-            </div>
-            <div>
-              <h1
-                className={`text-lg font-black ${getThemeClass(
-                  "textPrimary",
-                  "text-gray-900 dark:text-white"
-                )} ${
-                  isDark
-                    ? "bg-gradient-to-r from-white via-emerald-200 to-teal-300 bg-clip-text text-transparent"
-                    : "bg-gradient-to-r from-gray-900 via-emerald-700 to-teal-700 bg-clip-text text-transparent"
-                }`}
-              >
-                ECOSORT
-              </h1>
-            </div>
-          </div>
-
-          {/* Notifications and Profile Buttons */}
-          <div className="flex items-center space-x-1 relative">
-            <NotificationCenter userId={auth.currentUser?.uid} />
-
-            <button
-              onClick={() => handleNavigation("/profile")}
-              className={`relative w-10 h-10 flex items-center justify-center 
-                bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 
-                rounded-full hover:shadow-lg ${getThemeClass(
-                  "glowEffect",
-                  "shadow-lg"
-                )} transition-all duration-300 active:scale-95 touch-manipulation`}
-              aria-label="Profile"
-            >
-              <FiUser className="w-5 h-5 text-white" />
-            </button>
-          </div>
-        </header>
-
-        {/* Mobile-Optimized Welcome Section */}
-        <div className="mb-6 animate-fade-in">
-          <div
-            className={`${getThemeClass(
-              "cardBackground",
-              "bg-white dark:bg-gray-800"
-            )} ${getThemeClass(
-              "backdropBlur",
-              "backdrop-blur-xl"
-            )} rounded-2xl p-4 shadow-xl border ${getThemeClass(
-              "cardBorder",
-              "border-gray-200 dark:border-gray-700"
-            )} relative overflow-hidden`}
-          >
-            <div className="relative z-10">
-              <div className="flex justify-between items-center mb-4">
-                <div>
-                  <h2
-                    className={`text-2xl font-extrabold ${getThemeClass(
-                      "textPrimary",
-                      "text-gray-900 dark:text-white"
-                    )} mb-1 animate-fade-in-up`}
-                  >
-                    {loadingUser ? "Loading..." : (
-                      <>
-                        {getGreeting()}{" "}
-                        <span
-                          className={`${getThemeClass("textAccent", "text-emerald-600 dark:text-emerald-400")} select-text`}
-                          aria-label="User name"
-                        >
-                          {userName || "User"}{" "}
-                        </span>
-                      </>
-                    )}
-                  </h2>
-                  <p
-                    className={`inline-flex items-center space-x-1 text-xl font-semibold ${getThemeClass(
-                      "textSecondary",
-                      "text-gray-700 dark:text-gray-300"
-                    )} select-none`}
-                    aria-label={`User eco points: ${points || 0}`}
-                  >
-                    <span>
-                      {loadingUser ? "Fetching points..." : `Eco Points: ${points || 0}`}
-                    </span>
-                  </p>
-                </div>
-
-                {/* Enhanced Calendar Collection Widget */}
-                <div className="text-center relative">
-                  <DashboardCalendar
-                    selectedDate={selectedDate}
-                    setSelectedDate={setSelectedDate}
-                    isDark={isDark}
-                  />
-                  <div className="mt-1">
-                    <p
-                      className={`text-lg font-black ${getThemeClass(
-                        "textPrimary",
-                        "text-gray-900 dark:text-white"
-                      )} ${isSelectedDateToday ? 'text-emerald-600 dark:text-emerald-400' : ''}`}
-                    >
-                      {selectedDateWeekday}
-                    </p>
-                    <p
-                      className={`text-xs font-mono ${getThemeClass(
-                        "textMuted",
-                        "text-gray-600 dark:text-gray-400"
-                      )}`}
-                    >
-                      {selectedDate.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                    </p>
-                  </div>
+  if (isPWA) {
+    return (
+      <div
+        className={`min-h-screen transition-all duration-500 ${getThemeClass(
+          "backgroundGradient",
+          "bg-gray-50 dark:bg-gray-900"
+        )} relative overflow-hidden`}
+      >
+        <div className="relative z-10 px-3 py-4 max-w-7xl mx-auto">
+          <header className="flex justify-between items-center mb-4 animate-slide-down">
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <div
+                  className={`w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ${getThemeClass(
+                    "glowEffect",
+                    "shadow-lg"
+                  )}`}
+                >
+                  <span className="text-white text-lg font-bold">E</span>
                 </div>
               </div>
+              <div>
+                <h1
+                  className={`text-lg font-black ${getThemeClass(
+                    "textPrimary",
+                    "text-gray-900 dark:text-white"
+                  )} ${
+                    isDark
+                      ? "bg-gradient-to-r from-white via-emerald-200 to-teal-300 bg-clip-text text-transparent"
+                      : "bg-gradient-to-r from-gray-900 via-emerald-700 to-teal-700 bg-clip-text text-transparent"
+                  }`}
+                >
+                  ECOSORT
+                </h1>
+              </div>
             </div>
-          </div>
-        </div>
 
-        {/* Mobile-Optimized Menu Grid */}
-        <div className="grid grid-cols-2 gap-3 animate-stagger mb-6">
-          {MENU_ITEMS.map((item, index) => (
+            <div className="flex items-center space-x-1 relative">
+              <NotificationCenter userId={auth.currentUser?.uid} />
+              <button
+                onClick={() => navigate("/profile")}
+                className={`relative w-10 h-10 flex items-center justify-center 
+                  bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 
+                  rounded-full hover:shadow-lg ${getThemeClass(
+                    "glowEffect",
+                    "shadow-lg"
+                  )} transition-all duration-300 active:scale-95 touch-manipulation`}
+                aria-label="Profile"
+              >
+                <FiUser className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </header>
+
+          <div className="mb-6 animate-fade-in">
             <div
-              key={item.id}
-              className="group cursor-pointer animate-fade-in-up touch-manipulation"
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(item.route)}
+              className={`${getThemeClass(
+                "cardBackground",
+                "bg-white dark:bg-gray-800"
+              )} ${getThemeClass(
+                "backdropBlur",
+                "backdrop-blur-xl"
+              )} rounded-2xl p-4 shadow-xl border ${getThemeClass(
+                "cardBorder",
+                "border-gray-200 dark:border-gray-700"
+              )} relative overflow-hidden`}
             >
+              <div className="relative z-10">
+                <h2
+                  className={`text-2xl font-extrabold ${getThemeClass(
+                    "textPrimary",
+                    "text-gray-900 dark:text-white"
+                  )} mb-1 animate-fade-in-up`}
+                >
+                  {loadingUser ? "Loading..." : (
+                    <>
+                      {getGreeting()}{" "}
+                      <span className={`${getThemeClass("textAccent", "text-emerald-600 dark:text-emerald-400")} select-text`}>
+                        {userName || "User"}
+                      </span>
+                    </>
+                  )}
+                </h2>
+                <p
+                  className={`text-xl font-semibold ${getThemeClass(
+                    "textSecondary",
+                    "text-gray-700 dark:text-gray-300"
+                  )} select-none`}
+                >
+                  {loadingUser ? "Fetching points..." : `Eco Points: ${points || 0}`}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 animate-stagger mb-6">
+            {MENU_ITEMS.slice(1).map((item, index) => (
               <div
-                className={`${getThemeClass(
-                  "cardBackground",
-                  "bg-white dark:bg-gray-800"
-                )} ${getThemeClass(
-                  "backdropBlur",
-                  "backdrop-blur-xl"
-                )} rounded-2xl p-4 shadow-lg border ${getThemeClass(
-                  "cardBorder",
-                  "border-gray-200 dark:border-gray-700"
-                )} active:scale-95 transition-all duration-200 relative overflow-hidden group`}
+                key={item.id}
+                className="group cursor-pointer animate-fade-in-up touch-manipulation"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => handleNavigation(item)}
               >
-                <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-white/5 to-transparent rounded-full blur-lg" />
-                <div className="relative z-10 flex flex-col items-center text-center space-y-2">
-                  <div
-                    className={`w-12 h-12 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center shadow-lg group-active:scale-110 transition-all duration-200 relative`}
-                  >
-                    <item.icon className="text-white text-lg" />
-                  </div>
-                  <div className="space-y-1">
+                <div
+                  className={`${getThemeClass(
+                    "cardBackground",
+                    "bg-white dark:bg-gray-800"
+                  )} ${getThemeClass(
+                    "backdropBlur",
+                    "backdrop-blur-xl"
+                  )} rounded-2xl p-4 shadow-lg border ${getThemeClass(
+                    "cardBorder",
+                    "border-gray-200 dark:border-gray-700"
+                  )} active:scale-95 transition-all duration-200 relative overflow-hidden group`}
+                >
+                  <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-white/5 to-transparent rounded-full blur-lg" />
+                  <div className="relative z-10 flex flex-col items-center text-center space-y-2">
+                    <div
+                      className={`w-12 h-12 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center shadow-lg group-active:scale-110 transition-all duration-200 relative`}
+                    >
+                      <item.icon className="text-white text-lg" />
+                    </div>
                     <h3
                       className={`text-sm font-black ${getThemeClass(
                         "textPrimary",
@@ -475,82 +496,431 @@ export default function Dashboard() {
                     >
                       {item.title}
                     </h3>
-                    <p
-                      className={`${getThemeClass(
-                        "textSecondary",
-                        "text-gray-600 dark:text-gray-300"
-                      )} text-xs font-medium leading-tight`}
-                    >
-                      {item.subtitle}
-                    </p>
                   </div>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={`min-h-screen transition-colors duration-500 ${
+        isDark
+          ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-200"
+          : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900"
+      }`}
+    >
+      <header
+        className={`lg:hidden backdrop-blur-md sticky top-0 z-30 border-b ${
+          isDark
+            ? "bg-gray-800/90 text-gray-200 border-gray-700"
+            : "bg-white/90 text-slate-900 border-slate-200/50"
+        } shadow-sm`}
+      >
+        <div className="px-4">
+          <div className="flex justify-between items-center py-3">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className={`p-2 rounded-lg ${
+                  isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                } transition-colors`}
+              >
+                <FiMenu className="w-5 h-5" />
+              </button>
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-lg">
+                  E
+                </div>
+                <h1
+                  className={`text-base font-bold bg-gradient-to-r ${
+                    isDark ? "from-gray-100 to-gray-400" : "from-slate-800 to-slate-600"
+                  } bg-clip-text text-transparent`}
+                >
+                  ECOSORT
+                </h1>
+              </div>
             </div>
-          ))}
+            <div className="flex items-center space-x-2">
+              <NotificationCenter userId={auth.currentUser?.uid} />
+              <div
+                className="flex items-center space-x-2 cursor-pointer group"
+                onClick={() => navigate("/profile")}
+              >
+                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center group-hover:shadow-md transition-all">
+                  <FiUser className="text-emerald-600 w-4 h-4" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex">
+        <aside
+          className={`fixed inset-y-0 left-0 z-50 transform transition-all duration-300 ease-in-out lg:translate-x-0 ${
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          } ${sidebarCollapsed ? "lg:w-20" : "lg:w-64"} w-64 ${
+            isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
+          } border-r flex flex-col h-screen`}
+        >
+          <div className={`flex items-center justify-between p-6 border-b ${isDark ? "border-gray-700" : "border-gray-200"} flex-shrink-0`}>
+            {!sidebarCollapsed && (
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                  E
+                </div>
+                <div>
+                  <h2 className={`font-bold text-lg ${isDark ? "text-white" : "text-gray-900"}`}>ECOSORT</h2>
+                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Dashboard</p>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={() => {
+                setSidebarOpen(false);
+                if (window.innerWidth >= 1024) {
+                  setSidebarCollapsed(!sidebarCollapsed);
+                }
+              }}
+              className={`p-2 rounded-lg ${isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"} transition-colors`}
+            >
+              {sidebarCollapsed ? <FiMenu className="w-5 h-5" /> : <FiX className="w-5 h-5" />}
+            </button>
+          </div>
+
+          <nav className="flex-1 overflow-y-auto p-4 space-y-2" style={{ scrollbarWidth: "thin" }}>
+            {MENU_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleNavigation(item)}
+                  className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-3'} px-4 py-3.5 rounded-xl transition-all duration-300 group relative overflow-hidden ${
+                    isActive
+                      ? `${isDark 
+                          ? "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25" 
+                          : "bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/25"
+                        } transform scale-[1.02]`
+                      : `${isDark 
+                          ? "text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white" 
+                          : "text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:text-gray-900"
+                        } hover:transform hover:scale-[1.01] border border-transparent hover:border-gray-200 dark:hover:border-gray-600`
+                  }`}
+                  title={sidebarCollapsed ? item.title : ''}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-20"></div>
+                  )}
+                  <Icon className={`w-5 h-5 ${isActive ? "text-white" : ""} transition-colors flex-shrink-0`} />
+                  {!sidebarCollapsed && <span className="font-medium flex-1 text-left">{item.title}</span>}
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className={`p-4 border-t ${isDark ? "border-gray-700" : "border-gray-200"} flex-shrink-0`}>
+            {!sidebarCollapsed && (
+              <div
+                className={`flex items-center space-x-3 p-3 rounded-lg cursor-pointer group transition-colors mb-3 ${
+                  isDark
+                    ? "hover:bg-gray-700 text-gray-300 hover:text-white"
+                    : "hover:bg-slate-50 text-slate-600 hover:text-slate-800"
+                }`}
+                onClick={() => navigate("/profile")}
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-100 to-teal-100 flex items-center justify-center group-hover:shadow-md transition-all">
+                  <FiUser className="text-emerald-600 w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{userName || "User"}</p>
+                  <p className={`text-xs truncate ${isDark ? "text-gray-400" : "text-slate-500"}`}>{auth.currentUser?.email}</p>
+                </div>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'space-x-2 justify-center'} py-2.5 rounded-lg transition-all hover:transform hover:scale-105 ${
+                isDark 
+                  ? "text-gray-400 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/30" 
+                  : "text-gray-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200"
+              }`}
+              title={sidebarCollapsed ? "Logout" : ''}
+            >
+              <FiLogOut className="w-5 h-5" />
+              {!sidebarCollapsed && <span className="font-medium">Logout</span>}
+            </button>
+          </div>
+        </aside>
+
+        {sidebarOpen && (
+          <div
+            className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+            style={{ zIndex: 45 }}
+          />
+        )}
+
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          <div className="p-4 lg:p-6">
+            <div
+              className={`rounded-2xl shadow-xl border ${
+                isDark ? "bg-gray-800/50 border-gray-700/50" : "bg-white/80 border-slate-200/50"
+              } backdrop-blur-sm`}
+            >
+              <div className="p-4 lg:p-8 min-h-[90vh]">
+                {activeTab === "overview" && (
+                  <div className="space-y-6 lg:space-y-8">
+                    {/* Welcome Header */}
+                    <div className="relative overflow-hidden rounded-2xl">
+                      <div className={`absolute inset-0 bg-gradient-to-r ${isDark ? 'from-emerald-600/20 via-teal-600/20 to-blue-600/20' : 'from-emerald-500/10 via-teal-500/10 to-blue-500/10'}`}></div>
+                      <div className="relative p-6 lg:p-8">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                          <div>
+                            <h2 className={`text-2xl lg:text-4xl font-black mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+                              {getGreeting()}, <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{userName || "User"}</span>!
+                            </h2>
+                            <p className={`text-base lg:text-lg ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                              Ready to make an impact today? Let's sort for a better tomorrow.
+                            </p>
+                          </div>
+                          <div className={`flex items-center gap-4 p-4 lg:p-6 rounded-2xl ${isDark ? "bg-gray-800/80 border border-gray-700" : "bg-white border border-slate-200"} shadow-lg`}>
+                            <div>
+                              <div className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                Eco Points
+                              </div>
+                              <div className="flex items-baseline gap-2">
+                                <div className={`text-4xl lg:text-5xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent`}>
+                                  {loadingUser ? "..." : points || 0}
+                                </div>
+                                
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Main Grid Layout */}
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                      {/* Left Column - Collection Schedule */}
+                      <div className="xl:col-span-2 space-y-6">
+                        {/* Next Collection Card */}
+                        <div className={`rounded-2xl overflow-hidden shadow-xl border ${isDark ? "bg-gradient-to-br from-blue-900/40 to-indigo-900/40 border-blue-700/50" : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"}`}>
+                          <div className="p-6 lg:p-8">
+                            <div className="flex items-center gap-3 mb-6">
+                              <div className={`w-12 h-12 rounded-xl ${isDark ? "bg-blue-500/20" : "bg-blue-100"} flex items-center justify-center`}>
+                                <FaCalendarAlt className={`w-6 h-6 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                              </div>
+                              <div>
+                                <h3 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-blue-200" : "text-blue-800"}`}>
+                                  Next Collection
+                                </h3>
+                                <p className={`text-sm ${isDark ? "text-blue-400" : "text-blue-600"}`}>
+                                  Don't miss your collection day
+                                </p>
+                              </div>
+                            </div>
+
+                            {loadingSchedules ? (
+                              <div className="flex flex-col items-center justify-center py-12">
+                                <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mb-4"></div>
+                                <span className={`text-sm ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+                                  Loading schedule...
+                                </span>
+                              </div>
+                            ) : !nextCollection ? (
+                              <div className="text-center py-12">
+                                <div className={`w-20 h-20 mx-auto mb-4 rounded-full ${isDark ? "bg-blue-500/10" : "bg-blue-100"} flex items-center justify-center`}>
+                                  <FaCalendarAlt className={`w-10 h-10 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                                </div>
+                                <h4 className={`text-lg font-bold mb-2 ${isDark ? "text-blue-300" : "text-blue-700"}`}>
+                                  No Schedule Available
+                                </h4>
+                                <p className={`text-sm ${isDark ? "text-blue-400" : "text-blue-600"}`}>
+                                  Contact your administrator to set up collection schedules
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-6">
+                                <div className={`p-6 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/80"} backdrop-blur-sm border ${isDark ? "border-gray-700" : "border-blue-200"}`}>
+                                  <div className="flex items-start justify-between mb-4">
+                                    <div className="flex-1">
+                                      <div className={`text-4xl lg:text-5xl font-black mb-3 ${isDark ? "text-white" : "text-blue-900"}`}>
+                                        {nextCollection.date.toLocaleDateString('en-US', { weekday: 'long' })}
+                                      </div>
+                                      <div className={`text-2xl font-bold mb-4 ${isDark ? "text-gray-300" : "text-slate-700"}`}>
+                                        {nextCollection.date.toLocaleDateString('en-US', {
+                                          month: 'long',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                      </div>
+                                    </div>
+                                    {isToday(nextCollection.date) && (
+                                      <div className="animate-pulse">
+                                        <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                          <span className="w-2 h-2 bg-white rounded-full mr-2 animate-ping"></span>
+                                          TODAY
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-blue-50"}`}>
+                                      <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-blue-500/20" : "bg-blue-100"} flex items-center justify-center`}>
+                                        <FaClock className={`w-5 h-5 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
+                                      </div>
+                                      <div>
+                                        <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                          Collection Time
+                                        </div>
+                                        <div className={`text-lg font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                                          {formatTimeRange(nextCollection.schedule.startTime, nextCollection.schedule.endTime)}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {(nextCollection.schedule.area || nextCollection.schedule.barangay) && (
+                                      <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-blue-50"}`}>
+                                        <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-emerald-500/20" : "bg-emerald-100"} flex items-center justify-center`}>
+                                          <FaMapMarkerAlt className={`w-5 h-5 ${isDark ? "text-emerald-400" : "text-emerald-600"}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                            Location
+                                          </div>
+                                          <div className={`text-sm font-bold truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+                                            {nextCollection.schedule.area}
+                                            {nextCollection.schedule.barangay && `, ${nextCollection.schedule.barangay}`}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Week Schedule */}
+                                {weekCollectionDates.length > 0 && (
+                                  <div>
+                                    <h4 className={`text-sm font-bold mb-3 ${isDark ? "text-blue-300" : "text-blue-700"} uppercase tracking-wider`}>
+                                      This Week's Schedule
+                                    </h4>
+                                    <div className={`grid gap-3 ${
+                                      weekCollectionDates.length === 1 
+                                        ? 'grid-cols-1' 
+                                        : weekCollectionDates.length === 2 
+                                        ? 'grid-cols-2' 
+                                        : 'grid-cols-3'
+                                    }`}>
+                                      {weekCollectionDates.map((collection, index) => {
+                                        const isPast = collection.date < new Date() && !isToday(collection.date);
+                                        const isTodayDate = isToday(collection.date);
+                                        
+                                        return (
+                                          <div
+                                            key={index}
+                                            className={`relative p-4 rounded-xl transition-all duration-300 ${
+                                              isTodayDate
+                                                ? `bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/50 scale-105`
+                                                : isPast
+                                                ? `${isDark ? "bg-gray-700/30 text-gray-500" : "bg-gray-100 text-gray-400"} opacity-50`
+                                                : `${isDark ? "bg-gray-700/50 text-gray-300 hover:bg-gray-700" : "bg-white text-gray-700 hover:bg-blue-50"} border ${isDark ? "border-gray-600" : "border-blue-100"} hover:shadow-md`
+                                            }`}
+                                          >
+                                            {isTodayDate && (
+                                              <div className="absolute top-2 right-2">
+                                                <FaCheckCircle className="w-5 h-5 text-white" />
+                                              </div>
+                                            )}
+                                            <div className={`text-xs font-bold mb-1 uppercase tracking-wide ${isTodayDate ? "text-white/90" : ""}`}>
+                                              {collection.date.toLocaleDateString('en-US', { weekday: 'short' })}
+                                            </div>
+                                            <div className={`text-2xl font-black mb-2 ${isTodayDate ? "text-white" : ""}`}>
+                                              {collection.date.getDate()}
+                                            </div>
+                                            <div className={`text-xs font-medium mb-1 ${isTodayDate ? "text-white/90" : ""}`}>
+                                              {formatTime(collection.schedule.startTime)}
+                                            </div>
+                                            {collection.schedule.area && (
+                                              <div className={`text-xs truncate ${isTodayDate ? "text-white/80" : ""}`}>
+                                                {collection.schedule.area}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right Column - Stats */}
+                      <div className="space-y-6">
+                        {/* Quick Stats */}
+                        
+                          <div className="flex items-center gap-3 mb-4">
+                            
+                          
+                          
+                          <div className="space-y-4">
+                           
+                            
+                         
+                            
+                            <div className="space-y-3">
+                              
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Calendar Widget */}
+                        <div className={`rounded-2xl p-6 border ${isDark ? "bg-gray-800/50 border-gray-700" : "bg-white border-slate-200"} shadow-xl`}>
+                          <h3 className={`text-lg font-bold mb-4 ${isDark ? "text-gray-200" : "text-slate-700"}`}>
+                            Calendar
+                          </h3>
+                          <DashboardCalendar
+                            selectedDate={selectedDate}
+                            setSelectedDate={setSelectedDate}
+                            isDark={isDark}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                   
+                      </div>
+                    
+                  
+                )}
+                
+                {activeTab === "submit" && <SubmitWaste />}
+                {activeTab === "rewards" && <Rewards />}
+                {activeTab === "report" && <Forum sidebarOpen={sidebarOpen} />}
+                {activeTab === "leaderboard" && <Leaderboard />}
+                {activeTab === "transactions" && <Transactions />}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-
-
-
       <style>{`
-        @keyframes float {
-          0%, 100% { 
-            transform: translateY(0px) rotate(0deg); 
-          }
-          33% { 
-            transform: translateY(-8px) rotate(0.5deg); 
-          }
-          66% { 
-            transform: translateY(-4px) rotate(-0.5deg); 
-          }
-        }
-        
-        @keyframes float-reverse {
-          0%, 100% { 
-            transform: translateY(0px) rotate(0deg); 
-          }
-          50% { 
-            transform: translateY(10px) rotate(1deg); 
-          }
-        }
-
-        @keyframes bounce-slow {
-          0%, 100% { 
-            transform: translateY(0px) scale(1); 
-          }
-          50% { 
-            transform: translateY(-5px) scale(1.02); 
-          }
-        }
-
-        @keyframes pulse-slow {
-          0%, 100% { 
-            opacity: 0.4; 
-            transform: scale(1); 
-          }
-          50% { 
-            opacity: 0.8; 
-            transform: scale(1.03); 
-          }
-        }
-        
         @keyframes slide-down {
           from { 
             opacity: 0; 
             transform: translateY(-20px); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translateY(0); 
-          }
-        }
-        
-        @keyframes slide-up {
-          from { 
-            opacity: 0; 
-            transform: translateY(20px); 
           }
           to { 
             opacity: 1; 
@@ -578,68 +948,8 @@ export default function Dashboard() {
           }
         }
 
-        @keyframes glow {
-          0%, 100% { 
-            box-shadow: 0 0 3px ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(52, 211, 153, 0.4)'}, 0 0 6px ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(52, 211, 153, 0.3)'}, 0 0 9px ${isDark ? 'rgba(16, 185, 129, 0.1)' : 'rgba(52, 211, 153, 0.2)'};
-          }
-          50% { 
-            box-shadow: 0 0 6px ${isDark ? 'rgba(16, 185, 129, 0.6)' : 'rgba(52, 211, 153, 0.7)'}, 0 0 12px ${isDark ? 'rgba(16, 185, 129, 0.4)' : 'rgba(52, 211, 153, 0.5)'}, 0 0 18px ${isDark ? 'rgba(16, 185, 129, 0.2)' : 'rgba(52, 211, 153, 0.3)'};
-          }
-        }
-
-        @keyframes modal-appear {
-          from { 
-            opacity: 0; 
-            transform: translate(-50%, -50%) scale(0.9); 
-          }
-          to { 
-            opacity: 1; 
-            transform: translate(-50%, -50%) scale(1); 
-          }
-        }
-
-        @keyframes backdrop-appear {
-          from { 
-            opacity: 0; 
-          }
-          to { 
-            opacity: 1; 
-          }
-        }
-
-        @keyframes wave {
-          0% { transform: rotate(0deg); }
-          10% { transform: rotate(14deg); }
-          20% { transform: rotate(-8deg); }
-          30% { transform: rotate(14deg); }
-          40% { transform: rotate(-4deg); }
-          50% { transform: rotate(10deg); }
-          60% { transform: rotate(0deg); }
-          100% { transform: rotate(0deg); }
-        }
-        
-        .animate-float { 
-          animation: float 4s ease-in-out infinite; 
-        }
-        
-        .animate-float-reverse { 
-          animation: float-reverse 5s ease-in-out infinite; 
-        }
-
-        .animate-bounce-slow { 
-          animation: bounce-slow 3s ease-in-out infinite; 
-        }
-        
-        .animate-pulse-slow { 
-          animation: pulse-slow 2s ease-in-out infinite; 
-        }
-        
         .animate-slide-down { 
           animation: slide-down 0.6s ease-out; 
-        }
-        
-        .animate-slide-up { 
-          animation: slide-up 0.6s ease-out 0.1s both; 
         }
         
         .animate-fade-in { 
@@ -654,79 +964,9 @@ export default function Dashboard() {
           animation: fade-in-up 0.5s ease-out both; 
         }
 
-        .animate-glow {
-          animation: glow 2s ease-in-out infinite;
-        }
-
-        .animate-modal-appear { 
-          animation: modal-appear 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; 
-        }
-
-        .animate-backdrop-appear { 
-          animation: backdrop-appear 0.2s ease-out forwards; 
-        }
-
-        /* Enhanced modal backdrop */
-        .modal-backdrop {
-          backdrop-filter: blur(4px);
-          -webkit-backdrop-filter: blur(4px);
-        }
-
-        /* Mobile-specific optimizations */
-        @media (max-width: 640px) {
-          .backdrop-blur-xl {
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-          }
-          
-          /* Reduce animation intensity on mobile */
-          .animate-float,
-          .animate-float-reverse,
-          .animate-bounce-slow {
-            animation-duration: 3s;
-          }
-          
-          .animate-pulse-slow {
-            animation-duration: 1.5s;
-          }
-
-          /* Optimize for smaller screens */
-          .min-w-0 {
-            min-width: 0;
-          }
-
-          /* Better text wrapping */
-          .leading-tight {
-            line-height: 1.1;
-          }
-
-          .leading-relaxed {
-            line-height: 1.4;
-          }
-        }
-
-        /* Touch interactions */
-        .touch-manipulation {
-          touch-action: manipulation;
-          -webkit-tap-highlight-color: transparent;
-        }
-
-        /* Improved active states for mobile */
-        .active\\:scale-95:active {
-          transform: scale(0.95);
-        }
-
-        .group-active\\:scale-110:active {
-          transform: scale(1.1);
-        }
-
-        .group-active\\:w-full:active {
-          width: 100%;
-        }
-
-        /* Custom scrollbar */
         ::-webkit-scrollbar {
-          width: 4px;
+          width: 6px;
+          height: 6px;
         }
         
         ::-webkit-scrollbar-track {
@@ -743,144 +983,23 @@ export default function Dashboard() {
           background: linear-gradient(to bottom, #059669, #0f766e);
         }
 
-        /* Selection styling */
         ::selection {
           background: ${isDark ? 'rgba(16, 185, 129, 0.3)' : 'rgba(52, 211, 153, 0.4)'};
           color: ${isDark ? '#ffffff' : '#000000'};
         }
 
-        /* Smooth transitions optimized for mobile */
         * {
           transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
           transition-timing-function: cubic-bezier(0.25, 0.46, 0.45, 0.94);
           transition-duration: 200ms;
         }
 
-        /* Enhanced touch feedback */
         button:active,
         [role="button"]:active {
           transform: scale(0.95);
           transition-duration: 100ms;
         }
 
-        /* Theme transition effects */
-        .theme-transition {
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        /* Mobile-specific optimizations */
-        @media (max-width: 640px) {
-          .backdrop-blur-xl {
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-          }
-          
-          /* Reduce animation intensity on mobile */
-          .animate-float,
-          .animate-float-reverse,
-          .animate-bounce-slow {
-            animation-duration: 3s;
-          }
-          
-          .animate-pulse-slow {
-            animation-duration: 1.5s;
-          }
-
-          /* Optimize for smaller screens */
-          .min-w-0 {
-            min-width: 0;
-          }
-
-          /* Better text wrapping */
-          .leading-tight {
-            line-height: 1.1;
-          }
-
-          .leading-relaxed {
-            line-height: 1.4;
-          }
-
-          /* Calendar mobile optimizations */
-          .react-calendar__tile {
-            padding: 0.5rem 0.25rem !important;
-            min-height: 36px !important;
-            font-size: 0.8rem !important;
-          }
-
-          .react-calendar__navigation button {
-            min-width: 40px !important;
-            font-size: 0.875rem !important;
-          }
-        }
-
-        /* Very small screens (< 375px) */
-        @media (max-width: 374px) {
-          .px-3 {
-            padding-left: 0.5rem;
-            padding-right: 0.5rem;
-          }
-
-          .gap-3 {
-            gap: 0.5rem;
-          }
-
-          .text-xl {
-            font-size: 1.125rem;
-            line-height: 1.75rem;
-          }
-
-          .w-80 {
-            width: calc(100vw - 1rem);
-          }
-
-          .min-w-\\[280px\\] {
-            min-width: calc(100vw - 2rem);
-          }
-
-          .react-calendar__tile {
-            padding: 0.375rem 0.125rem !important;
-            min-height: 32px !important;
-            font-size: 0.75rem !important;
-          }
-        }
-
-        /* Large mobile screens optimization */
-        @media (min-width: 375px) and (max-width: 640px) {
-          .grid-cols-2 {
-            gap: 1rem;
-          }
-        }
-
-        /* Accessibility improvements */
-        @media (prefers-reduced-motion: reduce) {
-          .animate-float,
-          .animate-float-reverse,
-          .animate-bounce-slow,
-          .animate-spin,
-          .animate-glow {
-            animation: none;
-          }
-          
-          .group-active\\:scale-110,
-          .active\\:scale-95,
-          .active\\:scale-\\[0\\.98\\] {
-            transform: none;
-          }
-
-          * {
-            transition-duration: 50ms;
-          }
-
-          .react-calendar__tile:hover {
-            transform: none !important;
-          }
-
-          .react-calendar__tile:active {
-            transform: none !important;
-          }
-        }
-
-        /* Focus states for accessibility */
         button:focus-visible,
         [role="button"]:focus-visible {
           outline: 2px solid ${isDark ? '#10b981' : '#059669'};
@@ -888,13 +1007,53 @@ export default function Dashboard() {
           border-radius: 0.75rem;
         }
 
-        .react-calendar__tile:focus-visible {
-          outline: 2px solid ${isDark ? '#10b981' : '#059669'} !important;
-          outline-offset: 2px !important;
-          border-radius: 0.5rem !important;
+        @media (prefers-reduced-motion: reduce) {
+          .animate-slide-down,
+          .animate-fade-in,
+          .animate-fade-in-up {
+            animation: none;
+          }
+          
+          * {
+            transition-duration: 50ms;
+          }
         }
 
-        /* High contrast mode support */
+        body {
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+          text-rendering: optimizeLegibility;
+        }
+
+        @media (max-width: 640px) {
+          .backdrop-blur-xl {
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+          }
+        }
+
+        .touch-manipulation {
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        button,
+        [role="button"] {
+          min-height: 44px;
+          min-width: 44px;
+        }
+
+        @supports (padding-top: env(safe-area-inset-top)) {
+          .py-3 {
+            padding-top: max(0.75rem, env(safe-area-inset-top));
+            padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+          }
+        }
+
+        nav[style*="scrollbarWidth"] {
+          scrollbar-color: ${isDark ? '#10b981 #1f2937' : '#10b981 #f3f4f6'};
+        }
+
         @media (prefers-contrast: high) {
           .backdrop-blur-xl,
           .backdrop-blur-2xl {
@@ -902,122 +1061,10 @@ export default function Dashboard() {
             -webkit-backdrop-filter: none;
             background: ${isDark ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
           }
-
-          .shadow-lg,
-          .shadow-xl,
-          .shadow-2xl {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
-          }
-
-          .react-calendar__tile {
-            border: 1px solid ${isDark ? '#4b5563' : '#d1d5db'} !important;
-          }
         }
 
-        /* Safe area insets for notched devices */
-        @supports (padding-top: env(safe-area-inset-top)) {
-          .pt-4 {
-            padding-top: max(1rem, env(safe-area-inset-top));
-          }
-        }
-
-        /* Prevent horizontal scrolling */
-        .overflow-x-hidden {
-          overflow-x: hidden;
-        }
-
-        /* Optimize font rendering on mobile */
-        body {
-          -webkit-font-smoothing: antialiased;
-          -moz-osx-font-smoothing: grayscale;
-          text-rendering: optimizeLegibility;
-        }
-
-        /* Improve button tap targets for mobile */
-        button,
-        [role="button"] {
-          min-height: 44px;
-          min-width: 44px;
-        }
-
-        /* Optimize dropdown positioning for small screens */
-        @media (max-width: 640px) {
-          .absolute.right-0 {
-            right: -0.75rem;
-            left: auto;
-            transform: none;
-          }
-
-          .w-80.max-w-\\[calc\\(100vw-24px\\)\\] {
-            width: calc(100vw - 1.5rem);
-            max-width: calc(100vw - 1.5rem);
-          }
-        }
-
-        /* Loading states */
-        .loading-shimmer {
-          background: linear-gradient(90deg, transparent, ${isDark ? 'rgba(75, 85, 99, 0.3)' : 'rgba(229, 231, 235, 0.8)'}, transparent);
-          background-size: 200% 100%;
-          animation: shimmer 1.5s infinite;
-        }
-
-        @keyframes shimmer {
-          0% {
-            background-position: -200% 0;
-          }
-          100% {
-            background-position: 200% 0;
-          }
-        }
-
-        /* Enhanced notification badge */
-        .notification-badge {
-          animation: notification-pulse 2s infinite;
-        }
-
-        @keyframes notification-pulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.1);
-            opacity: 0.8;
-          }
-        }
-
-        /* Calendar date indicator animations */
-        .garbage-day-indicator {
-          animation: garbage-glow 2s ease-in-out infinite alternate;
-        }
-
-        @keyframes garbage-glow {
-          from {
-            box-shadow: 0 0 5px rgba(16, 185, 129, 0.5);
-          }
-          to {
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.8), 0 0 30px rgba(16, 185, 129, 0.6);
-          }
-        }
-
-        /* Improve calendar month navigation */
-        .react-calendar__navigation__prev2-button,
-        .react-calendar__navigation__next2-button {
-          display: none !important;
-        }
-
-        /* Custom styling for weekend days */
-        .react-calendar__month-view__days__day--weekend {
-          color: ${isDark ? '#f87171' : '#dc2626'} !important;
-        }
-
-        /* Ensure proper z-index stacking */
-        .calendar-popup {
-          z-index: 9999 !important;
-        }
-
-        .notification-dropdown {
-          z-index: 9998 !important;
+        aside {
+          will-change: transform, width;
         }
       `}</style>
     </div>

@@ -22,6 +22,7 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
+  RefreshCw,
 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 
@@ -36,6 +37,7 @@ export default function Transactions() {
   const [redemptions, setRedemptions] = useState([]);
 
   const [loadingUserData, setLoadingUserData] = useState(true);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
   const [error, setError] = useState(null);
 
   const [activeTab, setActiveTab] = useState("all"); 
@@ -43,6 +45,18 @@ export default function Transactions() {
   const [dateRange, setDateRange] = useState("all"); 
   const [sortOrder, setSortOrder] = useState("desc"); 
   const [showPoints, setShowPoints] = useState(true);
+
+  // Check if running as PWA
+  const [isPWA, setIsPWA] = useState(false);
+
+  useEffect(() => {
+    const checkPWA = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = window.navigator.standalone === true;
+      setIsPWA(isStandalone || isIOSStandalone);
+    };
+    checkPWA();
+  }, []);
 
   const ArrowLeft = () => (
     <svg
@@ -68,6 +82,8 @@ export default function Transactions() {
     lifestyle: "🌱",
     food: "🥗",
     products: "🧽",
+    reward: "🎁",
+    default: "🎟️",
   };
 
   const categoryColors = {
@@ -76,6 +92,8 @@ export default function Transactions() {
     lifestyle: isDark ? "bg-purple-900/30 text-purple-400" : "bg-purple-100 text-purple-700",
     food: isDark ? "bg-orange-900/30 text-orange-400" : "bg-orange-100 text-orange-700",
     products: isDark ? "bg-teal-900/30 text-teal-400" : "bg-teal-100 text-teal-700",
+    reward: isDark ? "bg-pink-900/30 text-pink-400" : "bg-pink-100 text-pink-700",
+    default: isDark ? "bg-gray-800/30 text-gray-400" : "bg-gray-100 text-gray-700",
   };
 
   const totalEarned = transactions.reduce((sum, tx) => sum + (tx.points || 0), 0);
@@ -119,8 +137,12 @@ export default function Transactions() {
   // Fetch earned transactions ("points_awarded")
   const fetchTransactions = useCallback(async () => {
     try {
+      setLoadingTransactions(true);
       const user = auth.currentUser;
       if (!user) return;
+      
+      console.log("Fetching earned transactions for user:", user.uid);
+      
       const q = query(
         collection(db, "point_transactions"),
         where("userId", "==", user.uid),
@@ -128,8 +150,12 @@ export default function Transactions() {
         orderBy("timestamp", "desc")
       );
       const snapshot = await getDocs(q);
+      
+      console.log("Earned transactions found:", snapshot.size);
+      
       const data = snapshot.docs.map((doc) => {
         const tx = doc.data();
+        console.log("Earned transaction:", tx);
         return {
           id: doc.id,
           description: tx.description || "Points Earned",
@@ -142,39 +168,96 @@ export default function Transactions() {
       setTransactions(data);
     } catch (err) {
       setError("Failed to load transactions.");
-      console.error(err);
+      console.error("Error fetching transactions:", err);
+    } finally {
+      setLoadingTransactions(false);
     }
   }, []);
 
   // Fetch redeemed transactions ("points_redeemed")
   const fetchRedemptions = useCallback(async () => {
     try {
+      setLoadingTransactions(true);
       const user = auth.currentUser;
       if (!user) return;
-      const q = query(
-        collection(db, "point_transactions"),
-        where("userId", "==", user.uid),
-        where("type", "==", "points_redeemed"),
-        orderBy("timestamp", "desc")
-      );
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map((doc) => {
-        const tx = doc.data();
-        return {
-          id: doc.id,
-          description: tx.description || "Redeemed reward",
-          points: typeof tx.points === "number" ? Math.abs(tx.points) : 0,
-          timestamp: tx.timestamp?.toDate?.() || new Date(0),
-          type: tx.type,
-          category: tx.category || "products",
-        };
-      });
-      setRedemptions(data);
+      
+      console.log("Fetching redemption transactions for user:", user.uid);
+      
+      // Try multiple query approaches to find redemptions
+      const queries = [
+        // Standard query
+        query(
+          collection(db, "point_transactions"),
+          where("userId", "==", user.uid),
+          where("type", "==", "points_redeemed"),
+          orderBy("timestamp", "desc")
+        ),
+        // Alternative: look for negative points
+        query(
+          collection(db, "point_transactions"),
+          where("userId", "==", user.uid),
+          orderBy("timestamp", "desc")
+        ),
+      ];
+
+      let allRedemptions = [];
+      
+      for (const q of queries) {
+        try {
+          const snapshot = await getDocs(q);
+          console.log(`Query ${queries.indexOf(q)} found ${snapshot.size} documents`);
+          
+          snapshot.docs.forEach((doc) => {
+            const tx = doc.data();
+            console.log("Transaction data:", tx);
+            
+            // Check if it's a redemption by type OR negative points
+            if (tx.type === "points_redeemed" || 
+                (typeof tx.points === "number" && tx.points < 0)) {
+              
+              // Avoid duplicates
+              if (!allRedemptions.find(r => r.id === doc.id)) {
+                allRedemptions.push({
+                  id: doc.id,
+                  description: tx.description || tx.rewardName || "Redeemed reward",
+                  points: Math.abs(typeof tx.points === "number" ? tx.points : 0),
+                  timestamp: tx.timestamp?.toDate?.() || new Date(0),
+                  type: "points_redeemed",
+                  category: tx.category || "reward",
+                  rewardName: tx.rewardName,
+                });
+              }
+            }
+          });
+        } catch (err) {
+          console.error(`Query ${queries.indexOf(q)} error:`, err);
+        }
+      }
+      
+      console.log("Total redemptions found:", allRedemptions.length);
+      setRedemptions(allRedemptions);
+      
+      if (allRedemptions.length === 0) {
+        console.warn("No redemptions found. Check if:");
+        console.warn("1. Redemptions are being saved to 'point_transactions' collection");
+        console.warn("2. The 'type' field is set to 'points_redeemed'");
+        console.warn("3. The 'userId' field matches the current user");
+        console.warn("4. The 'timestamp' field exists and is a Firestore Timestamp");
+      }
+      
     } catch (err) {
       setError("Failed to load redemptions.");
-      console.error(err);
+      console.error("Error fetching redemptions:", err);
+    } finally {
+      setLoadingTransactions(false);
     }
   }, []);
+
+  // Manual refresh function
+  const handleRefresh = useCallback(async () => {
+    setError(null);
+    await Promise.all([fetchTransactions(), fetchRedemptions()]);
+  }, [fetchTransactions, fetchRedemptions]);
 
   // Load all transaction types on component mount
   useEffect(() => {
@@ -246,7 +329,7 @@ export default function Transactions() {
   const renderMobileTransaction = (tx, type) => {
     const isEarned = type === "earned" || tx.type === "points_awarded";
     const amount = Math.abs(tx.points || 0);
-    const cat = tx.category || "recycling";
+    const cat = tx.category || (isEarned ? "recycling" : "reward");
 
     return (
       <div
@@ -261,10 +344,10 @@ export default function Transactions() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
             <div
-              className={`${categoryColors[cat]} w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0`}
+              className={`${categoryColors[cat] || categoryColors.default} w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0`}
               title={cat}
             >
-              {categoryIcons[cat]}
+              {categoryIcons[cat] || categoryIcons.default}
             </div>
             <div className="flex-1 min-w-0">
               <p
@@ -307,7 +390,7 @@ export default function Transactions() {
   const renderDesktopTransaction = (tx, type) => {
     const isEarned = type === "earned" || tx.type === "points_awarded";
     const amount = Math.abs(tx.points || 0);
-    const cat = tx.category || "recycling";
+    const cat = tx.category || (isEarned ? "recycling" : "reward");
 
     return (
       <tr
@@ -321,10 +404,10 @@ export default function Transactions() {
         <td className="px-6 py-4">
           <div className="flex items-center space-x-3">
             <div
-              className={`${categoryColors[cat]} w-10 h-10 rounded-lg flex items-center justify-center`}
+              className={`${categoryColors[cat] || categoryColors.default} w-10 h-10 rounded-lg flex items-center justify-center`}
               title={cat}
             >
-              {categoryIcons[cat]}
+              {categoryIcons[cat] || categoryIcons.default}
             </div>
             <div>
               <p className={`font-medium ${isDark ? "text-gray-200" : "text-gray-900"}`}>
@@ -416,29 +499,43 @@ export default function Transactions() {
       {/* Mobile Layout */}
       <div className="lg:hidden">
         {/* Sticky Header */}
-        <div className={`sticky top-0 z-50 px-4 py-3 border-b backdrop-blur-sm ${
-          isDark 
-            ? "bg-gray-900/90 border-gray-700" 
-            : "bg-white/90 border-gray-200"
-        }`}>
-          <div className="max-w-md mx-auto">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className={`flex items-center gap-2 transition-colors ${
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                }`}
-                aria-label="Back to Dashboard"
-              >
-                <ArrowLeft />
-                <span className="font-medium">Back</span>
-              </button>
-              <h1 className={`text-lg font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
-                Transactions
-              </h1>
+        {isPWA && (
+          <div className={`sticky top-0 z-50 px-4 py-3 border-b backdrop-blur-sm ${
+            isDark 
+              ? "bg-gray-900/90 border-gray-700" 
+              : "bg-white/90 border-gray-200"
+          }`}>
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className={`flex items-center gap-2 transition-colors ${
+                    isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                  }`}
+                  aria-label="Back to Dashboard"
+                >
+                  <ArrowLeft />
+                  <span className="font-medium">Back</span>
+                </button>
+                <h1 className={`text-lg font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
+                  Transactions
+                </h1>
+                <button
+                  onClick={handleRefresh}
+                  disabled={loadingTransactions}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                  }`}
+                  aria-label="Refresh transactions"
+                >
+                  <RefreshCw className={`w-5 h-5 ${loadingTransactions ? 'animate-spin' : ''} ${
+                    isDark ? "text-gray-300" : "text-gray-600"
+                  }`} />
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        )}
         
         <div className="max-w-md mx-auto px-4 py-4">
           {/* Welcome Section */}
@@ -575,7 +672,14 @@ export default function Transactions() {
 
           {/* Transaction List */}
           <div role="list" className="space-y-3">
-            {filteredTransactions.length === 0 ? (
+            {loadingTransactions ? (
+              <div className="text-center py-8">
+                <Loader2 className={`animate-spin w-8 h-8 mx-auto mb-3 ${isDark ? "text-green-400" : "text-green-600"}`} />
+                <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                  Loading transactions...
+                </p>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center py-8">
                 <div
                   className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
@@ -587,9 +691,16 @@ export default function Transactions() {
                 <h3 className={`text-base font-medium mb-1 ${isDark ? "text-gray-300" : "text-gray-900"}`}>
                   No transactions found
                 </h3>
-                <p className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                <p className={`text-sm mb-4 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   {searchTerm ? "Try different search terms" : "Start earning eco-points!"}
                 </p>
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-medium hover:bg-green-700 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </button>
               </div>
             ) : (
               filteredTransactions.map((item) =>
@@ -605,24 +716,25 @@ export default function Transactions() {
         <div className="max-w-7xl mx-auto px-6 py-8">
           {/* Desktop Header */}
           <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className={`flex items-center gap-2 transition-colors ${
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                }`}
-                aria-label="Back to Dashboard"
-              >
-                <ArrowLeft />
-                <span className="font-medium">Dashboard</span>
-              </button>
-              <div className={`w-px h-6 ${isDark ? "bg-gray-700" : "bg-gray-300"}`}></div>
+            <div>
               <h1 className={`text-2xl font-bold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
                 Transaction History
               </h1>
             </div>
             
             <div className="flex items-center space-x-4">
+              <button
+                onClick={handleRefresh}
+                disabled={loadingTransactions}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? "hover:bg-gray-700" : "hover:bg-gray-100"
+                }`}
+                aria-label="Refresh transactions"
+              >
+                <RefreshCw className={`w-5 h-5 ${loadingTransactions ? 'animate-spin' : ''} ${
+                  isDark ? "text-gray-300" : "text-gray-600"
+                }`} />
+              </button>
               <button
                 onClick={() => setShowPoints(!showPoints)}
                 className={`p-2 rounded-lg transition-colors ${
@@ -671,7 +783,6 @@ export default function Transactions() {
                 <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                   <TrendingUp className="w-6 h-6" />
                 </div>
-                <span className="text-green-100 text-sm font-medium">+12% vs last month</span>
               </div>
               <p className="text-green-100 text-sm mb-1">Total Points Earned</p>
               <p className="text-3xl font-bold">{totalEarned.toLocaleString()}</p>
@@ -688,15 +799,22 @@ export default function Transactions() {
               <p className="text-3xl font-bold">{totalSpent.toLocaleString()}</p>
             </div>
 
-            <div className="bg-gradient-to-br from-blue-400 to-blue-600 rounded-2xl p-6 text-white">
+            <div className={`rounded-2xl p-6 border ${
+              isDark ? "bg-gray-800/50 border-gray-700" : "bg-white/70 border-gray-200"
+            }`}>
               <div className="flex items-center justify-between mb-4">
-                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-                  <Coins className="w-6 h-6" />
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  isDark ? "bg-gray-700" : "bg-gray-100"
+                }`}>
+                  <Coins className={`w-6 h-6 ${isDark ? "text-yellow-400" : "text-yellow-600"}`} />
                 </div>
-                <span className="text-blue-100 text-sm font-medium">Ready to use</span>
               </div>
-              <p className="text-blue-100 text-sm mb-1">Net Balance</p>
-              <p className="text-3xl font-bold">{(totalEarned - totalSpent).toLocaleString()}</p>
+              <p className={`text-sm mb-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
+                Current Balance
+              </p>
+              <p className={`text-3xl font-bold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
+                {points.toLocaleString()}
+              </p>
             </div>
           </div>
 
@@ -780,7 +898,14 @@ export default function Transactions() {
           <div className={`rounded-2xl overflow-hidden shadow-sm border ${
             isDark ? "bg-gray-800/50 border-gray-700" : "bg-white border-gray-200"
           }`}>
-            {filteredTransactions.length === 0 ? (
+            {loadingTransactions ? (
+              <div className="text-center py-16">
+                <Loader2 className={`animate-spin w-12 h-12 mx-auto mb-6 ${isDark ? "text-green-400" : "text-green-600"}`} />
+                <p className={`text-lg ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+                  Loading transactions...
+                </p>
+              </div>
+            ) : filteredTransactions.length === 0 ? (
               <div className="text-center py-16">
                 <div
                   className={`w-20 h-20 mx-auto mb-6 rounded-full flex items-center justify-center ${
@@ -792,11 +917,18 @@ export default function Transactions() {
                 <h3 className={`text-xl font-medium mb-3 ${isDark ? "text-gray-300" : "text-gray-900"}`}>
                   No transactions found
                 </h3>
-                <p className={`text-base ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+                <p className={`text-base mb-6 ${isDark ? "text-gray-400" : "text-gray-500"}`}>
                   {searchTerm 
                     ? "Try adjusting your search terms or date filters" 
                     : "Start earning points by completing eco-friendly activities!"}
                 </p>
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center px-6 py-3 rounded-xl bg-green-600 text-white font-medium hover:bg-green-700 transition-colors"
+                >
+                  <RefreshCw className="w-5 h-5 mr-2" />
+                  Refresh Transactions
+                </button>
               </div>
             ) : (
               <table className="w-full">

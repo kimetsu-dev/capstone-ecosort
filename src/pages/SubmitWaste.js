@@ -178,34 +178,16 @@ export default function SubmitWaste() {
 
   return (
     <>
-      <div className={`App min-h-screen transition-all duration-300 ${styles.backgroundGradient} pt-12`}>
+      {/* FIXED SECTION: 
+        The fixed header with the 'Back to Dashboard' button has been removed.
+        Navigation is now handled entirely by the parent Dashboard component (sidebar or PWA menu).
+        The 'pt-12' on the main div provides spacing assuming it's inside a container,
+        but since the parent p-6, we can remove it or adjust as needed. Let's remove it
+        to let the parent container control padding.
+      */}
+      <div className={`App min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
          <div className="w-full px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="max-w-7xl mx-auto">
-
-            {/* Back Button */}
-              <div
-    className={`fixed top-0 left-0 right-0 z-50 w-full transition-all duration-300 ${
-      isDark ? "bg-gray-900 border-b border-gray-700 shadow-lg" : "bg-white border-b border-gray-300 shadow-lg"
-    }`}
-    style={{
-      backdropFilter: 'blur(12px)',
-      WebkitBackdropFilter: 'blur(12px)',
-    }}
-  >
-    <div className="max-w-7xl mx-auto px-4 sm:px-6">
-      <button
-        onClick={() => navigate("/dashboard")}
-        className={`flex items-center gap-2 py-3 rounded-xl transition-colors group ${
-          isDark ? "text-gray-300 hover:text-white" : "text-gray-700 hover:text-gray-900"
-        }`}
-        aria-label="Back to Dashboard"
-        style={{ borderRadius: "0.75rem" }}
-      >
-        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-        <span className="font-medium">Dashboard</span>
-      </button>
-    </div>
-  </div>
 
             {/* Header Section */}
             <div className="text-center mb-4 sm:mb-6">
@@ -481,8 +463,7 @@ export default function SubmitWaste() {
                           <Recycle className="w-4 h-4 text-green-600" />
                         </div>
                         <p className="text-sm sm:text-base">
-                          <strong className="text-green-700">{weight} kg</strong> of waste diverted from landfills!
-                        </p>
+                          <strong className="text-green-700">{weight} kg</strong> of waste diverted from landfills!</p>
                       </div>
                     </div>
                   )}

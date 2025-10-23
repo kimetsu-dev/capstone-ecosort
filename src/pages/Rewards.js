@@ -62,7 +62,7 @@ const Gift = ({ className = "w-4 h-4" }) => (
 );
 
 const ArrowLeft = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
   </svg>
 );
@@ -70,6 +70,23 @@ const ArrowLeft = () => (
 const CheckCircle2 = ({ className = "w-4 h-4" }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+const Copy = ({ className = "w-4 h-4" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+    />
+  </svg>
+);
+
+const Check = ({ className = "w-4 h-4" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
   </svg>
 );
 
@@ -116,8 +133,8 @@ function generateRedemptionCode(length = 8) {
   return code;
 }
 
-function Toast({ visible, message, type }) {
-  const { styles } = useTheme();
+// Toast component
+function Toast({ visible, message, type, onClose }) {
   if (!visible) return null;
   const bgColors = {
     success: "bg-green-600",
@@ -127,12 +144,18 @@ function Toast({ visible, message, type }) {
   const bgClass = bgColors[type] || bgColors.info;
   return (
     <div
-      className={`fixed bottom-6 right-6 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${bgClass}`}
+      className={`fixed bottom-6 right-6 left-6 sm:left-auto sm:right-6 px-4 py-3 rounded-lg shadow-lg text-white z-50 ${bgClass} flex items-center justify-between`}
       role="alert"
       aria-live="assertive"
-      style={{ minWidth: "200px" }}
     >
-      {message}
+      <span className="text-sm">{message}</span>
+      <button 
+        onClick={onClose} 
+        className="ml-4 -mr-2 p-1 rounded-full text-white/70 hover:text-white hover:bg-black/20 transition-colors flex-shrink-0"
+        aria-label="Close notification"
+      >
+        <X className="w-5 h-5" />
+      </button>
     </div>
   );
 }
@@ -145,7 +168,7 @@ function CompactRewardCard({ reward, onClick }) {
     const qty = reward.stock || 0;
     if (qty === 0) return { text: "Out", color: "bg-red-500" };
     if (qty <= 5) return { text: "Low", color: "bg-orange-500" };
-    return null; // Don't show badge for normal stock
+    return null;
   };
 
   const stockBadge = getStockBadge();
@@ -175,21 +198,21 @@ function CompactRewardCard({ reward, onClick }) {
         
         {/* Stock Badge */}
         {stockBadge && (
-          <div className={`absolute top-3 right-3 ${stockBadge.color} text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg`}>
+          <div className={`absolute top-2 right-2 ${stockBadge.color} text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg`}>
             {stockBadge.text}
           </div>
         )}
 
         {/* Points Badge */}
-        <div className="absolute bottom-3 left-3 bg-black/70 backdrop-blur-sm text-white px-3 py-1 rounded-full flex items-center gap-1 shadow-lg">
+        <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-white px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
           <Coins className="w-3 h-3 text-amber-400" />
-          <span className="text-sm font-semibold">{reward.cost}</span>
+          <span className="text-xs font-semibold">{reward.cost}</span>
         </div>
       </div>
 
       {/* Title */}
-      <div className="p-4">
-        <h3 className={`font-semibold text-center line-clamp-2 ${
+      <div className="p-3">
+        <h3 className={`font-semibold text-sm text-center line-clamp-2 ${
           isDark ? "text-white" : "text-gray-900"
         }`}>
           {reward.name}
@@ -200,7 +223,7 @@ function CompactRewardCard({ reward, onClick }) {
 }
 
 // Detailed Reward Modal
-function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loading }) {
+function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem }) {
   const { isDark } = useTheme();
 
   if (!visible || !reward) return null;
@@ -216,17 +239,16 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loa
   const canRedeem = userPoints >= reward.cost && reward.stock > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-4">
-      {/* Modal */}
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
       <div 
         className={`${
           isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-        } rounded-t-3xl sm:rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-slideUp sm:animate-scaleIn`}
+        } rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-slideUp sm:animate-scaleIn`}
       >
         {/* Header */}
-        <div className="sticky top-0 p-6 pb-4 border-b border-gray-200 dark:border-gray-600 bg-inherit rounded-t-3xl sm:rounded-t-3xl">
+        <div className={`sticky top-0 p-4 sm:p-6 pb-3 sm:pb-4 border-b ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"} rounded-t-3xl z-10`}>
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Reward Details</h2>
+            <h2 className="text-lg sm:text-xl font-bold">Reward Details</h2>
             <button
               onClick={onClose}
               className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
@@ -237,17 +259,17 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loa
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           {/* Image */}
-          <div className="relative mb-6 rounded-2xl overflow-hidden">
+          <div className="relative mb-4 sm:mb-6 rounded-2xl overflow-hidden">
             {reward.imageUrl ? (
               <img
                 src={reward.imageUrl}
                 alt={reward.name}
-                className="w-full h-64 object-cover"
+                className="w-full h-48 sm:h-64 object-cover"
               />
             ) : (
-              <div className={`w-full h-64 flex items-center justify-center ${
+              <div className={`w-full h-48 sm:h-64 flex items-center justify-center ${
                 isDark ? "bg-gray-700" : "bg-gray-100"
               }`}>
                 <Gift className={`w-16 h-16 ${isDark ? "text-gray-400" : "text-gray-500"}`} />
@@ -256,32 +278,32 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loa
           </div>
 
           {/* Title & Description */}
-          <h3 className="text-2xl font-bold mb-3">{reward.name}</h3>
-          <p className={`mb-6 leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+          <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">{reward.name}</h3>
+          <p className={`mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
             {reward.description}
           </p>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
             {/* Cost */}
-            <div className={`p-4 rounded-xl ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
+            <div className={`p-3 sm:p-4 rounded-xl ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
               <div className="flex items-center gap-2 mb-1">
                 <Coins className="w-4 h-4 text-amber-500" />
-                <span className={`text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cost</span>
+                <span className={`text-xs sm:text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cost</span>
               </div>
-              <span className="text-xl font-bold">{reward.cost}</span>
-              <span className={`text-sm ml-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>points</span>
+              <span className="text-lg sm:text-xl font-bold">{reward.cost}</span>
+              <span className={`text-xs sm:text-sm ml-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>points</span>
             </div>
 
             {/* Stock */}
-            <div className={`p-4 rounded-xl ${stockStatus.bgColor}`}>
+            <div className={`p-3 sm:p-4 rounded-xl ${stockStatus.bgColor}`}>
               <div className="flex items-center gap-2 mb-1">
                 <Info className="w-4 h-4" />
-                <span className="text-sm">Stock</span>
+                <span className="text-xs sm:text-sm">Stock</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold">{reward.stock}</span>
-                <span className={`text-xs px-2 py-1 rounded-full font-medium ${stockStatus.color}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg sm:text-xl font-bold">{reward.stock}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockStatus.color}`}>
                   {stockStatus.text}
                 </span>
               </div>
@@ -289,22 +311,22 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loa
           </div>
 
           {/* User Points */}
-          <div className={`p-4 rounded-xl mb-6 ${isDark ? "bg-indigo-900/20 border border-indigo-500/30" : "bg-indigo-50 border border-indigo-200"}`}>
+          <div className={`p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 ${isDark ? "bg-indigo-900/20 border border-indigo-500/30" : "bg-indigo-50 border border-indigo-200"}`}>
             <div className="flex items-center justify-between">
-              <span className={`${isDark ? "text-indigo-300" : "text-indigo-600"}`}>Your Points</span>
-              <span className="text-xl font-bold">{userPoints.toLocaleString()}</span>
+              <span className={`text-sm ${isDark ? "text-indigo-300" : "text-indigo-600"}`}>Your Points</span>
+              <span className="text-lg sm:text-xl font-bold">{userPoints.toLocaleString()}</span>
             </div>
           </div>
 
           {/* Important Notice */}
-          <div className={`p-4 rounded-xl mb-6 ${isDark ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
-            <div className="flex items-start gap-3">
-              <AlertCircle className={`w-5 h-5 mt-0.5 ${isDark ? "text-red-400" : "text-red-500"}`} />
+          <div className={`p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 ${isDark ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
+            <div className="flex items-start gap-2 sm:gap-3">
+              <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? "text-red-400" : "text-red-500"}`} />
               <div>
-                <h4 className={`font-semibold mb-1 ${isDark ? "text-red-300" : "text-red-700"}`}>
+                <h4 className={`font-semibold mb-1 text-sm sm:text-base ${isDark ? "text-red-300" : "text-red-700"}`}>
                   Onsite Claim Required
                 </h4>
-                <p className={`text-sm ${isDark ? "text-red-400" : "text-red-600"}`}>
+                <p className={`text-xs sm:text-sm ${isDark ? "text-red-400" : "text-red-600"}`}>
                   You must present your redemption code onsite to claim this reward physically.
                 </p>
               </div>
@@ -315,19 +337,17 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, loa
           {canRedeem ? (
             <button
               onClick={() => onRedeem(reward)}
-              disabled={loading}
-              className={`w-full py-4 rounded-xl font-semibold text-lg transition-all duration-200 ${
-                loading
-                  ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-                  : "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:from-green-600 hover:to-emerald-700 hover:shadow-lg transform hover:scale-105 active:scale-95"
-              }`}
+              className={`w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-all duration-200
+                bg-gradient-to-r from-green-500 to-emerald-600 text-white 
+                hover:from-green-600 hover:to-emerald-700 hover:shadow-lg 
+                transform hover:scale-105 active:scale-95`}
             >
-              {loading ? "Processing..." : "Redeem Now"}
+              Redeem Now
             </button>
           ) : (
             <button
               disabled
-              className="w-full py-4 rounded-xl font-semibold text-lg cursor-not-allowed bg-gray-300 text-gray-500"
+              className="w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg cursor-not-allowed bg-gray-300 text-gray-500"
             >
               {reward.stock === 0 ? "Out of Stock" : "Insufficient Points"}
             </button>
@@ -346,15 +366,15 @@ function ConfirmModal({ visible, message, onConfirm, onCancel, loading }) {
       <div
         className={`${
           isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-        } rounded-2xl p-6 max-w-md w-full shadow-lg`}
+        } rounded-2xl p-6 max-w-md w-full shadow-lg animate-scaleIn`}
       >
         <h3 className="text-lg font-semibold mb-4">Please Confirm</h3>
-        <p className="mb-6 whitespace-pre-line">{message}</p>
+        <p className="mb-6 whitespace-pre-line text-sm sm:text-base">{message}</p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             disabled={loading}
-            className={`flex-1 px-4 py-2 rounded-lg border transition disabled:opacity-50 ${
+            className={`flex-1 px-4 py-2 rounded-lg border transition disabled:opacity-50 text-sm sm:text-base ${
               isDark ? "border-gray-600 hover:bg-gray-700" : "border-gray-300 hover:bg-gray-100"
             }`}
           >
@@ -363,9 +383,74 @@ function ConfirmModal({ visible, message, onConfirm, onCancel, loading }) {
           <button
             onClick={onConfirm}
             disabled={loading}
-            className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition disabled:opacity-50"
+            className="flex-1 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition disabled:opacity-50 text-sm sm:text-base"
           >
             {loading ? "Processing..." : "Confirm"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Success Modal
+function SuccessModal({ visible, reward, code, onClose }) {
+  const { isDark } = useTheme();
+  const [copied, setCopied] = useState(false);
+
+  if (!visible || !reward) return null;
+
+  const handleCopyCode = () => {
+    if (code) {
+      navigator.clipboard.writeText(code).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div
+        className={`${
+          isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
+        } rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl animate-scaleIn`}
+      >
+        <div className="text-center">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6 shadow-lg">
+            <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+          </div>
+          <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">Success!</h3>
+          <p className={`text-sm sm:text-base ${isDark ? "text-gray-300" : "text-gray-600"} mb-4 sm:mb-6`}>
+            You've successfully redeemed{" "}
+            <span className={`font-semibold ${isDark ? "text-purple-400" : "text-purple-600"}`}>{reward.name}</span>.
+          </p>
+          <div className={`p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 ${isDark ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
+            <p className={`font-semibold mb-2 sm:mb-3 text-sm sm:text-base ${isDark ? "text-red-300" : "text-red-600"}`}>
+              Present this code onsite to claim your reward:
+            </p>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="flex-1 text-xl sm:text-2xl font-mono font-bold text-center select-all border-2 border-dashed border-indigo-600/50 rounded-lg py-2 sm:py-3 px-3 sm:px-4 bg-indigo-50 text-indigo-900 tracking-widest">
+                {code}
+              </div>
+              <button
+                onClick={handleCopyCode}
+                className={`p-2 sm:p-3 rounded-lg transition-all duration-200 flex items-center justify-center ${
+                  copied
+                    ? "bg-green-600 text-white"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700"
+                }`}
+                aria-label="Copy code"
+              >
+                {copied ? <Check className="w-5 h-5" /> : <Copy className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200 text-sm sm:text-base"
+          >
+            Continue
           </button>
         </div>
       </div>
@@ -380,6 +465,7 @@ export default function Rewards() {
 
   const PAGE_SIZE = 12;
 
+  const [isPWA, setIsPWA] = useState(false);
   const [rewards, setRewards] = useState([]);
   const [userPoints, setUserPoints] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -389,20 +475,36 @@ export default function Rewards() {
   const [redeemedReward, setRedeemedReward] = useState(null);
   const [redemptionCode, setRedemptionCode] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
-  const [loading, setLoading] = useState(false);
+  
+  const [pageLoading, setPageLoading] = useState(false); 
   const [loadingMore, setLoadingMore] = useState(false);
   const [lastVisibleDoc, setLastVisibleDoc] = useState(null);
   const [hasMore, setHasMore] = useState(true);
 
-  // Confirmation modal state
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [rewardPendingConfirmation, setRewardPendingConfirmation] = useState(null);
   const [confirmLoading, setConfirmLoading] = useState(false);
 
-  const showToast = (msg, type = "info") => {
+  useEffect(() => {
+    const checkPWA = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = window.navigator.standalone === true; 
+      setIsPWA(isStandalone || isIOSStandalone);
+    };
+    checkPWA();
+  }, []);
+
+  const closeToast = useCallback(() => {
+    setToast((prev) => ({ ...prev, visible: false }));
+  }, []); 
+
+  const showToast = useCallback((msg, type = "info") => {
     setToast({ visible: true, message: msg, type });
-    setTimeout(() => setToast({ visible: false, message: "", type: "info" }), 4000);
-  };
+    const timer = setTimeout(() => {
+      closeToast();
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [closeToast]); 
 
   useEffect(() => {
     if (!currentUser) {
@@ -429,20 +531,25 @@ export default function Rewards() {
         );
         const rewardsQuery = startAfterDoc ? query(baseQuery, startAfter(startAfterDoc)) : baseQuery;
         const snapshot = await getDocs(rewardsQuery);
+        
         if (snapshot.empty) {
           setHasMore(false);
           return;
         }
+        
         const rewardsPage = snapshot.docs.map((doc) => ({
           id: doc.id,
           ...doc.data(),
         }));
+        
         if (startAfterDoc) {
           setRewards((prev) => [...prev, ...rewardsPage]);
         } else {
           setRewards(rewardsPage);
         }
+        
         setLastVisibleDoc(snapshot.docs[snapshot.docs.length - 1]);
+        
         if (snapshot.docs.length < PAGE_SIZE) {
           setHasMore(false);
         }
@@ -451,7 +558,7 @@ export default function Rewards() {
         showToast("Failed to load rewards", "error");
       }
     },
-    []
+    [showToast, PAGE_SIZE]
   );
 
   useEffect(() => {
@@ -470,7 +577,6 @@ export default function Rewards() {
     setSelectedReward(null);
   };
 
-  // Step 1: Open confirm modal on redeem attempt
   const startRedeemReward = (reward) => {
     if (!currentUser) {
       showToast("Please log in to redeem rewards.", "error");
@@ -486,49 +592,78 @@ export default function Rewards() {
     }
     setRewardPendingConfirmation(reward);
     setConfirmModalVisible(true);
-    setShowDetailModal(false); // Close detail modal
+    setShowDetailModal(false); 
   };
 
-  // Step 2: Confirm redemption & generate redemption code + create Firestore doc
-// Step 2: Confirm redemption & generate redemption code + create Firestore doc atomically
-const confirmRedeemReward = async () => {
-  if (!rewardPendingConfirmation) return;
-  setConfirmLoading(true);
-
-  try {
+  // 🔧 FIXED FUNCTION - This creates transaction records for the Transactions page
+  const confirmRedeemReward = async () => {
+    if (!rewardPendingConfirmation || !currentUser) return;
+    
+    setConfirmLoading(true);
     const reward = rewardPendingConfirmation;
-    const code = generateRedemptionCode();
+    const code = generateRedemptionCode(); 
 
-    await runTransaction(db, async (transaction) => {
-      const userRef = doc(db, "users", currentUser.uid);
-      const rewardRef = doc(db, "rewards", reward.id);
-      const redemptionRef = doc(collection(db, "redemptions"));
+    try {
+      // Step 1: Complete the main redemption transaction
+      const { newPoints, newStock } = await runTransaction(db, async (transaction) => {
+        const userRef = doc(db, "users", currentUser.uid);
+        const rewardRef = doc(db, "rewards", reward.id);
+        const redemptionRef = doc(collection(db, "redemptions")); 
 
-      const userDoc = await transaction.get(userRef);
-      const rewardDoc = await transaction.get(rewardRef);
+        const userDoc = await transaction.get(userRef);
+        const rewardDoc = await transaction.get(rewardRef);
 
-      if (!userDoc.exists() || !rewardDoc.exists()) throw new Error("Document missing");
+        if (!userDoc.exists()) throw new Error("User data not found.");
+        if (!rewardDoc.exists()) throw new Error("Reward not found.");
 
-      const newPoints = (userDoc.data().totalPoints || 0) - reward.cost;
-      const newStock = (rewardDoc.data().stock || 0) - 1;
+        const currentPoints = userDoc.data().totalPoints || 0;
+        const currentStock = rewardDoc.data().stock || 0;
 
-      if (newPoints < 0) throw new Error("Insufficient points");
-      if (newStock < 0) throw new Error("Out of stock");
+        const calculatedNewPoints = currentPoints - reward.cost;
+        const calculatedNewStock = currentStock - 1;
 
-      // Update points and stock in the transaction
-      transaction.update(userRef, { totalPoints: newPoints });
-      transaction.update(rewardRef, { stock: newStock });
+        if (calculatedNewPoints < 0) throw new Error("Insufficient points");
+        if (calculatedNewStock < 0) throw new Error("Out of stock");
 
-      // Create redemption document
-      transaction.set(redemptionRef, {
-        userId: currentUser.uid,
-        rewardId: reward.id,
-        redeemedAt: serverTimestamp(),
-        status: "pending",
-        redemptionCode: code,
+        transaction.update(userRef, { totalPoints: calculatedNewPoints });
+        transaction.update(rewardRef, { stock: calculatedNewStock });
+
+        transaction.set(redemptionRef, {
+          userId: currentUser.uid,
+          userEmail: currentUser.email, 
+          rewardId: reward.id,
+          rewardName: reward.name, 
+          cost: reward.cost,
+          redeemedAt: serverTimestamp(),
+          status: "pending", 
+          redemptionCode: code,
+        });
+
+        return { newPoints: calculatedNewPoints, newStock: calculatedNewStock };
       });
 
-      // Update UI state optimistically inside transaction callback
+      // ⭐ Step 2: CREATE TRANSACTION RECORD (THIS IS THE CRITICAL FIX!)
+      // This makes redemptions appear in the Transactions page
+      try {
+        await addDoc(collection(db, "point_transactions"), {
+          userId: currentUser.uid,
+          type: "points_redeemed",
+          points: -Math.abs(reward.cost), // Negative number to indicate points spent
+          description: `Redeemed: ${reward.name}`,
+          rewardName: reward.name,
+          rewardId: reward.id,
+          category: reward.category || "reward",
+          timestamp: serverTimestamp(),
+        });
+        console.log("✅ Transaction record created successfully for redemption");
+      } catch (txError) {
+        // Log error but don't fail the redemption since it already succeeded
+        console.error("⚠️ Warning: Failed to create transaction record:", txError);
+        // The redemption was successful, just the transaction record failed
+        // You may want to add a cloud function to create missing transaction records later
+      }
+
+      // Step 3: Update UI state
       setUserPoints(newPoints);
       setRewards((prev) =>
         prev.map((r) => (r.id === reward.id ? { ...r, stock: newStock } : r))
@@ -536,47 +671,51 @@ const confirmRedeemReward = async () => {
       setRedeemedReward(reward);
       setRedemptionCode(code);
       setShowSuccessModal(true);
-    });
 
-    showToast("Reward redeemed! Please claim it onsite and present this code.", "success");
-  } catch (error) {
-    console.error("Redemption failed:", error);
-    showToast(error.message || "Failed to redeem reward. Please try again.", "error");
-  } finally {
-    setConfirmLoading(false);
-    setConfirmModalVisible(false);
-    setRewardPendingConfirmation(null);
-  }
-};
+      showToast("Reward redeemed! Please claim it onsite.", "success");
 
+    } catch (error) {
+      console.error("❌ Redemption failed:", error);
+      showToast(error.message || "Failed to redeem reward. Please try again.", "error");
+      setShowDetailModal(true);
+    } finally {
+      setConfirmLoading(false);
+      setConfirmModalVisible(false);
+      setRewardPendingConfirmation(null);
+    }
+  };
 
   const filteredRewards =
     selectedCategory === "all" ? rewards : rewards.filter((reward) => reward.category === selectedCategory);
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
-      {/* Header */}
+      {/* Header - FIXED: Better mobile layout */}
       <div
         className={`${
           isDark ? "bg-gray-800/90 border-gray-700" : "bg-white/90 border-gray-200"
         } backdrop-blur-sm border-b sticky top-0 z-40`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           {/* Top Row */}
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => navigate("/dashboard")}
-              className={`${
-                isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-              } flex items-center gap-2 transition-colors`}
-            >
-              <ArrowLeft />
-              <span className="font-medium">Dashboard</span>
-            </button>
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            {isPWA ? (
+              <button
+                onClick={() => navigate("/dashboard")}
+                className={`${
+                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                } flex items-center gap-1.5 sm:gap-2 transition-colors`}
+              >
+                <ArrowLeft />
+                <span className="font-medium text-sm sm:text-base">Back</span>
+              </button>
+            ) : (
+              <div />
+            )}
 
             <button
               onClick={() => navigate("/my-redemptions")}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition text-sm"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition text-xs sm:text-sm"
             >
               My Redemptions
             </button>
@@ -584,20 +723,20 @@ const confirmRedeemReward = async () => {
 
           {/* Points Display */}
           {currentUser && (
-            <div className="flex justify-center mb-4">
-              <div className="flex items-center gap-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-6 py-3 rounded-full shadow-lg">
-                <Coins className="w-5 h-5" />
-                <span className="font-bold text-lg">{userPoints.toLocaleString()}</span>
-                <span className="text-amber-100 text-sm font-medium">points</span>
+            <div className="flex justify-center mb-3 sm:mb-4">
+              <div className="flex items-center gap-2 sm:gap-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-lg">
+                <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="font-bold text-base sm:text-lg">{userPoints.toLocaleString()}</span>
+                <span className="text-amber-100 text-xs sm:text-sm font-medium">points</span>
               </div>
             </div>
           )}
 
           {/* Category Filter - Horizontal Scroll */}
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             <button
               onClick={() => setSelectedCategory("all")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium transition-all whitespace-nowrap text-xs sm:text-sm flex-shrink-0 ${
                 selectedCategory === "all"
                   ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
                   : `${
@@ -607,14 +746,14 @@ const confirmRedeemReward = async () => {
                     }`
               }`}
             >
-              <Gift className="w-4 h-4" />
+              <Gift className="w-3 h-3 sm:w-4 sm:h-4" />
               All Rewards
             </button>
-            {[...new Set(rewards.map((r) => r.category))].map((category) => (
+            {[...new Set(rewards.map((r) => r.category))].filter(Boolean).map((category) => (
               <button
                 key={category}
                 onClick={() => setSelectedCategory(category)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full font-medium transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-medium transition-all whitespace-nowrap text-xs sm:text-sm flex-shrink-0 ${
                   selectedCategory === category
                     ? "bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg"
                     : `${
@@ -624,7 +763,7 @@ const confirmRedeemReward = async () => {
                       }`
                 }`}
               >
-                <Gift className="w-4 h-4" />
+                <Gift className="w-3 h-3 sm:w-4 sm:h-4" /> 
                 {category.charAt(0).toUpperCase() + category.slice(1)}
               </button>
             ))}
@@ -632,19 +771,19 @@ const confirmRedeemReward = async () => {
         </div>
       </div>
 
-      {/* Rewards Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Rewards Grid - FIXED: Better spacing and padding */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {filteredRewards.length === 0 ? (
-          <div className="text-center py-16">
-            <AlertCircle className={`${isDark ? "text-gray-500" : "text-gray-400"} w-16 h-16 mx-auto mb-4`} />
-            <h3 className={`${isDark ? "text-gray-300" : "text-gray-600"} text-xl font-semibold mb-2`}>
+          <div className="text-center py-12 sm:py-16">
+            <AlertCircle className={`${isDark ? "text-gray-500" : "text-gray-400"} w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4`} />
+            <h3 className={`${isDark ? "text-gray-300" : "text-gray-600"} text-lg sm:text-xl font-semibold mb-2`}>
               No rewards available
             </h3>
-            <p className={`${isDark ? "text-gray-400" : "text-gray-500"}`}>Check back later for new rewards!</p>
+            <p className={`${isDark ? "text-gray-400" : "text-gray-500"} text-sm sm:text-base`}>Check back later for new rewards!</p>
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {filteredRewards.map((reward) => (
                 <CompactRewardCard
                   key={reward.id}
@@ -655,14 +794,14 @@ const confirmRedeemReward = async () => {
             </div>
 
             {hasMore && (
-              <div className="flex justify-center mt-8">
+              <div className="flex justify-center mt-6 sm:mt-8">
                 <button
                   onClick={() => {
                     setLoadingMore(true);
                     fetchRewardsPage(lastVisibleDoc).finally(() => setLoadingMore(false));
                   }}
                   disabled={loadingMore}
-                  className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-5 sm:px-6 py-2.5 sm:py-3 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
                 >
                   {loadingMore ? "Loading..." : "Load More"}
                 </button>
@@ -679,48 +818,19 @@ const confirmRedeemReward = async () => {
         onClose={closeDetailModal}
         userPoints={userPoints}
         onRedeem={startRedeemReward}
-        loading={loading}
       />
 
       {/* Success Modal */}
-      {showSuccessModal && redeemedReward && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div
-            className={`${
-              isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-            } rounded-3xl p-8 max-w-md w-full shadow-2xl animate-scaleIn`}
-          >
-            <div className="text-center">
-              <div className="w-20 h-20 bg-gradient-to-br from-green-400 to-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
-                <CheckCircle2 className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold mb-3">Success!</h3>
-              <p className={`${isDark ? "text-gray-300" : "text-gray-600"} mb-6`}>
-                You've successfully redeemed{" "}
-                <span className="font-semibold text-purple-600">{redeemedReward.name}</span>.
-              </p>
-              <div className={`p-4 rounded-xl mb-6 ${isDark ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
-                <p className="text-red-600 font-semibold mb-3">
-                  Present this code onsite to claim your reward:
-                </p>
-                <div className="text-2xl font-mono font-bold text-center select-all border-2 border-indigo-600 rounded-lg py-3 px-4 bg-indigo-50 text-indigo-900 tracking-widest">
-                  {redemptionCode}
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  setRedemptionCode(null);
-                  setRedeemedReward(null);
-                }}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all duration-200"
-              >
-                Continue
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <SuccessModal
+        visible={showSuccessModal}
+        reward={redeemedReward}
+        code={redemptionCode}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setRedemptionCode(null);
+          setRedeemedReward(null);
+        }}
+      />
 
       {/* Confirmation Modal */}
       <ConfirmModal
@@ -734,57 +844,62 @@ const confirmRedeemReward = async () => {
         onCancel={() => {
           setConfirmModalVisible(false);
           setRewardPendingConfirmation(null);
+          setShowDetailModal(true); 
         }}
         loading={confirmLoading}
       />
 
       {/* Toast Notification */}
-      <Toast visible={toast.visible} message={toast.message} type={toast.type} />
+      <Toast 
+        visible={toast.visible} 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={closeToast} 
+      />
 
       <style>
-  {`
-    .scrollbar-hide {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
-    }
-    .scrollbar-hide::-webkit-scrollbar {
-      display: none;
-    }
-    .line-clamp-2 {
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    @keyframes slideUp {
-      from {
-        transform: translateY(100%);
-        opacity: 0;
-      }
-      to {
-        transform: translateY(0);
-        opacity: 1;
-      }
-    }
-    @keyframes scaleIn {
-      from {
-        transform: scale(0.9);
-        opacity: 0;
-      }
-      to {
-        transform: scale(1);
-        opacity: 1;
-      }
-    }
-    .animate-slideUp {
-      animation: slideUp 0.3s ease-out;
-    }
-    .animate-scaleIn {
-      animation: scaleIn 0.2s ease-out;
-    }
-  `}
-</style>
-
+        {`
+          .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+          .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+          }
+          .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+          @keyframes slideUp {
+            from {
+              transform: translateY(100%);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
+          @keyframes scaleIn {
+            from {
+              transform: scale(0.9);
+              opacity: 0;
+            }
+            to {
+              transform: scale(1);
+              opacity: 1;
+            }
+          }
+          .animate-slideUp {
+            animation: slideUp 0.3s ease-out;
+          }
+          .animate-scaleIn {
+            animation: scaleIn 0.2s ease-out;
+          }
+        `}
+      </style>
     </div>
   );
 }

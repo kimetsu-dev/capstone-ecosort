@@ -186,7 +186,7 @@ function FilterTabs({ filterType, setFilterType, isDark, searchQuery, setSearchQ
       </div>
 
       {/* Desktop Filters */}
-      <div className="hidden sm:flex gap-2 overflow-x-auto">
+      <div className="hidden sm:flex gap-2 overflow-x-auto pb-2">
         {categories.map((filter) => (
           <button
             key={filter.id}
@@ -225,11 +225,11 @@ function FilterTabs({ filterType, setFilterType, isDark, searchQuery, setSearchQ
         </button>
 
         {/* Show configuration warning */}
-        {categories.length === 1 && categories[0].id === 'all' && (
-          <div className={`mb-4 p-3 rounded-lg border ${
+        {categories.length <= 1 && (
+          <div className={`mt-2 p-3 rounded-lg border text-xs ${
             isDark ? 'bg-yellow-900/30 border-yellow-700 text-yellow-200' : 'bg-yellow-50 border-yellow-200 text-yellow-800'
           }`}>
-            <p className="text-sm">No report categories have been configured yet. Contact an administrator to set up categories.</p>
+            <p>No report categories configured. Contact an admin to add categories.</p>
           </div>
         )}
 
@@ -315,16 +315,25 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
   const [loading, setLoading] = useState(false);
   const [locationLoading, setLocationLoading] = useState(false);
 
+  const reportCategories = useMemo(() => categories.filter(cat => cat.id !== 'all'), [categories]);
+
   const resetForm = useCallback(() => {
     setFormData({
       location: "",
       description: "",
-      severity: "medium",
-      category: categories.filter(c => c.id !== 'all')[0]?.id || "",
+      severity: severityLevels[Math.floor(severityLevels.length / 2)]?.value || "medium",
+      category: reportCategories[0]?.id || "",
       mediaUrl: "",
     });
     setMediaFile(null);
-  }, [categories]);
+  }, [reportCategories, severityLevels]);
+
+  // Effect to set default category once categories are loaded
+  useEffect(() => {
+    if (reportCategories.length > 0 && !formData.category) {
+      setFormData(prev => ({ ...prev, category: reportCategories[0].id }));
+    }
+  }, [reportCategories, formData.category]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -377,8 +386,8 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
       return;
     }
 
-    if (!formData.location.trim() || !formData.description.trim()) {
-      showToast("Please fill in all required fields.", "error");
+    if (!formData.location.trim() || !formData.description.trim() || !formData.category) {
+      showToast("Please fill in all required fields (Location, Description, Category).", "error");
       return;
     }
 
@@ -433,8 +442,6 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
   };
 
   if (!isOpen) return null;
-
-  const reportCategories = categories.filter(cat => cat.id !== 'all');
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
@@ -529,7 +536,7 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
               </div>
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDark ? "text-gray-300" : "text-slate-700"}`}>
-                  Category
+                  Category *
                 </label>
                 <select
                   value={formData.category}
@@ -539,7 +546,9 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
                       ? "bg-gray-800 border-gray-600 text-gray-100"
                       : "bg-white border-gray-300 text-gray-900"
                   }`}
+                  required
                 >
+                  <option value="" disabled>Select a category</option>
                   {reportCategories.map(category => (
                     <option key={category.id} value={category.id}>{category.label}</option>
                   ))}
@@ -608,7 +617,7 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
 }
 
 // Report Item Component
-function ReportItem({ report, currentUser, commentText, setCommentText, commentSubmit, toggleComments, isCommentsExpanded, handleLike, isDark }) {
+function ReportItem({ report, currentUser, commentText, setCommentText, commentSubmit, toggleComments, isCommentsExpanded, handleLike, isDark, submittingComment }) {
   const likeCount = report.likes?.length || 0;
   const isLiked = report.likes?.includes(currentUser?.uid);
   const commentCount = report.comments?.length || 0;
@@ -691,11 +700,11 @@ function ReportItem({ report, currentUser, commentText, setCommentText, commentS
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex items-center gap-2 sm:gap-4 pt-3 border-t border-opacity-50 border-gray-200">
+        {/* Action Buttons - FIXED: Better layout and spacing */}
+        <div className="flex flex-wrap items-center gap-2 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}">
           <button
             onClick={() => handleLike(report.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
               isLiked
                 ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400"
                 : isDark
@@ -703,27 +712,25 @@ function ReportItem({ report, currentUser, commentText, setCommentText, commentS
                 : "hover:bg-gray-100 text-slate-600"
             }`}
           >
-            <ThumbsUp className={`h-4 w-4 ${isLiked ? 'fill-current' : ''}`} />
+            <ThumbsUp className={`h-4 w-4 flex-shrink-0 ${isLiked ? 'fill-current' : ''}`} />
             <span className="font-medium">{likeCount}</span>
-            <span className="hidden sm:inline">Like{likeCount !== 1 ? "s" : ""}</span>
           </button>
           
           <button
             onClick={() => toggleComments(report.id)}
-            className={`flex items-center gap-2 px-3 py-2 rounded-full text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
               isDark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-gray-100 text-slate-600"
             }`}
           >
-            <MessageCircleIcon className="h-4 w-4" />
+            <MessageCircleIcon className="h-4 w-4 flex-shrink-0" />
             <span className="font-medium">{commentCount}</span>
-            <span className="hidden sm:inline">Comment{commentCount !== 1 ? "s" : ""}</span>
           </button>
         </div>
       </div>
 
       {/* Comments Section */}
-      {(isCommentsExpanded || commentCount > 0) && (
-        <section className={`border-t ${isDark ? "border-gray-700" : "border-gray-100"}`}>
+      {isCommentsExpanded && (
+        <section className={`border-t ${isDark ? "border-gray-700" : "border-gray-100"} animate-slide-down`}>
           <CommentList comments={report.comments} isDark={isDark} />
           
           {/* Add Comment Form */}
@@ -744,18 +751,23 @@ function ReportItem({ report, currentUser, commentText, setCommentText, commentS
                   placeholder="Write a comment..."
                   value={commentText[report.id] || ""}
                   onChange={(e) => setCommentText(prev => ({ ...prev, [report.id]: e.target.value }))}
+                  disabled={submittingComment}
                   className={`flex-1 border rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${
                     isDark 
-                      ? "bg-gray-700 border-gray-600 text-gray-300 placeholder-gray-400" 
-                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500"
+                      ? "bg-gray-700 border-gray-600 text-gray-300 placeholder-gray-400 disabled:bg-gray-800" 
+                      : "bg-white border-gray-300 text-gray-900 placeholder-gray-500 disabled:bg-gray-100"
                   }`}
                 />
                 <button
                   type="submit"
-                  disabled={!commentText[report.id]?.trim()}
-                  className="p-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  disabled={!commentText[report.id]?.trim() || submittingComment}
+                  className="p-2 w-10 h-10 flex items-center justify-center bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
                 >
-                  <SendIcon className="h-4 w-4" />
+                  {submittingComment ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  ) : (
+                    <SendIcon className="h-4 w-4" />
+                  )}
                 </button>
               </form>
             </div>
@@ -780,6 +792,8 @@ export default function Forum() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [submittingComment, setSubmittingComment] = useState(null);
+  const [isPWA, setIsPWA] = useState(false);
   
   // Configuration states
   const [categories, setCategories] = useState([]);
@@ -788,6 +802,16 @@ export default function Forum() {
   const themeContext = useTheme();
   const { isDark } = themeContext || {};
   const navigate = useNavigate();
+
+  // PWA Check
+  useEffect(() => {
+    const checkPWA = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = window.navigator.standalone === true;
+      setIsPWA(isStandalone || isIOSStandalone);
+    };
+    checkPWA();
+  }, []);
 
   // Toast utility
   const showToast = useCallback((message, type = "info") => {
@@ -801,37 +825,42 @@ export default function Forum() {
       try {
         // Load categories
         const categoriesDoc = await getDoc(doc(db, "report_categories", "categories"));
+        const defaultCategories = [{ id: "all", label: "All Reports", icon: "📋" }];
+        
         if (categoriesDoc.exists()) {
           const data = categoriesDoc.data();
           const loadedCategories = data.categories || [];
-          if (!loadedCategories.find(cat => cat.id === 'all')) {
-            setCategories([{ id: "all", label: "All Reports", icon: "📋" }, ...loadedCategories]);
-          } else {
+          
+          // Check if "all" category already exists in loaded categories
+          const hasAllCategory = loadedCategories.some(cat => cat.id === "all");
+          
+          if (hasAllCategory) {
+            // If "all" exists in Firebase, use only loaded categories
             setCategories(loadedCategories);
+          } else {
+            // If "all" doesn't exist, prepend it
+            setCategories([...defaultCategories, ...loadedCategories]);
           }
         } else {
-          setCategories([{ id: "all", label: "All Reports", icon: "📋" }]);
+          setCategories(defaultCategories);
         }
 
         // Load severity levels
         const severityDoc = await getDoc(doc(db, "report_categories", "severity_levels"));
+        const defaultSeverity = [
+          { value: "low", label: "Low" },
+          { value: "medium", label: "Medium" },
+          { value: "high", label: "High" },
+        ];
+
         if (severityDoc.exists()) {
           const data = severityDoc.data();
-          setSeverityLevels(data.levels || [
-            { value: "low", label: "Low" },
-            { value: "medium", label: "Medium" },
-            { value: "high", label: "High" },
-          ]);
+          setSeverityLevels(data.levels || defaultSeverity);
         } else {
-          setSeverityLevels([
-            { value: "low", label: "Low" },
-            { value: "medium", label: "Medium" },
-            { value: "high", label: "High" },
-          ]);
+          setSeverityLevels(defaultSeverity);
         }
       } catch (error) {
         console.error("Error loading configuration:", error);
-        // Use defaults on error
         setCategories([{ id: "all", label: "All Reports", icon: "📋" }]);
         setSeverityLevels([
           { value: "low", label: "Low" },
@@ -921,14 +950,26 @@ export default function Forum() {
       return;
     }
 
-    const reportRef = doc(db, "violation_reports", reportId);
-    const comment = {
-      text,
-      user: currentUser.email || currentUser.uid || "anonymous",
-      timestamp: new Date(),
-    };
+    setSubmittingComment(reportId);
 
     try {
+      let usernameToSave = currentUser.email || currentUser.uid;
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+        if (userDoc.exists() && userDoc.data().username) {
+          usernameToSave = userDoc.data().username;
+        }
+      } catch (err) {
+        console.error("Failed to fetch username:", err);
+      }
+      
+      const reportRef = doc(db, "violation_reports", reportId);
+      const comment = {
+        text,
+        user: usernameToSave,
+        timestamp: new Date(),
+      };
+
       await updateDoc(reportRef, {
         comments: arrayUnion(comment),
       });
@@ -937,6 +978,8 @@ export default function Forum() {
     } catch (e) {
       console.error("Failed to add comment:", e);
       showToast("Failed to add comment. Please try again.", "error");
+    } finally {
+      setSubmittingComment(null);
     }
   };
 
@@ -948,7 +991,7 @@ export default function Forum() {
     }));
   };
 
-  // Filtered and searched reports using useMemo for performance
+  // Filtered and searched reports
   const filteredReports = useMemo(() => {
     return reports
       .filter((report) => filterType === "all" || report.category === filterType)
@@ -964,7 +1007,7 @@ export default function Forum() {
   }, [reports, filterType, searchQuery]);
 
   // Loading state
-  if (loadingAuth || (loading && !error)) {
+  if (loadingAuth || (loading && !error && categories.length === 0)) {
     return (
       <main className={`min-h-screen flex flex-col items-center justify-center ${
         isDark ? "bg-gray-900 text-white" : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
@@ -1008,24 +1051,26 @@ export default function Forum() {
         ? "bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white"
         : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-slate-900"
     }`}>
-      {/* Header */}
-      <header className={`${
+      {/* Header - FIXED: Conditional back button */}
+    <header className={`${
         isDark ? "bg-gray-800/90" : "bg-white/90"
       } backdrop-blur-md border-b ${
         isDark ? "border-gray-700" : "border-slate-200"
-      } sticky top-0 z-50 shadow-sm`}>
+      } sticky top-0 z-40 shadow-sm`}>
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4 min-w-0 flex-1">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className={`flex items-center gap-2 transition-colors hover:scale-105 ${
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                }`}
-              >
-                <ArrowLeftIcon className="h-5 w-5" />
-                <span className="font-medium hidden sm:inline">Dashboard</span>
-              </button>
+              {isPWA && (
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className={`flex items-center gap-2 transition-colors hover:scale-105 ${
+                    isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <ArrowLeftIcon className="h-5 w-5" />
+                  <span className="font-medium hidden sm:inline">Back</span>
+                </button>
+              )}
 
               <div className="min-w-0 flex-1">
                 <h1 className="font-bold text-xl sm:text-2xl truncate text-center">
@@ -1102,13 +1147,13 @@ export default function Forum() {
                 isCommentsExpanded={expandedComments[report.id]}
                 handleLike={handleLike}
                 isDark={isDark}
+                submittingComment={submittingComment === report.id}
               />
             ))
           )}
         </div>
       </main>
 
-      {/* Report Form Modal */}
       <ReportFormModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
@@ -1121,14 +1166,21 @@ export default function Forum() {
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />
       
-      {/* Custom styles for animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes fade-in {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
+        }
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-10px); max-height: 0; }
+          to { opacity: 1; transform: translateY(0); max-height: 1000px; }
+        }
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+          overflow: hidden;
         }
       `}</style>
     </div>

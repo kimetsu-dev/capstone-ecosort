@@ -236,23 +236,21 @@ export default function NotificationCenter({ userId = "demo-user" }) {
       case "waste_submission":
         return <FiTrash className={`${iconClass} text-green-500`} />;
       default:
-        // No icon for unknown type/status
-        return null;
+        return <FiBell className={`${iconClass} text-gray-500`} />;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
       case "success":
-        return "text-green-700 bg-green-50 border-green-200";
+        return "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/30 dark:border-green-700";
       case "failed":
       case "error":
-        return "text-red-700 bg-red-50 border-red-200";
+        return "text-red-700 bg-red-50 border-red-200 dark:text-red-400 dark:bg-red-900/30 dark:border-red-700";
       case "pending":
-        return "text-yellow-700 bg-yellow-50 border-yellow-200";
+        return "text-yellow-700 bg-yellow-50 border-yellow-200 dark:text-yellow-400 dark:bg-yellow-900/30 dark:border-yellow-700";
       default:
-        // Return empty string to not show label "Info"
-        return "";
+        return "text-gray-700 bg-gray-50 border-gray-200 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-600";
     }
   };
 
@@ -260,12 +258,12 @@ export default function NotificationCenter({ userId = "demo-user" }) {
     const data = notif.data || {};
 
     return (
-      <div className="space-y-4 h-full overflow-auto p-4">
+      <div className="flex flex-col h-full">
         {screenSize === "mobile" && (
-          <div className="sticky top-0 bg-white z-10 pb-4 border-b border-gray-200">
+          <div className="flex-shrink-0 bg-white dark:bg-gray-900 z-10 p-4 border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setSelectedNotif(null)}
-              className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+              className="flex items-center space-x-2 text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
             >
               <FiChevronLeft className="w-5 h-5" />
               <span className="text-sm font-medium">Back to notifications</span>
@@ -273,48 +271,54 @@ export default function NotificationCenter({ userId = "demo-user" }) {
           </div>
         )}
 
-        <div>
-          <div className="flex items-start justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 pr-4 leading-tight">
-              {notif.title || notif.message}
-            </h3>
-            {/* Bell icon removed from here */}
-            <div className="flex items-center space-x-2 flex-shrink-0">
-              {getNotificationIcon(notif.type, notif.status)}
-              {notif.status && (
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight flex-1">
+                {notif.title || notif.message}
+              </h3>
+              <div className="flex items-center space-x-2 flex-shrink-0">
+                {getNotificationIcon(notif.type, notif.status)}
+              </div>
+            </div>
+
+            {notif.status && (
+              <div className="mb-4">
                 <span
-                  className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(
+                  className={`inline-flex px-3 py-1.5 text-sm font-medium rounded-lg border ${getStatusColor(
                     notif.status
                   )}`}
                 >
                   {notif.status.charAt(0).toUpperCase() + notif.status.slice(1)}
                 </span>
-              )}
+              </div>
+            )}
+
+            <p className="text-gray-700 dark:text-gray-300 leading-relaxed mb-6 text-base">
+              {notif.message}
+            </p>
+
+            {(notif.status === "failed" || notif.status === "error") && data.error && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 mb-4">
+                <h4 className="font-semibold text-red-900 dark:text-red-300 mb-2 flex items-center">
+                  <FiAlertCircle className="w-4 h-4 mr-2" />
+                  Error Details
+                </h4>
+                <p className="text-red-700 dark:text-red-400 text-sm leading-relaxed">{data.error}</p>
+                {data.errorCode && (
+                  <p className="text-red-600 dark:text-red-500 text-xs mt-2 font-mono bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded break-all">
+                    Error Code: {data.errorCode}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-6">
+              <time className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                <FiClock className="w-4 h-4 mr-2 flex-shrink-0" />
+                {formatTimestamp(notif.createdAt)}
+              </time>
             </div>
-          </div>
-
-          <p className="text-gray-700 leading-relaxed mb-6">{notif.message}</p>
-
-          {(notif.status === "failed" || notif.status === "error") && data.error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
-              <h4 className="font-semibold text-red-900 mb-2 flex items-center">
-                <FiAlertCircle className="w-4 h-4 mr-2" />
-                Error Details
-              </h4>
-              <p className="text-red-700 text-sm leading-relaxed">{data.error}</p>
-              {data.errorCode && (
-                <p className="text-red-600 text-xs mt-2 font-mono bg-red-100 px-2 py-1 rounded break-all">
-                  Error Code: {data.errorCode}
-                </p>
-              )}
-            </div>
-          )}
-
-          <div className="border-t border-gray-200 pt-3">
-            <time className="text-sm text-gray-500 flex items-center">
-              <FiClock className="w-3 h-3 mr-1 flex-shrink-0" />
-              {formatTimestamp(notif.createdAt)}
-            </time>
           </div>
         </div>
       </div>
@@ -324,14 +328,14 @@ export default function NotificationCenter({ userId = "demo-user" }) {
   // Mobile full screen notification detail view
   if (screenSize === "mobile" && selectedNotif) {
     return (
-      <div className="fixed inset-0 z-[9999] bg-white">
-        <div className="h-full flex flex-col">{renderNotificationDetails(selectedNotif)}</div>
+      <div className="fixed inset-0 z-[99999] bg-white dark:bg-gray-900">
+        {renderNotificationDetails(selectedNotif)}
       </div>
     );
   }
 
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         ref={bellRef}
         onClick={() => setIsOpen((prev) => !prev)}
@@ -353,70 +357,76 @@ export default function NotificationCenter({ userId = "demo-user" }) {
       {isOpen && (
         <>
           {(screenSize === "mobile" || screenSize === "tablet") && (
-            <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[9998]" />
+            <div 
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
+              onClick={() => setIsOpen(false)}
+            />
           )}
 
           <div
             ref={dropdownRef}
-            className={`bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-700 rounded-2xl animate-fade-in overflow-hidden ${
+            className={`bg-white dark:bg-gray-900 shadow-2xl border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden ${
               screenSize === "mobile"
-                ? "fixed top-4 left-4 right-4 bottom-4 z-[9999] flex flex-col max-h-none w-auto"
+                ? "fixed top-4 left-4 right-4 bottom-4 z-[9999] flex flex-col"
                 : screenSize === "tablet"
-                ? "fixed top-16 left-4 right-4 bottom-20 z-[9999] flex flex-col max-h-none w-auto"
-                : "absolute right-0 mt-2 w-96 max-h-[80vh] flex flex-col z-[9999]"
+                ? "fixed top-16 left-4 right-4 bottom-20 z-[9999] flex flex-col"
+                : "absolute right-0 mt-2 w-[480px] max-h-[600px] flex flex-col z-[9999]"
             }`}
             role="region"
             aria-label="Notifications panel"
+            style={{
+              animation: 'slideInScale 0.2s ease-out'
+            }}
           >
-            <div className="px-4 py-4 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-between items-center flex-shrink-0">
-              <div className="flex items-center space-x-2">
-                <FiBell className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">
-                  Notifications
-                </h3>
-                {unreadCount > 0 && (
-                  <span className="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 text-xs font-medium px-2 py-1 rounded-full">
-                    {unreadCount} new
-                  </span>
-                )}
+            {/* Header */}
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center">
+                  <FiBell className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white text-lg">
+                    Notifications
+                  </h3>
+                  {unreadCount > 0 && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {unreadCount} unread
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
-                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1 hover:underline transition-colors"
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium flex items-center space-x-1 px-3 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                   >
-                    <FiCheckCircle className="w-3 h-3" />
+                    <FiCheckCircle className="w-3.5 h-3.5" />
                     <span className="hidden sm:inline">Mark all read</span>
-                    <span className="sm:hidden">Read all</span>
                   </button>
                 )}
                 {notifications.length > 0 && (
                   <button
                     onClick={clearAll}
-                    className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium hover:underline transition-colors"
+                    className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
-                    <span className="hidden sm:inline">Clear all</span>
-                    <span className="sm:hidden">Clear</span>
+                    Clear
                   </button>
                 )}
                 {(screenSize === "mobile" || screenSize === "tablet") && (
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                    className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition-colors"
                     aria-label="Close notifications"
                   >
-                    <FiX className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                    <FiX className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                   </button>
                 )}
               </div>
             </div>
 
-            <div
-              className={`flex-1 overflow-hidden ${
-                screenSize === "desktop" ? "flex" : "flex flex-col"
-              }`}
-            >
+            {/* Content */}
+            <div className="flex-1 overflow-hidden flex">
               {/* Notifications List */}
               <div
                 className={`overflow-y-auto ${
@@ -426,15 +436,15 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                 }`}
               >
                 {notifications.length === 0 ? (
-                  <div className="p-8 text-center">
-                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <FiBell className="w-8 h-8 text-gray-400" />
+                  <div className="p-12 text-center">
+                    <div className="w-20 h-20 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <FiBell className="w-10 h-10 text-blue-400 dark:text-blue-500" />
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
                       No notifications
                     </h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      You're all caught up!
+                      You're all caught up! Check back later.
                     </p>
                   </div>
                 ) : (
@@ -443,30 +453,32 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                       <div
                         key={notif.id}
                         onClick={() => handleNotifClick(notif)}
-                        className={`p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-all duration-150 relative group ${
-                          notif.read ? "" : "bg-blue-50/50 dark:bg-blue-950/20"
+                        className={`p-4 cursor-pointer transition-all duration-150 relative group ${
+                          notif.read 
+                            ? "hover:bg-gray-50 dark:hover:bg-gray-800/50" 
+                            : "bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-950/30"
                         } ${
                           selectedNotif?.id === notif.id && screenSize === "desktop"
-                            ? "bg-blue-100 dark:bg-blue-900/30 border-r-2 border-blue-500"
+                            ? "bg-blue-100 dark:bg-blue-900/30 border-r-4 border-blue-500"
                             : ""
                         }`}
                       >
                         <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0 mt-1">
+                          <div className="flex-shrink-0 mt-0.5">
                             {getNotificationIcon(notif.type, notif.status)}
                           </div>
 
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between mb-1">
+                            <div className="flex items-start justify-between mb-1.5">
                               <h4
-                                className={`text-sm font-medium text-gray-900 dark:text-white truncate pr-2 ${
+                                className={`text-sm font-medium text-gray-900 dark:text-white pr-2 ${
                                   !notif.read ? "font-semibold" : ""
                                 }`}
                               >
                                 {notif.title || notif.message}
                               </h4>
                               {!notif.read && (
-                                <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
+                                <div className="w-2.5 h-2.5 bg-blue-500 rounded-full flex-shrink-0 mt-1"></div>
                               )}
                             </div>
 
@@ -474,15 +486,16 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                               {notif.message}
                             </p>
 
-                            <div className="flex items-center justify-between">
-                              <time className="text-xs text-gray-500 dark:text-gray-500">
+                            <div className="flex items-center justify-between gap-2">
+                              <time className="text-xs text-gray-500 dark:text-gray-500 flex items-center">
+                                <FiClock className="w-3 h-3 mr-1" />
                                 {formatTimestamp(notif.createdAt)}
                               </time>
                               {notif.status && (
                                 <span
-                                  className={`px-2 py-1 text-xs font-medium rounded-full border ${getStatusColor(
+                                  className={`px-2 py-0.5 text-xs font-medium rounded-md border ${getStatusColor(
                                     notif.status
-                                  )} hidden sm:inline-flex`}
+                                  )}`}
                                 >
                                   {notif.status}
                                 </span>
@@ -497,13 +510,13 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                                 deleteNotification(notif.id);
                               }}
                               aria-label={`Delete notification: ${notif.message}`}
-                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-all duration-200 min-w-[32px] min-h-[32px] flex items-center justify-center"
+                              className="opacity-0 group-hover:opacity-100 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
                             >
                               <FiX className="w-4 h-4 text-gray-400 hover:text-red-500 transition-colors" />
                             </button>
 
                             {screenSize !== "desktop" && (
-                              <FiChevronRight className="w-4 h-4 text-gray-400 mt-1" />
+                              <FiChevronRight className="w-5 h-5 text-gray-400" />
                             )}
                           </div>
                         </div>
@@ -515,7 +528,7 @@ export default function NotificationCenter({ userId = "demo-user" }) {
 
               {/* Desktop Details Panel */}
               {screenSize === "desktop" && selectedNotif && (
-                <div className="w-1/2 bg-gray-50 dark:bg-gray-800/50 overflow-y-auto">
+                <div className="w-1/2 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 overflow-y-auto">
                   {renderNotificationDetails(selectedNotif)}
                 </div>
               )}
@@ -523,6 +536,19 @@ export default function NotificationCenter({ userId = "demo-user" }) {
           </div>
         </>
       )}
+
+      <style>{`
+        @keyframes slideInScale {
+          from {
+            opacity: 0;
+            transform: translateY(-10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
     </div>
   );
 }
