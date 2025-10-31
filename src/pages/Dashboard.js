@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiUser, FiMenu, FiX, FiLogOut, FiChevronRight } from "react-icons/fi";
+import { FiUser, FiMenu, FiX, FiLogOut, FiChevronLeft, FiBell } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
 import { DashboardCalendar } from "../components/DashboardCalendar";
 import NotificationCenter from "../components/NotificationCenter";
+import UpdateBanner from '../components/UpdateBanner';
 import SubmitWaste from "./SubmitWaste";
 import Rewards from "./Rewards";
 import Forum from "./Forum";
@@ -34,15 +35,17 @@ import {
   FaMapMarkerAlt,
   FaCheckCircle,
   FaChartLine,
+  FaArrowUp,
+  FaLeaf,
 } from "react-icons/fa";
 
 const MENU_ITEMS = [
-  { id: "overview", title: "Overview", icon: FaHome, color: "from-blue-400 via-indigo-500 to-purple-600" },
-  { id: "submit", title: "Submit Waste", icon: FaRecycle, color: "from-emerald-400 via-teal-500 to-green-600" },
-  { id: "rewards", title: "Redeem Rewards", icon: FaGift, color: "from-amber-400 via-orange-500 to-yellow-600" },
-  { id: "report", title: "Report Forum", icon: FaExclamationTriangle, color: "from-red-400 via-rose-500 to-pink-600" },
-  { id: "leaderboard", title: "Leaderboard", icon: FaTrophy, color: "from-blue-400 via-indigo-500 to-purple-600" },
-  { id: "transactions", title: "Transactions", icon: FaFileAlt, color: "from-gray-400 via-slate-500 to-gray-600" },
+  { id: "overview", title: "Home", icon: FaHome, color: "from-blue-500 to-indigo-600", bgColor: "bg-blue-500" },
+  { id: "submit", title: "Submit", icon: FaRecycle, color: "from-emerald-500 to-teal-600", bgColor: "bg-emerald-500" },
+  { id: "rewards", title: "Rewards", icon: FaGift, color: "from-amber-500 to-orange-600", bgColor: "bg-amber-500" },
+  { id: "report", title: "Forum", icon: FaExclamationTriangle, color: "from-red-500 to-rose-600", bgColor: "bg-red-500" },
+  { id: "leaderboard", title: "Rankings", icon: FaTrophy, color: "from-purple-500 to-pink-600", bgColor: "bg-purple-500" },
+  { id: "transactions", title: "History", icon: FaFileAlt, color: "from-slate-500 to-gray-600", bgColor: "bg-slate-500" },
 ];
 
 const DAY_MAP = {
@@ -64,14 +67,16 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [recentActivity, setRecentActivity] = useState([]);
+ const [recentActivity, setRecentActivity] = useState([]);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [collectionSchedules, setCollectionSchedules] = useState([]);
+  const [submissionSchedules, setSubmissionSchedules] = useState([]); 
   const [loadingSchedules, setLoadingSchedules] = useState(true);
   const navigate = useNavigate();
   const [loadingUser, setLoadingUser] = useState(true);
   const [error, setError] = useState(null);
   const [isPWA, setIsPWA] = useState(false);
+  
 
   useEffect(() => {
     const checkPWA = () => {
@@ -82,6 +87,7 @@ export default function Dashboard() {
     checkPWA();
   }, []);
 
+  // --- MODIFIED: Fetch Collection Schedules ---
   useEffect(() => {
     const schedulesRef = collection(db, "collection_schedules");
     const schedulesQuery = query(
@@ -94,19 +100,64 @@ export default function Dashboard() {
       (snapshot) => {
         const schedulesData = snapshot.docs.map((doc) => ({
           id: doc.id,
+          type: "collection", // Added type identifier
           ...doc.data(),
         }));
         setCollectionSchedules(schedulesData);
-        setLoadingSchedules(false);
+        setLoadingSchedules(false); // Keep this here
       },
       (error) => {
-        console.error("Error fetching schedules:", error);
+        console.error("Error fetching collection schedules:", error);
         setLoadingSchedules(false);
       }
     );
 
     return () => unsubscribe();
   }, []);
+  // --- END MODIFICATION ---
+
+ // Dashboard.js (around line 120, after the collection_schedules useEffect)
+
+// --- NEW: Fetch Submission Schedules ---
+  useEffect(() => {
+    const schedulesRef = collection(db, "submission_schedules");
+    // Only fetch active submission points
+    const schedulesQuery = query(
+      schedulesRef,
+      where("isActive", "==", true)
+    );
+
+    const unsubscribe = onSnapshot(
+      schedulesQuery,
+      (snapshot) => {
+        const schedulesData = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setSubmissionSchedules(schedulesData); // <-- New State is set here
+      },
+      (error) => {
+        console.error("Error fetching submission schedules:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []); 
+
+  // --- NEW: Combine all schedules for Calendar ---
+  const allSchedules = useMemo(() => {
+    return [
+      ...collectionSchedules.map(schedule => ({
+        ...schedule,
+        title: `Collection: ${schedule.area || schedule.barangay || 'Area'}`,
+      })),
+      ...submissionSchedules.map(schedule => ({
+        ...schedule,
+        title: `Submission: ${schedule.area || schedule.barangay || 'Center'}`,
+      })),
+    ];
+  }, [collectionSchedules, submissionSchedules]);
+  // --- END NEW MEMO ---
 
   const getNextCollectionDate = () => {
     if (collectionSchedules.length === 0) {
@@ -148,38 +199,48 @@ export default function Dashboard() {
     return nearestCollection;
   };
 
-  const getWeekCollectionDates = () => {
-    if (collectionSchedules.length === 0) {
-      return [];
+ // Dashboard.js (around line 200, after getNextCollectionDate)
+
+  // --- NEW: Function to get the nearest submission point date ---
+  const getNextSubmissionDate = () => {
+    if (submissionSchedules.length === 0) {
+      return null;
     }
 
     const today = new Date();
-    const startOfWeek = new Date(today);
-    startOfWeek.setDate(today.getDate() - today.getDay());
-    
-    const collectionDates = [];
+    const currentDay = today.getDay();
+    const currentTime = today.getHours() * 60 + today.getMinutes();
 
-    for (let i = 0; i < 7; i++) {
-      const date = new Date(startOfWeek);
-      date.setDate(startOfWeek.getDate() + i);
-      const dayNum = date.getDay();
+    let nearestSubmission = null;
+    let minDaysAway = Infinity;
 
-      const daySchedule = collectionSchedules.find(
-        schedule => DAY_MAP[schedule.day.toLowerCase()] === dayNum
-      );
+    for (const schedule of submissionSchedules) {
+      const scheduleDayNum = DAY_MAP[schedule.day.toLowerCase()];
+      
+      const [startHours, startMinutes] = schedule.startTime.split(':').map(Number);
+      const scheduleTime = startHours * 60 + startMinutes;
 
-      if (daySchedule) {
-        const [hours, minutes] = daySchedule.startTime.split(':').map(Number);
-        date.setHours(hours, minutes, 0, 0);
+      let daysUntil = scheduleDayNum - currentDay;
+      
+      // If the day is today, check if the time has passed.
+      if (daysUntil < 0 || (daysUntil === 0 && currentTime >= scheduleTime)) {
+        daysUntil += 7; // Go to next week
+      }
+
+      if (daysUntil < minDaysAway) {
+        minDaysAway = daysUntil;
+        const submissionDate = new Date(today);
+        submissionDate.setDate(today.getDate() + daysUntil);
+        submissionDate.setHours(startHours, startMinutes, 0, 0);
         
-        collectionDates.push({
-          date: date,
-          schedule: daySchedule
-        });
+        nearestSubmission = {
+          date: submissionDate,
+          schedule: schedule
+        };
       }
     }
 
-    return collectionDates;
+    return nearestSubmission;
   };
 
   useEffect(() => {
@@ -309,11 +370,7 @@ export default function Dashboard() {
   };
 
   const handleNavigation = (item) => {
-    if (isPWA) {
-      navigate(`/${item.id}`);
-    } else {
-      setActiveTab(item.id);
-    }
+    setActiveTab(item.id);
     setSidebarOpen(false);
   };
 
@@ -363,149 +420,256 @@ export default function Dashboard() {
   };
 
   const nextCollection = getNextCollectionDate();
-  const weekCollectionDates = getWeekCollectionDates();
-  const isSelectedDateToday = isToday(selectedDate);
+  
+  // --- NEW: Call GetNextSubmissionDate ---
+  const nextSubmission = getNextSubmissionDate();
+  // --- END NEW CALL ---
 
+
+  // PWA MODE - Mobile App Design
   if (isPWA) {
     return (
-      <div
-        className={`min-h-screen transition-all duration-500 ${getThemeClass(
-          "backgroundGradient",
-          "bg-gray-50 dark:bg-gray-900"
-        )} relative overflow-hidden`}
-      >
-        <div className="relative z-10 px-3 py-4 max-w-7xl mx-auto">
-          <header className="flex justify-between items-center mb-4 animate-slide-down">
-            <div className="flex items-center space-x-2">
-              <div className="relative">
-                <div
-                  className={`w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ${getThemeClass(
-                    "glowEffect",
-                    "shadow-lg"
-                  )}`}
-                >
-                  <span className="text-white text-lg font-bold">E</span>
-                </div>
+      <div className={`min-h-screen pb-20 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
+        {/* App Header */}
+        <div className={`sticky top-0 z-50 ${isDark ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+          <div className="px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <FaLeaf className="text-white text-xl" />
               </div>
               <div>
-                <h1
-                  className={`text-lg font-black ${getThemeClass(
-                    "textPrimary",
-                    "text-gray-900 dark:text-white"
-                  )} ${
-                    isDark
-                      ? "bg-gradient-to-r from-white via-emerald-200 to-teal-300 bg-clip-text text-transparent"
-                      : "bg-gradient-to-r from-gray-900 via-emerald-700 to-teal-700 bg-clip-text text-transparent"
-                  }`}
-                >
-                  ECOSORT
+                <h1 className={`text-lg font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                  EcoSort
                 </h1>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-1 relative">
-              <NotificationCenter userId={auth.currentUser?.uid} />
-              <button
-                onClick={() => navigate("/profile")}
-                className={`relative w-10 h-10 flex items-center justify-center 
-                  bg-gradient-to-r from-emerald-500 via-teal-500 to-blue-600 
-                  rounded-full hover:shadow-lg ${getThemeClass(
-                    "glowEffect",
-                    "shadow-lg"
-                  )} transition-all duration-300 active:scale-95 touch-manipulation`}
-                aria-label="Profile"
-              >
-                <FiUser className="w-5 h-5 text-white" />
-              </button>
-            </div>
-          </header>
-
-          <div className="mb-6 animate-fade-in">
-            <div
-              className={`${getThemeClass(
-                "cardBackground",
-                "bg-white dark:bg-gray-800"
-              )} ${getThemeClass(
-                "backdropBlur",
-                "backdrop-blur-xl"
-              )} rounded-2xl p-4 shadow-xl border ${getThemeClass(
-                "cardBorder",
-                "border-gray-200 dark:border-gray-700"
-              )} relative overflow-hidden`}
-            >
-              <div className="relative z-10">
-                <h2
-                  className={`text-2xl font-extrabold ${getThemeClass(
-                    "textPrimary",
-                    "text-gray-900 dark:text-white"
-                  )} mb-1 animate-fade-in-up`}
-                >
-                  {loadingUser ? "Loading..." : (
-                    <>
-                      {getGreeting()}{" "}
-                      <span className={`${getThemeClass("textAccent", "text-emerald-600 dark:text-emerald-400")} select-text`}>
-                        {userName || "User"}
-                      </span>
-                    </>
-                  )}
-                </h2>
-                <p
-                  className={`text-xl font-semibold ${getThemeClass(
-                    "textSecondary",
-                    "text-gray-700 dark:text-gray-300"
-                  )} select-none`}
-                >
-                  {loadingUser ? "Fetching points..." : `Eco Points: ${points || 0}`}
+                <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                  {getGreeting()}
                 </p>
               </div>
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 animate-stagger mb-6">
-            {MENU_ITEMS.slice(1).map((item, index) => (
-              <div
-                key={item.id}
-                className="group cursor-pointer animate-fade-in-up touch-manipulation"
-                style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => handleNavigation(item)}
+            <div className="flex items-center gap-2">
+              <NotificationCenter userId={auth.currentUser?.uid} />
+              <button
+                onClick={() => navigate("/profile")}
+                className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
               >
-                <div
-                  className={`${getThemeClass(
-                    "cardBackground",
-                    "bg-white dark:bg-gray-800"
-                  )} ${getThemeClass(
-                    "backdropBlur",
-                    "backdrop-blur-xl"
-                  )} rounded-2xl p-4 shadow-lg border ${getThemeClass(
-                    "cardBorder",
-                    "border-gray-200 dark:border-gray-700"
-                  )} active:scale-95 transition-all duration-200 relative overflow-hidden group`}
-                >
-                  <div className="absolute top-0 right-0 w-12 h-12 bg-gradient-to-bl from-white/5 to-transparent rounded-full blur-lg" />
-                  <div className="relative z-10 flex flex-col items-center text-center space-y-2">
-                    <div
-                      className={`w-12 h-12 bg-gradient-to-r ${item.color} rounded-xl flex items-center justify-center shadow-lg group-active:scale-110 transition-all duration-200 relative`}
-                    >
-                      <item.icon className="text-white text-lg" />
+                <FiUser className="text-white text-lg" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="px-4 pt-4">
+          {activeTab === "overview" ? (
+            <div className="space-y-4">
+              {/* Points Card */}
+              <div className={`rounded-3xl overflow-hidden shadow-2xl ${isDark ? 'bg-gradient-to-br from-emerald-600 to-teal-700' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
+                <div className="p-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
+                  <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full -ml-12 -mb-12"></div>
+                  <div className="relative z-10">
+                    <p className="text-emerald-100 text-sm font-medium mb-2">Your Eco Points</p>
+                    <div className="flex items-baseline gap-2 mb-4">
+                      <h2 className="text-5xl font-black text-white">
+                        {loadingUser ? "..." : points || 0}
+                      </h2>
+                      <span className="text-emerald-100 text-lg">pts</span>
                     </div>
-                    <h3
-                      className={`text-sm font-black ${getThemeClass(
-                        "textPrimary",
-                        "text-gray-900 dark:text-white"
-                      )} leading-tight`}
-                    >
-                      {item.title}
-                    </h3>
+                    <div className="flex items-center gap-2 text-emerald-100 text-sm">
+                      <FaArrowUp className="text-xs" />
+                      <span>Keep going, {userName || "User"}!</span>
+                    </div>
                   </div>
                 </div>
               </div>
-            ))}
+
+              {/* Next Collection Card */}
+              {nextCollection && (
+                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-12 h-12 rounded-2xl ${isDark ? 'bg-blue-500/20' : 'bg-blue-50'} flex items-center justify-center`}>
+                      <FaCalendarAlt className={`text-xl ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+                    </div>
+                    <div>
+                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Next Collection
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <FaClock className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Time</span>
+                      </div>
+                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatTime(nextCollection.schedule.startTime)}
+                      </p>
+                    </div>
+                    {nextCollection.schedule.area && (
+                      <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <FaMapMarkerAlt className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Area</span>
+                        </div>
+                        <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {nextCollection.schedule.area}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+              
+              {/* Next Submission Card (NEW) */}
+              {nextSubmission && (
+                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`w-12 h-12 rounded-2xl ${isDark ? 'bg-green-500/20' : 'bg-green-50'} flex items-center justify-center`}>
+                      <FaRecycle className={`text-xl ${isDark ? 'text-green-400' : 'text-green-600'}`} />
+                    </div>
+                    <div>
+                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Next Submission Point
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <FaClock className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Time</span>
+                      </div>
+                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
+                      </p>
+                    </div>
+                    {nextSubmission.schedule.area && (
+                      <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <FaMapMarkerAlt className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Area</span>
+                        </div>
+                        <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {nextSubmission.schedule.area}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+
+              {/* Quick Actions */}
+              <div>
+                <h3 className={`text-sm font-bold mb-3 px-1 ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                  Quick Actions
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {MENU_ITEMS.slice(1, 4).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => handleNavigation(item)}
+                      className={`rounded-3xl p-4 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg active:scale-95 transition-transform flex flex-col items-center gap-3`}
+                    >
+                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
+                        <item.icon className="text-white text-2xl" />
+                      </div>
+                      <span className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'} text-center`}>
+                        {item.title}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              {recentActivity.length > 0 && (
+                <div>
+                  <h3 className={`text-sm font-bold mb-3 px-1 ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
+                    Recent Activity
+                  </h3>
+                  <div className={`rounded-3xl ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg divide-y ${isDark ? 'divide-gray-800' : 'divide-gray-100'}`}>
+                    {recentActivity.slice(0, 3).map((activity) => (
+                      <div key={activity.id} className="p-4 flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-2xl bg-${activity.color}-500/20 flex items-center justify-center flex-shrink-0`}>
+                          <activity.icon className={`text-${activity.color}-500 text-lg`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'} truncate`}>
+                            {activity.description}
+                          </p>
+                          <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                            {formatRelativeTime(activity.timestamp)}
+                          </p>
+                        </div>
+                        <span className={`text-sm font-bold ${activity.points > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                          {activity.points > 0 ? '+' : ''}{activity.points}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="pb-4">
+              {/* Content - No back button, use bottom nav instead */}
+              <div>
+                {activeTab === "submit" && <SubmitWaste />}
+                {activeTab === "rewards" && <Rewards />}
+                {activeTab === "report" && <Forum sidebarOpen={false} />}
+                {activeTab === "leaderboard" && <Leaderboard />}
+                {activeTab === "transactions" && <Transactions />}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Navigation */}
+        <div className={`fixed bottom-0 left-0 right-0 ${isDark ? 'bg-gray-900/95 border-gray-800' : 'bg-white/95 border-gray-200'} border-t backdrop-blur-xl z-50`}>
+          <div className="px-2 py-3">
+            <div className="flex items-center justify-around">
+              {MENU_ITEMS.map((item) => {
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleNavigation(item)}
+                    className="flex flex-col items-center gap-1 px-3 py-1 min-w-0 active:scale-95 transition-transform"
+                  >
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
+                      isActive 
+                        ? `bg-gradient-to-br ${item.color} shadow-lg shadow-${item.color.split('-')[1]}-500/30` 
+                        : `${isDark ? 'bg-gray-800' : 'bg-gray-100'}`
+                    }`}>
+                      <item.icon className={`text-lg ${isActive ? 'text-white' : isDark ? 'text-gray-400' : 'text-gray-500'}`} />
+                    </div>
+                    <span className={`text-[10px] font-bold truncate max-w-[60px] ${
+                      isActive 
+                        ? 'text-emerald-500' 
+                        : isDark ? 'text-gray-400' : 'text-gray-500'
+                    }`}>
+                      {item.title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+         <UpdateBanner />
       </div>
     );
   }
 
+  // WEB MODE - Desktop Design
   return (
     <div
       className={`min-h-screen transition-colors duration-500 ${
@@ -576,7 +740,6 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <h2 className={`font-bold text-lg ${isDark ? "text-white" : "text-gray-900"}`}>ECOSORT</h2>
-                  <p className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Dashboard</p>
                 </div>
               </div>
             )}
@@ -699,7 +862,6 @@ export default function Dashboard() {
                                 <div className={`text-4xl lg:text-5xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent`}>
                                   {loadingUser ? "..." : points || 0}
                                 </div>
-                                
                               </div>
                             </div>
                           </div>
@@ -806,103 +968,30 @@ export default function Dashboard() {
                                     )}
                                   </div>
                                 </div>
-
-                                {/* Week Schedule */}
-                                {weekCollectionDates.length > 0 && (
-                                  <div>
-                                    <h4 className={`text-sm font-bold mb-3 ${isDark ? "text-blue-300" : "text-blue-700"} uppercase tracking-wider`}>
-                                      This Week's Schedule
-                                    </h4>
-                                    <div className={`grid gap-3 ${
-                                      weekCollectionDates.length === 1 
-                                        ? 'grid-cols-1' 
-                                        : weekCollectionDates.length === 2 
-                                        ? 'grid-cols-2' 
-                                        : 'grid-cols-3'
-                                    }`}>
-                                      {weekCollectionDates.map((collection, index) => {
-                                        const isPast = collection.date < new Date() && !isToday(collection.date);
-                                        const isTodayDate = isToday(collection.date);
-                                        
-                                        return (
-                                          <div
-                                            key={index}
-                                            className={`relative p-4 rounded-xl transition-all duration-300 ${
-                                              isTodayDate
-                                                ? `bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-lg shadow-emerald-500/50 scale-105`
-                                                : isPast
-                                                ? `${isDark ? "bg-gray-700/30 text-gray-500" : "bg-gray-100 text-gray-400"} opacity-50`
-                                                : `${isDark ? "bg-gray-700/50 text-gray-300 hover:bg-gray-700" : "bg-white text-gray-700 hover:bg-blue-50"} border ${isDark ? "border-gray-600" : "border-blue-100"} hover:shadow-md`
-                                            }`}
-                                          >
-                                            {isTodayDate && (
-                                              <div className="absolute top-2 right-2">
-                                                <FaCheckCircle className="w-5 h-5 text-white" />
-                                              </div>
-                                            )}
-                                            <div className={`text-xs font-bold mb-1 uppercase tracking-wide ${isTodayDate ? "text-white/90" : ""}`}>
-                                              {collection.date.toLocaleDateString('en-US', { weekday: 'short' })}
-                                            </div>
-                                            <div className={`text-2xl font-black mb-2 ${isTodayDate ? "text-white" : ""}`}>
-                                              {collection.date.getDate()}
-                                            </div>
-                                            <div className={`text-xs font-medium mb-1 ${isTodayDate ? "text-white/90" : ""}`}>
-                                              {formatTime(collection.schedule.startTime)}
-                                            </div>
-                                            {collection.schedule.area && (
-                                              <div className={`text-xs truncate ${isTodayDate ? "text-white/80" : ""}`}>
-                                                {collection.schedule.area}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Right Column - Stats */}
+                      {/* Right Column - Calendar */}
                       <div className="space-y-6">
-                        {/* Quick Stats */}
-                        
-                          <div className="flex items-center gap-3 mb-4">
-                            
-                          
-                          
-                          <div className="space-y-4">
-                           
-                            
-                         
-                            
-                            <div className="space-y-3">
-                              
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Calendar Widget */}
                         <div className={`rounded-2xl p-6 border ${isDark ? "bg-gray-800/50 border-gray-700" : "bg-white border-slate-200"} shadow-xl`}>
                           <h3 className={`text-lg font-bold mb-4 ${isDark ? "text-gray-200" : "text-slate-700"}`}>
                             Calendar
                           </h3>
+                          {/* --- MODIFIED: Pass allSchedules to Calendar --- */}
                           <DashboardCalendar
                             selectedDate={selectedDate}
                             setSelectedDate={setSelectedDate}
                             isDark={isDark}
+                            schedules={allSchedules}
                           />
+                          {/* --- END MODIFICATION --- */}
                         </div>
                       </div>
                     </div>
-
-                   
-                      </div>
-                    
-                  
+                  </div>
                 )}
                 
                 {activeTab === "submit" && <SubmitWaste />}

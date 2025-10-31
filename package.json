@@ -8,13 +8,12 @@
     "browser-image-compression": "^2.0.2",
     "cra-template-pwa": "2.0.0",
     "firebase": "^12.2.1",
-    "firebase-admin": "^13.4.0",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.534.0",
     "mongodb": "^6.20.0",
-    "react": "^19.1.0",
+    "react": "^18.3.1",
     "react-calendar": "^6.0.0",
-    "react-dom": "^19.1.0",
+    "react-dom": "^18.3.1",
     "react-feather": "^2.0.10",
     "react-firebase-hooks": "^5.1.1",
     "react-icons": "^5.5.0",
@@ -25,9 +24,11 @@
   },
   "scripts": {
     "start": "react-scripts start",
+    "prebuild": "echo '⚠️  Remember to update CACHE_VERSION in service-worker.js!'",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "deploy": "npm run build && firebase deploy"
   },
   "eslintConfig": {
     "extends": [

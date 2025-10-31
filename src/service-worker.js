@@ -11,7 +11,10 @@ import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate } from 'workbox-strategies';
+import { StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
+
+// 🚀 VERSION CONTROL - Increment this on each deployment
+const CACHE_VERSION = 'v1.0.3'; // 👈 UPDATE THIS ON EVERY DEPLOY
 
 clientsClaim();
 
@@ -52,7 +55,7 @@ registerRoute(
   // Add in any other file extensions or routing criteria as needed.
   ({ url }) => url.origin === self.location.origin && url.pathname.endsWith('.png'), // Customize this strategy as needed, e.g., by changing to CacheFirst.
   new StaleWhileRevalidate({
-    cacheName: 'images',
+    cacheName: `images-${CACHE_VERSION}`,
     plugins: [
       // Ensure that once this runtime cache reaches a maximum size the
       // least-recently used images are removed.
@@ -61,12 +64,102 @@ registerRoute(
   })
 );
 
+// Cache other image formats
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && /\.(jpg|jpeg|gif|svg|webp)$/.test(url.pathname),
+  new StaleWhileRevalidate({
+    cacheName: `images-${CACHE_VERSION}`,
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 30 * 24 * 60 * 60 }), // 30 days
+    ],
+  })
+);
+
+// Cache CSS and JS files with Network First strategy
+registerRoute(
+  ({ url }) => url.origin === self.location.origin && /\.(css|js)$/.test(url.pathname),
+  new NetworkFirst({
+    cacheName: `static-resources-${CACHE_VERSION}`,
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 50 }),
+    ],
+  })
+);
+
+// Cache Google Fonts
+registerRoute(
+  ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
+  new StaleWhileRevalidate({
+    cacheName: `google-fonts-${CACHE_VERSION}`,
+    plugins: [
+      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 }), // 1 year
+    ],
+  })
+);
+
 // This allows the web app to trigger skipWaiting via
 // registration.waiting.postMessage({type: 'SKIP_WAITING'})
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('⏭️ Skipping waiting phase...');
     self.skipWaiting();
   }
 });
 
+// Clean up old caches on activation
+self.addEventListener('activate', (event) => {
+  console.log(`🔄 Service Worker ${CACHE_VERSION} activating...`);
+  
+  event.waitUntil(
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          // Delete caches that don't match current version
+          if (!cacheName.includes(CACHE_VERSION) && 
+              (cacheName.startsWith('images-') || 
+               cacheName.startsWith('static-resources-') || 
+               cacheName.startsWith('google-fonts-'))) {
+            console.log('🗑️ Deleting old cache:', cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    }).then(() => {
+      console.log('✅ Service Worker activated and old caches cleaned');
+      return self.clients.claim();
+    })
+  );
+});
+
+// Log when service worker is installed
+self.addEventListener('install', (event) => {
+  console.log(`📦 Service Worker ${CACHE_VERSION} installing...`);
+  // Force the waiting service worker to become the active service worker
+  self.skipWaiting();
+});
+
+// Send version info to clients
+self.addEventListener('fetch', (event) => {
+  // Add version header to responses (for debugging)
+  if (event.request.url.includes(self.location.origin)) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        const clonedResponse = response.clone();
+        const headers = new Headers(clonedResponse.headers);
+        headers.append('X-SW-Version', CACHE_VERSION);
+        
+        return new Response(clonedResponse.body, {
+          status: clonedResponse.status,
+          statusText: clonedResponse.statusText,
+          headers: headers
+        });
+      }).catch(() => {
+        // If fetch fails, try to serve from cache
+        return caches.match(event.request);
+      })
+    );
+  }
+});
+
 // Any other custom service worker logic can go here.
+console.log(`🚀 EcoSort Service Worker ${CACHE_VERSION} loaded`);

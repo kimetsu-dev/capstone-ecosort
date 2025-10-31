@@ -48,8 +48,47 @@ root.render(
   </React.StrictMode>
 );
 
-// ✅ Register default Workbox service worker for caching/offline PWA support
-serviceWorkerRegistration.register();
+// ✅ Enhanced service worker registration with auto-update support
+serviceWorkerRegistration.register({
+  onSuccess: (registration) => {
+    console.log('✅ Service worker registered successfully');
+    
+    // Check for updates every 60 seconds
+    setInterval(() => {
+      registration.update();
+      console.log('🔄 Checking for updates...');
+    }, 60000);
+  },
+  onUpdate: (registration) => {
+    console.log('🎉 New version available!');
+    
+    // Store the registration globally so UpdateBanner component can access it
+    if (registration && registration.waiting) {
+      // Dispatch custom event that UpdateBanner will listen to
+      window.dispatchEvent(
+        new CustomEvent('swUpdated', { detail: registration })
+      );
+    }
+  },
+});
+
+// Listen for controller change and reload
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    console.log('🔄 New service worker activated, reloading...');
+    window.location.reload();
+  });
+}
+
+// Check for updates when app comes back into focus
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.update();
+      console.log('👀 App focused, checking for updates...');
+    });
+  }
+});
 
 // ✅ Register Firebase Messaging SW only in production + supported browsers
 registerFirebaseMessagingSW();
