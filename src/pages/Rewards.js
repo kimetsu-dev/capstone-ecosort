@@ -690,29 +690,14 @@ export default function Rewards() {
 
   return (
     <div className={`min-h-screen transition-all duration-300 ${styles.backgroundGradient}`}>
-      {/* Header - FIXED: Better mobile layout */}
-      <div
+       <div
         className={`${
           isDark ? "bg-gray-800/90 border-gray-700" : "bg-white/90 border-gray-200"
         } backdrop-blur-sm border-b sticky top-0 z-40`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+        <div className={`${isPWA ? 'px-4 sm:px-6' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'} py-3 sm:py-4`}>
           {/* Top Row */}
-          <div className="flex items-center justify-between mb-3 sm:mb-4">
-            {isPWA ? (
-              <button
-                onClick={() => navigate("/dashboard")}
-                className={`${
-                  isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                } flex items-center gap-1.5 sm:gap-2 transition-colors`}
-              >
-                <ArrowLeft />
-                <span className="font-medium text-sm sm:text-base">Back</span>
-              </button>
-            ) : (
-              <div />
-            )}
-
+          <div className="flex items-center justify-end mb-3 sm:mb-4">
             <button
               onClick={() => navigate("/my-redemptions")}
               className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg bg-indigo-600 text-white font-medium hover:bg-indigo-700 transition text-xs sm:text-sm"

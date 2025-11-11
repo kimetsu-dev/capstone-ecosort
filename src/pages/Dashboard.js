@@ -44,8 +44,8 @@ const MENU_ITEMS = [
   { id: "submit", title: "Submit", icon: FaRecycle, color: "from-emerald-500 to-teal-600", bgColor: "bg-emerald-500" },
   { id: "rewards", title: "Rewards", icon: FaGift, color: "from-amber-500 to-orange-600", bgColor: "bg-amber-500" },
   { id: "report", title: "Forum", icon: FaExclamationTriangle, color: "from-red-500 to-rose-600", bgColor: "bg-red-500" },
-  { id: "leaderboard", title: "Rankings", icon: FaTrophy, color: "from-purple-500 to-pink-600", bgColor: "bg-purple-500" },
-  { id: "transactions", title: "History", icon: FaFileAlt, color: "from-slate-500 to-gray-600", bgColor: "bg-slate-500" },
+  { id: "leaderboard", title: "Leaderboard", icon: FaTrophy, color: "from-purple-500 to-pink-600", bgColor: "bg-purple-500" },
+  { id: "transactions", title: "Transactions", icon: FaFileAlt, color: "from-slate-500 to-gray-600", bgColor: "bg-slate-500" },
 ];
 
 const DAY_MAP = {
@@ -431,11 +431,12 @@ export default function Dashboard() {
     return (
       <div className={`min-h-screen pb-20 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
         {/* App Header */}
-        <div className={`sticky top-0 z-50 ${isDark ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`sticky top-0 z-50 ${isDark ? 'bg-gray-900/95' : 'bg-white/95'} border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <FaLeaf className="text-white text-xl" />
+              {/* --- 'E' ICON FIX --- */}
+              <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <span className="text-white font-bold text-lg">E</span>
               </div>
               <div>
                 <h1 className={`text-lg font-black ${isDark ? 'text-white' : 'text-gray-900'}`}>
@@ -461,6 +462,7 @@ export default function Dashboard() {
         {/* Main Content */}
         <div className="px-4 pt-4">
           {activeTab === "overview" ? (
+            // --- PWA LAYOUT RE-ORDERED ---
             <div className="space-y-4">
               {/* Points Card */}
               <div className={`rounded-3xl overflow-hidden shadow-2xl ${isDark ? 'bg-gradient-to-br from-emerald-600 to-teal-700' : 'bg-gradient-to-br from-emerald-500 to-teal-600'}`}>
@@ -486,10 +488,8 @@ export default function Dashboard() {
               {/* Next Collection Card */}
               {nextCollection && (
                 <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  {/* --- ICON REMOVED --- */}
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-12 h-12 rounded-2xl ${isDark ? 'bg-blue-500/20' : 'bg-blue-50'} flex items-center justify-center`}>
-                      <FaCalendarAlt className={`text-xl ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
-                    </div>
                     <div>
                       <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         Next Collection
@@ -527,10 +527,8 @@ export default function Dashboard() {
               {/* Next Submission Card (NEW) */}
               {nextSubmission && (
                 <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  {/* --- ICON REMOVED --- */}
                   <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-12 h-12 rounded-2xl ${isDark ? 'bg-green-500/20' : 'bg-green-50'} flex items-center justify-center`}>
-                      <FaRecycle className={`text-xl ${isDark ? 'text-green-400' : 'text-green-600'}`} />
-                    </div>
                     <div>
                       <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                         Next Submission Point
@@ -565,6 +563,19 @@ export default function Dashboard() {
                 </div>
               )}
 
+              {/* --- MOVED: Calendar Card (PWA) --- */}
+              <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
+                  Calendar
+                </h3>
+                <DashboardCalendar
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  isDark={isDark}
+                  schedules={allSchedules}
+                />
+              </div>
+              {/* --- END: Calendar Card (PWA) --- */}
 
               {/* Quick Actions */}
               <div>
@@ -678,8 +689,8 @@ export default function Dashboard() {
           : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900"
       }`}
     >
-      <header
-        className={`lg:hidden backdrop-blur-md sticky top-0 z-30 border-b ${
+     <header
+        className={`lg:hidden sticky top-0 z-30 border-b ${
           isDark
             ? "bg-gray-800/90 text-gray-200 border-gray-700"
             : "bg-white/90 text-slate-900 border-slate-200/50"
@@ -697,7 +708,8 @@ export default function Dashboard() {
                 <FiMenu className="w-5 h-5" />
               </button>
               <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-lg">
+                {/* This 'E' icon is already solid green, which is correct. */}
+                <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white text-sm font-bold shadow-lg">
                   E
                 </div>
                 <h1
@@ -735,7 +747,8 @@ export default function Dashboard() {
           <div className={`flex items-center justify-between p-6 border-b ${isDark ? "border-gray-700" : "border-gray-200"} flex-shrink-0`}>
             {!sidebarCollapsed && (
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 via-teal-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                {/* --- 'E' ICON FIX --- */}
+                <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
                   E
                 </div>
                 <div>
@@ -830,37 +843,56 @@ export default function Dashboard() {
           />
         )}
 
-        <div className={`flex-1 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
-          <div className="p-4 lg:p-6">
+        {/* ⬇️ FIX 1: Added 'flex flex-col' ⬇️ */}
+        <div className={`flex flex-col flex-1 min-w-0 transition-all duration-300 ${sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
+          
+          {/* ⬇️ FIX 2: Added a new desktop-only header ⬇️ */}
+          <header className="hidden lg:flex items-center justify-end h-20 px-6 lg:px-8">
+            <div className="flex-shrink-0 z-50">
+              <NotificationCenter userId={auth.currentUser?.uid} />
+            </div>
+          </header>
+          {/* ⬆️ END OF NEW HEADER ⬆️ */}
+          
+          {/* ⬇️ FIX 3: Adjusted padding on this wrapper ⬇️ */}
+          <div className="p-4 lg:px-6 lg:pb-6">
             <div
-              className={`rounded-2xl shadow-xl border ${
+              className={`relative rounded-2xl shadow-xl border ${
                 isDark ? "bg-gray-800/50 border-gray-700/50" : "bg-white/80 border-slate-200/50"
               } backdrop-blur-sm`}
             >
+              
+              {/* ⬇️ FIX 4: REMOVED the old floating bell ⬇️ */}
+              {/* <div className="hidden lg:block absolute top-6 right-8 z-50">
+                <NotificationCenter userId={auth.currentUser?.uid} />
+              </div>
+              */}
+
               <div className="p-4 lg:p-8 min-h-[90vh]">
                 {activeTab === "overview" && (
                   <div className="space-y-6 lg:space-y-8">
                     {/* Welcome Header */}
-                    <div className="relative overflow-hidden rounded-2xl">
+                     <div className="relative overflow-hidden rounded-2xl">
                       <div className={`absolute inset-0 bg-gradient-to-r ${isDark ? 'from-emerald-600/20 via-teal-600/20 to-blue-600/20' : 'from-emerald-500/10 via-teal-500/10 to-blue-500/10'}`}></div>
                       <div className="relative p-6 lg:p-8">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                          <div>
-                            <h2 className={`text-2xl lg:text-4xl font-black mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
-                              {getGreeting()}, <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{userName || "User"}</span>!
-                            </h2>
-                            <p className={`text-base lg:text-lg ${isDark ? "text-gray-400" : "text-slate-600"}`}>
-                              Ready to make an impact today? Let's sort for a better tomorrow.
-                            </p>
-                          </div>
-                          <div className={`flex items-center gap-4 p-4 lg:p-6 rounded-2xl ${isDark ? "bg-gray-800/80 border border-gray-700" : "bg-white border border-slate-200"} shadow-lg`}>
+                        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                          {/* Left: Greeting and Points */}
+                          <div className="xl:col-span-3 flex flex-col justify-between">
                             <div>
-                              <div className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-slate-600"}`}>
-                                Eco Points
-                              </div>
-                              <div className="flex items-baseline gap-2">
-                                <div className={`text-4xl lg:text-5xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent`}>
-                                  {loadingUser ? "..." : points || 0}
+                              <h2 className={`text-2xl lg:text-4xl font-black mb-2 ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+                                {getGreeting()}, <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">{userName || "User"}</span>!
+                              </h2>
+                              
+                            </div>
+                            <div className={`flex items-center gap-4 p-4 lg:p-6 rounded-2xl ${isDark ? "bg-gray-800/80 border border-gray-700" : "bg-white border border-slate-200"} shadow-lg mt-6`}>
+                              <div>
+                                <div className={`text-sm font-medium mb-1 ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                  Eco Points
+                                </div>
+                                <div className="flex items-baseline gap-2">
+                                  <div className={`text-4xl lg:text-5xl font-black bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent`}>
+                                    {loadingUser ? "..." : points || 0}
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -871,15 +903,31 @@ export default function Dashboard() {
 
                     {/* Main Grid Layout */}
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                      {/* Left Column - Collection Schedule */}
+
+                      {/* --- MOVED: Calendar now full width on top --- */}
+                      <div className="xl:col-span-3 space-y-6">
+                        <div className={`rounded-2xl overflow-hidden shadow-xl border ${isDark ? "bg-gradient-to-br from-purple-900/40 to-pink-900/40 border-purple-700/50" : "bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200"} h-full`}>
+                          <div className="p-6 lg:p-8">
+                            <h3 className={`text-xl lg:text-2xl font-bold mb-6 ${isDark ? "text-purple-200" : "text-purple-800"}`}>
+                              Calendar
+                            </h3>
+                            <DashboardCalendar
+                              selectedDate={selectedDate}
+                              setSelectedDate={setSelectedDate}
+                              isDark={isDark}
+                              schedules={allSchedules}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      {/* --- END: Calendar --- */}
+
+                      {/* Left Column - Collection & Submission Schedules */}
                       <div className="xl:col-span-2 space-y-6">
                         {/* Next Collection Card */}
                         <div className={`rounded-2xl overflow-hidden shadow-xl border ${isDark ? "bg-gradient-to-br from-blue-900/40 to-indigo-900/40 border-blue-700/50" : "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200"}`}>
                           <div className="p-6 lg:p-8">
                             <div className="flex items-center gap-3 mb-6">
-                              <div className={`w-12 h-12 rounded-xl ${isDark ? "bg-blue-500/20" : "bg-blue-100"} flex items-center justify-center`}>
-                                <FaCalendarAlt className={`w-6 h-6 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
-                              </div>
                               <div>
                                 <h3 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-blue-200" : "text-blue-800"}`}>
                                   Next Collection
@@ -972,24 +1020,120 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
+
+                        {/* Next Submission Point Card */}
+                        {nextSubmission && (
+                          <div className={`rounded-2xl overflow-hidden shadow-xl border ${isDark ? "bg-gradient-to-br from-green-900/40 to-emerald-900/40 border-green-700/50" : "bg-gradient-to-br from-green-50 to-emerald-50 border-green-200"}`}>
+                            <div className="p-6 lg:p-8">
+                              <div className="flex items-center gap-3 mb-6">
+                                
+                                <div>
+                                  <h3 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-green-200" : "text-green-800"}`}>
+                                    Next Submission
+                                  </h3>
+                                  <p className={`text-sm ${isDark ? "text-green-400" : "text-green-600"}`}>
+                                    Drop off your sorted waste
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="space-y-6">
+                                <div className={`p-6 rounded-xl ${isDark ? "bg-gray-800/50" : "bg-white/80"} backdrop-blur-sm border ${isDark ? "border-gray-700" : "border-green-200"}`}>
+                                  <div className="flex items-start justify-between mb-4">
+                                    <div className="flex-1">
+                                      <div className={`text-4xl lg:text-5xl font-black mb-3 ${isDark ? "text-white" : "text-green-900"}`}>
+                                        {nextSubmission.date.toLocaleDateString('en-US', { weekday: 'long' })}
+                                      </div>
+                                      <div className={`text-2xl font-bold mb-4 ${isDark ? "text-gray-300" : "text-slate-700"}`}>
+                                        {nextSubmission.date.toLocaleDateString('en-US', {
+                                          month: 'long',
+                                          day: 'numeric',
+                                          year: 'numeric'
+                                        })}
+                                      </div>
+                                    </div>
+                                    {isToday(nextSubmission.date) && (
+                                      <div className="animate-pulse">
+                                        <span className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-sm font-bold rounded-full shadow-lg">
+                                          <span className="w-2 h-2 bg-white rounded-full mr-2 animate-ping"></span>
+                                          TODAY
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-green-50"}`}>
+                                      <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-green-500/20" : "bg-green-100"} flex items-center justify-center`}>
+                                        <FaClock className={`w-5 h-5 ${isDark ? "text-green-400" : "text-green-600"}`} />
+                                      </div>
+                                      <div>
+                                        <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                          Operating Hours
+                                        </div>
+                                        <div className={`text-lg font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                                          {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {(nextSubmission.schedule.area || nextSubmission.schedule.barangay) && (
+                                      <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-green-50"}`}>
+                                        <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-emerald-500/20" : "bg-emerald-100"} flex items-center justify-center`}>
+                                          <FaMapMarkerAlt className={`w-5 h-5 ${isDark ? "text-emerald-400" : "text-emerald-600"}`} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                                            Location
+                                          </div>
+                                          <div className={`text-sm font-bold truncate ${isDark ? "text-white" : "text-slate-900"}`}>
+                                            {nextSubmission.schedule.area}
+                                            {nextSubmission.schedule.barangay && `, ${nextSubmission.schedule.barangay}`}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* --- WEB LAYOUT FIX: ADDED RECENT ACTIVITY --- */}
+                      <div className="space-y-6">
+                        {recentActivity.length > 0 && (
+                          <div className={`rounded-2xl overflow-hidden shadow-xl border ${isDark ? "bg-gray-800/80 border-gray-700" : "bg-white border-gray-200"}`}>
+                            <div className="p-6 lg:p-8">
+                              <h3 className={`text-xl lg:text-2xl font-bold mb-6 ${isDark ? "text-white" : "text-gray-900"}`}>
+                                Recent Activity
+                              </h3>
+                              <div className={`divide-y ${isDark ? 'divide-gray-700' : 'divide-gray-100'}`}>
+                                {recentActivity.map((activity) => (
+                                  <div key={activity.id} className="py-4 flex items-center gap-4">
+                                    <div className={`w-10 h-10 rounded-xl bg-${activity.color}-500/20 flex items-center justify-center flex-shrink-0`}>
+                                      <activity.icon className={`text-${activity.color}-500 text-lg`} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'} truncate`}>
+                                        {activity.description}
+                                      </p>
+                                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                                        {formatRelativeTime(activity.timestamp)}
+                                      </p>
+                                    </div>
+                                    <span className={`text-sm font-bold ${activity.points > 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                      {activity.points > 0 ? '+' : ''}{activity.points}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Right Column - Calendar */}
-                      <div className="space-y-6">
-                        <div className={`rounded-2xl p-6 border ${isDark ? "bg-gray-800/50 border-gray-700" : "bg-white border-slate-200"} shadow-xl`}>
-                          <h3 className={`text-lg font-bold mb-4 ${isDark ? "text-gray-200" : "text-slate-700"}`}>
-                            Calendar
-                          </h3>
-                          {/* --- MODIFIED: Pass allSchedules to Calendar --- */}
-                          <DashboardCalendar
-                            selectedDate={selectedDate}
-                            setSelectedDate={setSelectedDate}
-                            isDark={isDark}
-                            schedules={allSchedules}
-                          />
-                          {/* --- END MODIFICATION --- */}
-                        </div>
-                      </div>
                     </div>
                   </div>
                 )}
@@ -1115,10 +1259,10 @@ export default function Dashboard() {
         }
 
         @media (max-width: 640px) {
-          .backdrop-blur-xl {
+          /* .backdrop-blur-xl {
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
-          }
+          } */
         }
 
         .touch-manipulation {

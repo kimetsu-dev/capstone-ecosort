@@ -498,41 +498,29 @@ export default function Transactions() {
     >
       {/* Mobile Layout */}
       <div className="lg:hidden">
-        {/* Sticky Header */}
+       {/* Sticky Header */}
         {isPWA && (
-          <div className={`sticky top-0 z-50 px-4 py-3 border-b backdrop-blur-sm ${
+          <div className={`sticky top-0 z-50 px-4 py-3 backdrop-blur-sm ${
             isDark 
-              ? "bg-gray-900/90 border-gray-700" 
-              : "bg-white/90 border-gray-200"
+              ? "bg-gray-900/95" 
+              : "bg-white/95"
           }`}>
-            <div className="max-w-md mx-auto">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className={`flex items-center gap-2 transition-colors ${
-                    isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                  }`}
-                  aria-label="Back to Dashboard"
-                >
-                  <ArrowLeft />
-                  <span className="font-medium">Back</span>
-                </button>
-                <h1 className={`text-lg font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
-                  Transactions
-                </h1>
-                <button
-                  onClick={handleRefresh}
-                  disabled={loadingTransactions}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
-                  }`}
-                  aria-label="Refresh transactions"
-                >
-                  <RefreshCw className={`w-5 h-5 ${loadingTransactions ? 'animate-spin' : ''} ${
-                    isDark ? "text-gray-300" : "text-gray-600"
-                  }`} />
-                </button>
-              </div>
+            <div className="flex items-center justify-between">
+              <h1 className={`text-lg font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
+                Transactions
+              </h1>
+              <button
+                onClick={handleRefresh}
+                disabled={loadingTransactions}
+                className={`p-2 rounded-lg transition-colors ${
+                  isDark ? "hover:bg-gray-800" : "hover:bg-gray-100"
+                }`}
+                aria-label="Refresh transactions"
+              >
+                <RefreshCw className={`w-5 h-5 ${loadingTransactions ? 'animate-spin' : ''} ${
+                  isDark ? "text-gray-300" : "text-gray-600"
+                }`} />
+              </button>
             </div>
           </div>
         )}

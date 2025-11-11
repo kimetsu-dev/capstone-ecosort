@@ -258,7 +258,7 @@ export default function NotificationCenter({ userId = "demo-user" }) {
     const data = notif.data || {};
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full max-h-full">
         {screenSize === "mobile" && (
           <div className="flex-shrink-0 bg-white dark:bg-gray-900 z-10 p-4 border-b border-gray-200 dark:border-gray-700">
             <button
@@ -342,12 +342,27 @@ export default function NotificationCenter({ userId = "demo-user" }) {
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-label={`Notifications (${unreadCount} unread)`}
-        className="relative p-2.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-95"
+        // ⬇️ MODIFIED: Cleaner styling for the bell button
+        className={`relative p-2.5 rounded-xl 
+                   text-gray-500 dark:text-gray-400 
+                   hover:text-gray-800 dark:hover:text-white 
+                   hover:bg-gray-100 dark:hover:bg-gray-800 
+                   transition-all duration-200 
+                   focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-white dark:focus:ring-offset-gray-900
+                   active:scale-95
+                   ${isOpen ? 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-white' : ''}`}
       >
-        <FiBell className="text-gray-700 dark:text-gray-300 w-5 h-5" />
+        <FiBell className="w-5 h-5" />
+        
         {unreadCount > 0 && (
-          <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-gradient-to-r from-red-500 to-red-600 rounded-full flex items-center justify-center shadow-lg animate-pulse">
-            <span className="text-white text-xs font-bold leading-none">
+          // ⬇️ MODIFIED: Cleaner, more modern badge
+          <div 
+            className="absolute -top-1.5 -right-1.5 h-[18px] min-w-[18px] px-1 
+                       flex items-center justify-center 
+                       bg-red-600 rounded-full 
+                       border-2 border-white dark:border-gray-900"
+          >
+            <span className="text-white text-[10px] font-bold leading-none">
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           </div>
@@ -370,7 +385,8 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                 ? "fixed top-4 left-4 right-4 bottom-4 z-[9999] flex flex-col"
                 : screenSize === "tablet"
                 ? "fixed top-16 left-4 right-4 bottom-20 z-[9999] flex flex-col"
-                : "absolute right-0 mt-2 w-[480px] max-h-[600px] flex flex-col z-[9999]"
+                // This class is from the previous fix and is correct
+                : "absolute right-0 mt-2 w-screen max-w-lg lg:max-w-xl max-h-[70vh] flex flex-col z-[9999]"
             }`}
             role="region"
             aria-label="Notifications panel"
@@ -426,12 +442,12 @@ export default function NotificationCenter({ userId = "demo-user" }) {
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-hidden flex">
+            <div className="flex-1 overflow-hidden flex h-full"> 
               {/* Notifications List */}
               <div
                 className={`overflow-y-auto ${
                   screenSize === "desktop" && selectedNotif
-                    ? "w-1/2 border-r border-gray-200 dark:border-gray-700"
+                    ? "w-1/2 border-r border-gray-200 dark:border-gray-700 h-full" 
                     : "flex-1 w-full"
                 }`}
               >
@@ -528,7 +544,7 @@ export default function NotificationCenter({ userId = "demo-user" }) {
 
               {/* Desktop Details Panel */}
               {screenSize === "desktop" && selectedNotif && (
-                <div className="w-1/2 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 overflow-y-auto">
+                <div className="w-1/2 bg-gradient-to-br from-gray-50 to-white dark:from-gray-800/50 dark:to-gray-900/50 overflow-y-auto h-full">
                   {renderNotificationDetails(selectedNotif)}
                 </div>
               )}

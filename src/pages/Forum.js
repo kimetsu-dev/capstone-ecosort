@@ -1057,26 +1057,12 @@ export default function Forum() {
       } backdrop-blur-md border-b ${
         isDark ? "border-gray-700" : "border-slate-200"
       } sticky top-0 z-40 shadow-sm`}>
-        <div className="max-w-6xl mx-auto px-4 py-4">
+        <div className={`${isPWA ? 'px-4' : 'max-w-6xl mx-auto px-4'} py-4`}>
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 min-w-0 flex-1">
-              {isPWA && (
-                <button
-                  onClick={() => navigate("/dashboard")}
-                  className={`flex items-center gap-2 transition-colors hover:scale-105 ${
-                    isDark ? "text-gray-300 hover:text-white" : "text-gray-600 hover:text-gray-900"
-                  }`}
-                >
-                  <ArrowLeftIcon className="h-5 w-5" />
-                  <span className="font-medium hidden sm:inline">Back</span>
-                </button>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <h1 className="font-bold text-xl sm:text-2xl truncate text-center">
-                  Community Reports
-                </h1>
-              </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-bold text-xl sm:text-2xl truncate">
+                Community Reports
+              </h1>
             </div>
 
             <button
