@@ -477,13 +477,24 @@ export default function Dashboard() {
                       </h2>
                       <span className="text-emerald-100 text-lg">pts</span>
                     </div>
-                    <div className="flex items-center gap-2 text-emerald-100 text-sm">
-                      <FaArrowUp className="text-xs" />
-                      <span>Keep going, {userName || "User"}!</span>
-                    </div>
+                    {/* --- REMOVED ARROW AND TEXT --- */}
                   </div>
                 </div>
               </div>
+
+              {/* --- MOVED: Calendar Card (PWA) --- */}
+              <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
+                  Calendar
+                </h3>
+                <DashboardCalendar
+                  selectedDate={selectedDate}
+                  setSelectedDate={setSelectedDate}
+                  isDark={isDark}
+                  schedules={allSchedules}
+                />
+              </div>
+              {/* --- END: Calendar Card (PWA) --- */}
 
               {/* Next Collection Card */}
               {nextCollection && (
@@ -563,42 +574,7 @@ export default function Dashboard() {
                 </div>
               )}
 
-              {/* --- MOVED: Calendar Card (PWA) --- */}
-              <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
-                  Calendar
-                </h3>
-                <DashboardCalendar
-                  selectedDate={selectedDate}
-                  setSelectedDate={setSelectedDate}
-                  isDark={isDark}
-                  schedules={allSchedules}
-                />
-              </div>
-              {/* --- END: Calendar Card (PWA) --- */}
-
-              {/* Quick Actions */}
-              <div>
-                <h3 className={`text-sm font-bold mb-3 px-1 ${isDark ? 'text-gray-400' : 'text-gray-500'} uppercase tracking-wider`}>
-                  Quick Actions
-                </h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {MENU_ITEMS.slice(1, 4).map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleNavigation(item)}
-                      className={`rounded-3xl p-4 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg active:scale-95 transition-transform flex flex-col items-center gap-3`}
-                    >
-                      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center shadow-lg`}>
-                        <item.icon className="text-white text-2xl" />
-                      </div>
-                      <span className={`text-xs font-bold ${isDark ? 'text-gray-300' : 'text-gray-700'} text-center`}>
-                        {item.title}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+              {/* --- REMOVED: Quick Actions --- */}
 
               {/* Recent Activity */}
               {recentActivity.length > 0 && (
