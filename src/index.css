@@ -1,0 +1,343 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  -webkit-text-size-adjust: 100% !important;
+  -ms-text-size-adjust: 100% !important;
+  text-size-adjust: 100% !important;
+  touch-action: manipulation !important;
+  overscroll-behavior: none !important;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; 
+  -webkit-tap-highlight-color: transparent; 
+}
+
+.no-save {
+  -webkit-user-drag: none;   /* Safari/Chrome */
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+  pointer-events: none;      /* blocks right click / long press */
+}
+
+:root {
+  --bg-primary: #f9fafb;
+  --bg-secondary: rgba(255, 255, 255, 0.8);
+  --bg-tertiary: rgba(0, 0, 0, 0.05);
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --text-muted: #6b7280;
+  --border-color: rgba(0, 0, 0, 0.1);
+  --accent-color: #059669;
+  --accent-color-light: #10b981;
+  --card-bg: rgba(255, 255, 255, 0.8);
+  --backdrop-blur: blur(20px);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+
+  /* New scrollbar variables (light mode) */
+  --scrollbar-thumb: #9ca3af; /* gray-400 */
+  --scrollbar-thumb-hover: #6b7280; /* gray-600 */
+}
+
+html.dark {
+  --bg-primary: #0f172a;
+  --bg-secondary: rgba(255, 255, 255, 0.05);
+  --bg-tertiary: rgba(255, 255, 255, 0.1);
+  --text-primary: #ffffff;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --accent-color: #10b981;
+  --accent-color-light: #34d399;
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --backdrop-blur: blur(20px);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+
+  /* Dark mode scrollbar */
+  --scrollbar-thumb: #4b5563; /* gray-700 */
+  --scrollbar-thumb-hover: #374151; /* gray-800 */
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  color-scheme: light dark;
+}
+
+* {
+  transition: var(--theme-transition);
+}
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.light {
+  background: linear-gradient(135deg, #f9fafb 0%, #ffffff 50%, #ecfdf5 100%);
+  color-scheme: light;
+}
+
+body.dark {
+  background: linear-gradient(135deg, #0f172a 0%, #111827 50%, #064e3b 100%);
+  color-scheme: dark;
+}
+
+#root, .App {
+  min-height: 100vh;
+  background-color: transparent;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: var(--text-primary);
+}
+
+::-moz-selection {
+  background: rgba(16, 185, 129, 0.3);
+  color: var(--text-primary);
+}
+
+.theme-card {
+  background-color: var(--card-bg);
+  backdrop-filter: var(--backdrop-blur);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.theme-card-hover:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+  transform: translateY(-2px);
+}
+
+.theme-button {
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  transition: var(--theme-transition);
+}
+
+.theme-button:hover {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  transform: scale(1.02);
+}
+
+.theme-button-primary {
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-color-light));
+  border: none;
+  color: white;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+}
+
+.theme-button-primary:hover {
+  background: linear-gradient(135deg, #059669, #10b981);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+  transform: scale(1.05);
+}
+
+.theme-input {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+}
+
+.theme-input::placeholder {
+  color: var(--text-muted);
+}
+
+.theme-input:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  outline: none;
+}
+
+.theme-text-primary { color: var(--text-primary); }
+.theme-text-secondary { color: var(--text-secondary); }
+.theme-text-muted { color: var(--text-muted); }
+.theme-text-accent { color: var(--accent-color); }
+
+input, textarea, select {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  transition: var(--theme-transition);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+input:focus, textarea:focus, select:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+  outline: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0); }
+  33% { transform: translateY(-15px) rotate(1deg); }
+  66% { transform: translateY(-8px) rotate(-1deg); }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-10px) scale(1.05); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.05); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-bounce-slow { animation: bounce-slow 4s ease-in-out infinite; }
+.animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
+.animate-spin-slow { animation: spin-slow 8s linear infinite; }
+.animate-slide-down { animation: slide-down 0.8s ease-out; }
+.animate-fade-in { animation: fade-in 1s ease-out 0.3s both; }
+.animate-fade-in-up { animation: fade-in-up 0.6s ease-out both; }
+
+.backdrop-blur-theme { backdrop-filter: var(--backdrop-blur); }
+.shadow-theme { box-shadow: 0 10px 25px var(--shadow-color); }
+.shadow-theme-lg { box-shadow: 0 20px 40px var(--shadow-color); }
+
+@media (max-width: 640px) {
+  .animate-float,
+  .animate-bounce-slow,
+  .animate-pulse-slow {
+    animation-duration: 4s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --bg-primary: #0f172a;
+    --bg-secondary: rgba(255, 255, 255, 0.05);
+    --bg-tertiary: rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-secondary: #d1d5db;
+    --text-muted: #9ca3af;
+    --border-color: rgba(255, 255, 255, 0.1);
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+  }
+}
+
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .theme-card {
+    background: white !important;
+    border: 1px solid #000 !important;
+    color: black !important;
+  }
+}
+
+.react-calendar {
+  border: none;
+  width: 100%;
+}
+
+.react-calendar__tile {
+  padding: 0.75rem;
+}
+
+.react-calendar__tile--active {
+  background: #10b981 !important; /* emerald-500 */
+  color: white !important;
+  border-radius: 9999px;
+}
+
+.react-calendar__navigation button {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 4px 8px;
+  transition: background 0.2s ease;
+}
+
+.react-calendar__navigation button:hover {
+  background: #d1fae5; /* Tailwind emerald-100 */
+}
+
+/* src/index.css or App.css */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}

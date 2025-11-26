@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+
+    match /ledger/{document=**} {
+      allow read: if true; 
+      allow create: if request.auth != null;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /system/ledger_tracker {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    match /anchors/{anchorId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /system/latest_anchor {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /public/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow get, create, update: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    match /admins/{adminId} {
+      allow read: if request.auth != null && request.auth.uid == adminId;
+      allow update: if request.auth != null && request.auth.uid == adminId;
+      allow create: if request.auth != null;
+      allow delete: if isAdmin();
+    }
+
+    match /rewards/{rewardId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock']) &&
+        request.resource.data.stock == resource.data.stock - 1 &&
+        request.resource.data.stock >= 0 &&
+        resource.data.stock > 0
+      );
+    }
+
+    match /redemptions/{docId} {
+      allow read: if request.auth != null && (isAdmin() || request.auth.uid == resource.data.userId);
+      allow create: if request.auth != null &&
+                    request.auth.uid == request.resource.data.userId &&
+                    request.resource.data.keys().hasOnly([
+                      'userId', 'userEmail', 'rewardId', 'rewardName',
+                      'cost', 'redeemedAt', 'status', 'redemptionCode'
+                    ]) &&
+                    request.resource.data.status == "pending";
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        request.auth.uid == resource.data.userId &&
+        resource.data.status == "pending" &&
+        request.resource.data.status == "cancelled" &&
+        request.resource.data.keys().hasOnly(['status', 'cancelledAt'])
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /point_transactions/{docId} {
+      allow read: if request.auth != null && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create: if request.auth != null && (request.auth.uid == request.resource.data.userId || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null &&
+                            (request.auth.uid == resource.data.authorId || isAdmin());
+    }
+
+    match /violation_reports/{reportId} {
+      allow read, create: if request.auth != null;
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        (
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments']) && 
+           request.resource.data.comments is list) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']) && 
+           request.resource.data.likes is list)
+        )
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /waste_types/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /waste_submissions/{submissionId} {
+      allow create: if request.auth != null;
+      allow get: if request.auth != null && (resource.data.userId == request.auth.uid || isAdmin());
+      allow list: if isAdmin();
+      allow update: if isAdmin() || (
+        request.auth != null &&
+        resource.data.userId == request.auth.uid &&
+        !('status' in request.resource.data) &&
+        !('confirmedAt' in request.resource.data) &&
+        !('rejectedAt' in request.resource.data)
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /collection_schedules/{scheduleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+    
+    match /submission_schedules/{scheduleId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /report_categories/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /fcmTokens/{userId} {
+      allow get, list: if request.auth != null && request.auth.uid == userId;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+    match /notifications/{userId}/userNotifications/{notifId} {
+      allow get, list, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
