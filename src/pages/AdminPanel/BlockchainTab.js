@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react';
 import { 
   createGenesisBlock,
   getChainStatus,
-  verifyBlockchain,
+  // verifyBlockchain, // Removed unused import based on context
   runAllIntegrityChecks, 
   getAllBlocks,
   createPublicAnchor,
@@ -20,17 +20,19 @@ import {
   Clock, 
   Loader2, 
   Anchor, 
-  Globe, 
+  // Globe, // Removed unused
   CheckCircle2, 
-  XCircle, 
+  // XCircle, // Removed unused
   RefreshCw, 
   FileText, 
   Copy, 
   Check, 
-  Download, 
+  // Download, // Removed unused
   Plus, 
   Wrench,
-  Database 
+  Database,
+  Recycle, // Added for Waste Submissions
+  Gift     // Added for Redemptions
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -45,8 +47,8 @@ const BlockchainTab = () => {
   const [latestHash, setLatestHash] = useState(null);
   const [blockCount, setBlockCount] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [verificationDetails, setVerificationDetails] = useState(null); // Structural chain check result
-  const [externalDataStatus, setExternalDataStatus] = useState(null); // <--- NEW STATE: External data reconciliation check result
+  const [verificationDetails, setVerificationDetails] = useState(null); 
+  const [externalDataStatus, setExternalDataStatus] = useState(null); 
   const [repairResult, setRepairResult] = useState(null);
 
   // Helper function for display
@@ -64,28 +66,27 @@ const BlockchainTab = () => {
   // Function to load the chain's integrity status
   const loadChainStatus = async (initial = false) => {
     setLoading(true);
-    setRepairResult(null); // Clear repair status on refresh
+    setRepairResult(null); 
     try {
       // 1. Get basic status
-      const status = await getChainStatus();
+      const status = await getChainStatus(); //
       setChainStatus(status);
       setLatestHash(status.latestHash);
       setBlockCount(status.blockCount);
 
       if (status.initialized) {
         // 2. Run full integrity check (Structural + External Data Reconciliation)
-        const fullVerification = await runAllIntegrityChecks(); // <--- CRITICAL CHANGE
+        const fullVerification = await runAllIntegrityChecks(); //
 
-        // Update overall status based on the combined check
         setChainStatus({ 
-          ...status, // Keep all existing status fields
+          ...status, 
           valid: fullVerification.valid, 
           message: fullVerification.message 
         });
 
         // Store detailed results
-        setVerificationDetails(fullVerification.chainVerification); // Structural check result
-        setExternalDataStatus(fullVerification.dataVerification); // <--- STORE EXTERNAL CHECK RESULT
+        setVerificationDetails(fullVerification.chainVerification); 
+        setExternalDataStatus(fullVerification.dataVerification); //
 
         // 3. Load latest blocks and anchors
         const latestBlocks = await getAllBlocks();
@@ -94,7 +95,7 @@ const BlockchainTab = () => {
         setAnchors(allAnchors);
       } else {
         setVerificationDetails({ valid: false, message: "Blockchain is not initialized (No Genesis Block)." });
-        setExternalDataStatus(null); // Clear external status if uninitialized
+        setExternalDataStatus(null); 
         setBlocks([]);
         setAnchors([]);
       }
@@ -177,9 +178,6 @@ const BlockchainTab = () => {
     setTimeout(() => setCopied(false), 2000);
   };
   
-  // Render function for the list of blocks
-  const renderLedger = () => { /* ... JSX logic for rendering blocks ... */ };
-
   return (
     <div className={`p-6 ${isDark ? "text-gray-100" : "text-gray-800"}`}>
       <h2 className="text-3xl font-bold mb-6">Blockchain Admin Panel</h2>
@@ -248,7 +246,7 @@ const BlockchainTab = () => {
             </button>
         )}
 
-        {/* Repair Chain Button (Only show if chain is initialized AND structural verification failed) */}
+        {/* Repair Chain Button */}
         {chainStatus.initialized && verificationDetails && !verificationDetails.valid && (
              <button
                 onClick={handleRepairChain}
@@ -365,7 +363,7 @@ const BlockchainTab = () => {
                 </div>
             )}
             
-            {/* 2. External Data Integrity Card (NEW CARD) */}
+            {/* 2. External Data Integrity Card (UPDATED) */}
             {externalDataStatus && (
                 <div 
                     className={`flex-1 p-4 rounded-xl shadow-lg transition-colors border ${
@@ -382,13 +380,26 @@ const BlockchainTab = () => {
                             <h3 className={`font-bold text-lg mb-1 ${isDark ? "text-white" : "text-gray-800"}`}>
                                 External Data Integrity
                             </h3>
+                            {/* NEW: Explicitly list monitored collections */}
+                            <div className="flex flex-wrap gap-2 mb-2">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? "bg-blue-900/40 text-blue-300 border-blue-700" : "bg-blue-100 text-blue-700 border-blue-200"}`}>
+                                    <Database className="w-3 h-3 mr-1"/> Transactions
+                                </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? "bg-green-900/40 text-green-300 border-green-700" : "bg-green-100 text-green-700 border-green-200"}`}>
+                                    <Recycle className="w-3 h-3 mr-1"/> Waste
+                                </span>
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border ${isDark ? "bg-orange-900/40 text-orange-300 border-orange-700" : "bg-orange-100 text-orange-700 border-orange-200"}`}>
+                                    <Gift className="w-3 h-3 mr-1"/> Redemptions
+                                </span>
+                            </div>
+
                             <p className={`text-sm ${isDark ? "text-gray-300" : "text-gray-600"}`}>
                                 {externalDataStatus.reason} 
                             </p>
                             {!externalDataStatus.valid && (
                                 <p className="text-xs mt-1">
                                     <strong className={isDark ? "text-red-300" : "text-red-800"}>Ledger Total: {externalDataStatus.ledgerTotal}</strong> | 
-                                    <strong className={isDark ? "text-red-300" : "text-red-800"}> Transactions Total: {externalDataStatus.transactionsTotal}</strong>
+                                    <strong className={isDark ? "text-red-300" : "text-red-800"}> Ext. Total: {externalDataStatus.transactionsTotal}</strong>
                                 </p>
                             )}
                         </div>
@@ -455,13 +466,10 @@ const BlockchainTab = () => {
         <h4 className="font-bold mb-1">How This Works</h4>
         <p className={`text-sm ${isDark ? "text-blue-200" : "text-blue-700"}`}>
           Every transaction creates a cryptographic hash linked to the previous one. Publishing an "anchor" 
-          saves the current state publicly. Anyone can verify the ledger by recalculating hashes and ...
+          saves the current state publicly. Anyone can verify the ledger by recalculating hashes.
         </p>
       </div>
-
-      {/* Placeholder for Ledger Render (actual implementation is large and usually separate) */}
-      {/* {renderLedger()} */}
-
+      
       {loading && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <Loader2 className="w-10 h-10 text-white animate-spin" />

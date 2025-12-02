@@ -16,11 +16,14 @@ import {
   ChevronDown,
   ChevronUp,
   RotateCw,
-  Database
+  Database,
+  Recycle, 
+  Gift,
+  Info // Added Info icon for clarification note
 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 // Import the central verification function
-import { verifyBlockchain, runAllIntegrityChecks } from '../../utils/blockchainService'; // <--- UPDATED IMPORT
+import { runAllIntegrityChecks } from '../../utils/blockchainService';
 
 const LedgerTab = () => {
   const { isDark } = useTheme();
@@ -32,7 +35,7 @@ const LedgerTab = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedBlock, setExpandedBlock] = useState(null);
   const [chainVerification, setChainVerification] = useState(null);
-  const [externalDataStatus, setExternalDataStatus] = useState(null); // <--- NEW STATE (renamed from dataConsistency)
+  const [externalDataStatus, setExternalDataStatus] = useState(null); 
 
   // Helper function for display
   const formatTimestamp = (timestamp) => {
@@ -42,11 +45,11 @@ const LedgerTab = () => {
     return new Date(timestamp).toLocaleString();
   };
 
-  const runVerification = useCallback(async () => { // <--- Renamed and updated function to use runAllIntegrityChecks
+  const runVerification = useCallback(async () => {
     setVerifying(true);
     setIntegrityStatus("Running full integrity checks...");
     try {
-        const fullVerification = await runAllIntegrityChecks(); // <--- CRITICAL CHANGE
+        const fullVerification = await runAllIntegrityChecks();
 
         // Update overall status
         setIsValid(fullVerification.valid);
@@ -54,7 +57,7 @@ const LedgerTab = () => {
         
         // Store detailed results
         setChainVerification(fullVerification.chainVerification);
-        setExternalDataStatus(fullVerification.dataVerification); // <--- STORE EXTERNAL CHECK RESULT
+        setExternalDataStatus(fullVerification.dataVerification);
 
     } catch (error) {
         setIsValid(false);
@@ -63,7 +66,7 @@ const LedgerTab = () => {
     } finally {
         setVerifying(false);
     }
-  }, []); // Empty dependency array means this function is stable
+  }, []); 
 
   useEffect(() => {
     const q = query(collection(db, "ledger"), orderBy("index", "desc"), limit(50));
@@ -117,7 +120,7 @@ const LedgerTab = () => {
                       {integrityStatus}
                   </p>
                   
-                  {/* Detailed Failure Reasons (now pulling from externalDataStatus and chainVerification) */}
+                  {/* Detailed Failure Reasons */}
                   {!isValid && (
                       <div className="mt-2 space-y-1">
                           {chainVerification && !chainVerification.valid && (
@@ -136,7 +139,7 @@ const LedgerTab = () => {
                   )}
               </div>
               <button
-                onClick={runVerification} // Use the updated verification function
+                onClick={runVerification} 
                 disabled={verifying}
                 className={`flex-shrink-0 flex items-center px-3 py-1 text-xs rounded-full font-semibold transition-colors ${
                   isDark ? 'bg-indigo-700 hover:bg-indigo-800 text-white' : 'bg-indigo-600 hover:bg-indigo-700 text-white'
@@ -147,19 +150,33 @@ const LedgerTab = () => {
           </div>
       </div>
 
-      {/* External Data Integrity Status (NEW ALERT SECTION) */}
+      {/* External Data Integrity Status (UPDATED ALERT SECTION) */}
       {externalDataStatus && !externalDataStatus.valid && (
-          <div className={`flex items-center p-3 mb-6 rounded-xl border animate-in slide-in-from-top-2 fade-in ${
+          <div className={`flex items-start p-4 mb-6 rounded-xl border animate-in slide-in-from-top-2 fade-in ${
               isDark ? "bg-red-900/30 border-red-700 text-red-300" : "bg-red-50 border-red-200 text-red-800"
           }`}>
-              <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0" />
+              <AlertTriangle className="w-5 h-5 mr-3 flex-shrink-0 mt-1" />
               <div className="flex-1">
                   <h4 className="font-bold">EXTERNAL BREACH ALERT: Ledger Mismatch</h4>
-                  <p className="text-sm">
+                  <p className="text-sm mb-2">
                       {externalDataStatus.reason}
                   </p>
+                  
+                  {/* Visual indicators of the monitored collections */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${isDark ? "bg-red-800/50 text-red-200 border border-red-700" : "bg-red-100 text-red-800 border border-red-200"}`}>
+                        <Database className="w-3 h-3 mr-1"/> Point Transactions
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${isDark ? "bg-red-800/50 text-red-200 border border-red-700" : "bg-red-100 text-red-800 border border-red-200"}`}>
+                        <Recycle className="w-3 h-3 mr-1"/> Waste Submissions
+                      </span>
+                      <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-bold ${isDark ? "bg-red-800/50 text-red-200 border border-red-700" : "bg-red-100 text-red-800 border border-red-200"}`}>
+                        <Gift className="w-3 h-3 mr-1"/> Redemptions
+                      </span>
+                  </div>
+
                   <p className="text-xs font-mono mt-1 opacity-70">
-                      Ledger Blocks: {externalDataStatus.ledgerTotal} | Total Transactions: {externalDataStatus.transactionsTotal}
+                      Immutable Ledger Total: {externalDataStatus.ledgerTotal} | External DB Total: {externalDataStatus.transactionsTotal}
                   </p>
               </div>
           </div>
@@ -254,15 +271,31 @@ const LedgerTab = () => {
 
               {/* Metadata Dropdown */}
               {expandedBlock === block.id && block.metadata && (
-                  <div className={`mt-2 p-3 rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs border animate-in slide-in-from-top-2 fade-in ${
-                    isDark ? "bg-black/20 border-gray-700" : "bg-gray-50 border-gray-100"
-                  }`}>
-                      {Object.entries(block.metadata).map(([key, value]) => (
-                        <div key={key} className={`px-2 py-1 rounded truncate ${isDark ? "bg-gray-700/50" : "bg-white border border-gray-100"}`}>
-                           <span className={`mr-1 capitalize ${isDark ? "text-gray-400" : "text-gray-500"}`}>{key}:</span>
-                           <strong className={`${isDark ? "text-white" : "text-gray-800"}`}>{String(value)}</strong>
-                        </div>
-                      ))}
+                  <div className="mt-2">
+                      {/* NEW: Explanation for initial status on submission blocks */}
+                      {(block.actionType === 'WASTE_SUBMITTED' || block.actionType === 'REWARD_REDEEMED') && (
+                          <div className={`p-3 mb-2 rounded-lg border-l-4 animate-in slide-in-from-top-2 fade-in ${isDark ? "bg-yellow-900/20 border-yellow-500 text-yellow-300" : "bg-yellow-50 border-yellow-500 text-yellow-800"}`}>
+                              <p className="text-sm font-semibold flex items-center gap-2">
+                                  <Info className="w-4 h-4" />
+                                  Note on Status in Metadata
+                              </p>
+                              <p className="text-xs mt-1">
+                                  This block records an **immutable snapshot** of the submission's state (*e.g., `pending_approval`*) **at the moment of creation**. The subsequent approval/confirmation is recorded in a **later block** (the points transaction block) and in the live database, but this original record in the chain cannot be altered.
+                              </p>
+                          </div>
+                      )}
+
+                      {/* Existing Metadata Display */}
+                      <div className={`p-3 rounded-lg grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs border animate-in slide-in-from-top-2 fade-in ${
+                        isDark ? "bg-black/20 border-gray-700" : "bg-gray-50 border-gray-100"
+                      }`}>
+                          {Object.entries(block.metadata).map(([key, value]) => (
+                            <div key={key} className={`px-2 py-1 rounded truncate ${isDark ? "bg-gray-700/50" : "bg-white border border-gray-100"}`}>
+                               <span className={`mr-1 capitalize ${isDark ? "text-gray-400" : "text-gray-500"}`}>{key}:</span>
+                               <strong className={`${isDark ? "text-white" : "text-gray-800"}`}>{String(value)}</strong>
+                            </div>
+                          ))}
+                      </div>
                   </div>
               )}
             </div>

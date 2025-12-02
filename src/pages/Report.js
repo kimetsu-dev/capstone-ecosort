@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext";
-import { auth, db, storage } from "../firebase";
+import { auth, db } from "../firebase"; // Removed storage
 import { addDoc, collection, serverTimestamp, doc, getDoc } from "firebase/firestore";
-import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+// Removed storage-related imports
 
 function Toast({ visible, message, type }) {
   if (!visible) return null;
@@ -30,8 +30,9 @@ export default function Report() {
     category: "",
     severity: "medium"
   });
-  const [media, setMedia] = useState(null);
-  const [mediaPreview, setMediaPreview] = useState(null);
+  
+  // Removed media and mediaPreview states
+  
   const [loading, setLoading] = useState(false);
   const [useCurrentLocation, setUseCurrentLocation] = useState(false);
   const [currentLocation, setCurrentLocation] = useState(null);
@@ -43,7 +44,7 @@ export default function Report() {
   const [severityLevels, setSeverityLevels] = useState([]);
   const [configLoading, setConfigLoading] = useState(true);
 
-  const fileInputRef = useRef(null);
+  // Removed fileInputRef
   const navigate = useNavigate();
 
   const themeContext = useTheme();
@@ -148,55 +149,7 @@ export default function Report() {
     );
   };
 
-  const handleMediaChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) {
-      setMedia(null);
-      setMediaPreview(null);
-      return;
-    }
-
-    const maxSizeMB = 50;
-    if (file.size > maxSizeMB * 1024 * 1024) {
-      showToast(`File is too large. Maximum size is ${maxSizeMB}MB.`, "error");
-      e.target.value = "";
-      return;
-    }
-
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "video/mp4",
-      "video/webm",
-      "video/quicktime",
-    ];
-    if (!allowedTypes.includes(file.type)) {
-      showToast("Please upload a valid image (JPEG, PNG, GIF, WebP) or video (MP4, WebM, MOV).", "error");
-      e.target.value = "";
-      return;
-    }
-
-    setMedia(file);
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      setMediaPreview({
-        url: ev.target.result,
-        type: file.type.startsWith("image/") ? "image" : "video",
-      });
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const removeMedia = () => {
-    setMedia(null);
-    setMediaPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
+  // Removed handleMediaChange and removeMedia functions
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -228,34 +181,7 @@ export default function Report() {
     setLoading(true);
 
     try {
-      let mediaUrl = null;
-      let mediaType = null;
-
-      if (media) {
-        // Upload media to Firebase Storage
-        const storageRef = ref(storage, `reports/${user.uid}/${Date.now()}_${media.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, media);
-
-        // Wait for upload to complete
-        await new Promise((resolve, reject) => {
-          uploadTask.on(
-            "state_changed",
-            (snapshot) => {
-              // Optionally track progress here
-            },
-            (error) => {
-              console.error("Upload failed:", error);
-              showToast(`File upload failed: ${error.message}`, "error");
-              reject(error);
-            },
-            async () => {
-              mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              mediaType = media.type.startsWith("image/") ? "image" : "video";
-              resolve();
-            }
-          );
-        });
-      }
+      // Removed media upload logic
 
       // Fetch username
       let usernameToSave = user.email || user.uid;
@@ -278,8 +204,8 @@ export default function Report() {
         location: formData.location.trim(),
         category: formData.category,
         severity: formData.severity,
-        mediaUrl,
-        mediaType,
+        mediaUrl: null, // Set to null as feature is removed
+        mediaType: null, // Set to null as feature is removed
         status: "pending",
         likes: [],
         comments: [],
@@ -300,8 +226,7 @@ export default function Report() {
         category: categories[0]?.id || "",
         severity: "medium"
       });
-      setMedia(null);
-      setMediaPreview(null);
+      // Removed media reset logic
       setUseCurrentLocation(false);
       setCurrentLocation(null);
 
@@ -578,86 +503,7 @@ export default function Report() {
               </div>
             </div>
 
-            {/* Media Upload */}
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${
-                isDark ? 'text-gray-200' : 'text-slate-700'
-              }`}>
-                Upload Photo or Video (Optional)
-              </label>
-              <div className="space-y-3">
-                <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
-                  isDark
-                    ? 'border-gray-600 hover:border-gray-500'
-                    : 'border-slate-300 hover:border-slate-400'
-                }`}>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={handleMediaChange}
-                    className="hidden"
-                    id="media-upload"
-                  />
-                  <label
-                    htmlFor="media-upload"
-                    className="cursor-pointer flex flex-col items-center space-y-2"
-                  >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      isDark ? 'bg-gray-700' : 'bg-slate-100'
-                    }`}>
-                      📎
-                    </div>
-                    <p className={`font-medium ${isDark ? 'text-gray-300' : 'text-slate-600'}`}>
-                      Click to upload a file
-                    </p>
-                    <p className={`text-sm ${isDark ? 'text-gray-400' : 'text-slate-400'}`}>
-                      Images: JPG, PNG, GIF, WebP | Videos: MP4, WebM, MOV
-                    </p>
-                    <p className={`text-xs ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
-                      Maximum file size: 50MB
-                    </p>
-                  </label>
-                </div>
-
-                {mediaPreview && (
-                  <div className={`relative border rounded-xl p-4 ${
-                    isDark ? 'border-gray-600 bg-gray-700' : 'border-slate-200 bg-slate-50'
-                  }`}>
-                    <button
-                      type="button"
-                      onClick={removeMedia}
-                      className="absolute top-2 right-2 w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
-                      aria-label="Remove uploaded media"
-                    >
-                      ✕
-                    </button>
-                    {mediaPreview.type === "image" ? (
-                      <img
-                        src={mediaPreview.url}
-                        alt="Preview"
-                        className="w-full h-40 object-cover rounded-lg"
-                      />
-                    ) : (
-                      <video
-                        src={mediaPreview.url}
-                        controls
-                        className="w-full h-40 rounded-lg"
-                      />
-                    )}
-                    <p className={`text-sm mt-2 flex items-center space-x-2 ${
-                      isDark ? 'text-gray-300' : 'text-slate-600'
-                    }`}>
-                      <span>📎</span>
-                      <span>{media?.name}</span>
-                      <span className={isDark ? 'text-gray-400' : 'text-slate-400'}>
-                        ({(media?.size / 1024 / 1024).toFixed(2)} MB)
-                      </span>
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* Removed Media Upload UI Section */}
 
             {/* Submit Button */}
             <div className="pt-4">

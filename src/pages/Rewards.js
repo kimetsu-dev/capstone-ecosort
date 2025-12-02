@@ -225,9 +225,23 @@ function CompactRewardCard({ reward, onClick }) {
   );
 }
 
-// Detailed Reward Modal
-function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem }) {
+// --- REWARD DETAIL MODAL (Fixed for Web/PWA) ---
+function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem, isPWA }) {
   const { isDark } = useTheme();
+
+  // 1. Conditionally Lock background scrolling when modal is open (Only for PWA/Mobile)
+  useEffect(() => {
+    // Only lock the body scroll on PWA/mobile to prevent scroll chaining.
+    // On desktop, we allow the body to scroll or rely on the outer modal scroll.
+    if (visible && isPWA) { 
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [visible, isPWA]); // Added isPWA to dependency array
 
   if (!visible || !reward) return null;
 
@@ -242,115 +256,109 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem }) {
   const canRedeem = userPoints >= reward.cost && reward.stock > 0;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+    // FIX 2: Change alignment (items-start) and add scroll (overflow-y-auto) to outer fixed container
+    // This allows the entire modal to be scrolled into view on web if it's too tall.
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center z-50 p-4 animate-fadeIn overflow-y-auto">
+      {/* Clicking outside closes modal */}
+      <div className="absolute inset-0" onClick={onClose}></div>
+
       <div 
         className={`${
           isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"
-        } rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl animate-slideUp sm:animate-scaleIn`}
+        } relative w-full sm:max-w-lg rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-scaleIn my-auto`}
+        // Max height ensures it fits on screen, auto height lets it be smaller if content is short
+        style={{ maxHeight: '85dvh', height: 'auto' }} 
+        onClick={(e) => e.stopPropagation()} 
       >
-        {/* Header */}
-        <div className={`sticky top-0 p-4 sm:p-6 pb-3 sm:pb-4 border-b ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-white"} rounded-t-3xl z-10`}>
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold">Reward Details</h2>
+        {/* --- HEADER (Fixed) --- */}
+        <div className={`flex-shrink-0 px-4 py-3 sm:p-4 border-b ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-white"} z-10 flex items-center justify-between`}>
+            <h2 className="text-lg font-bold truncate pr-4">{reward.name}</h2>
             <button
               onClick={onClose}
-              className={`p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
+              className={`p-2 rounded-full flex-shrink-0 ${isDark ? "hover:bg-gray-700 text-gray-400" : "hover:bg-gray-100 text-gray-500"}`}
             >
               <X className="w-5 h-5" />
             </button>
-          </div>
         </div>
 
-        {/* Content */}
-        <div className="p-4 sm:p-6">
+        {/* --- SCROLLABLE CONTENT BODY --- */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 overscroll-contain">
           {/* Image */}
-          <div className="relative mb-4 sm:mb-6 rounded-2xl overflow-hidden">
+          <div className="relative mb-5 rounded-xl overflow-hidden shadow-md flex-shrink-0 aspect-video">
             {reward.imageUrl ? (
               <img
                 src={reward.imageUrl}
                 alt={reward.name}
-                className="w-full h-48 sm:h-64 object-cover"
+                className="w-full h-full object-cover"
               />
             ) : (
-              <div className={`w-full h-48 sm:h-64 flex items-center justify-center ${
+              <div className={`w-full h-full flex items-center justify-center ${
                 isDark ? "bg-gray-700" : "bg-gray-100"
               }`}>
-                <Gift className={`w-16 h-16 ${isDark ? "text-gray-400" : "text-gray-500"}`} />
+                <Gift className={`w-12 h-12 ${isDark ? "text-gray-400" : "text-gray-500"}`} />
               </div>
             )}
           </div>
 
-          {/* Title & Description */}
-          <h3 className="text-xl sm:text-2xl font-bold mb-2 sm:mb-3">{reward.name}</h3>
-          <p className={`mb-4 sm:mb-6 text-sm sm:text-base leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
+          {/* Description */}
+          <p className={`mb-6 text-sm leading-relaxed ${isDark ? "text-gray-300" : "text-gray-600"}`}>
             {reward.description}
           </p>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 mb-4 sm:mb-6">
-            {/* Cost */}
-            <div className={`p-3 sm:p-4 rounded-xl ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
+          <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className={`p-3 rounded-lg ${isDark ? "bg-gray-700" : "bg-gray-50"}`}>
               <div className="flex items-center gap-2 mb-1">
                 <Coins className="w-4 h-4 text-amber-500" />
-                <span className={`text-xs sm:text-sm ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cost</span>
+                <span className={`text-xs ${isDark ? "text-gray-400" : "text-gray-500"}`}>Cost</span>
               </div>
-              <span className="text-lg sm:text-xl font-bold">{reward.cost}</span>
-              <span className={`text-xs sm:text-sm ml-1 ${isDark ? "text-gray-400" : "text-gray-500"}`}>points</span>
+              <span className="text-lg font-bold">{reward.cost}</span>
             </div>
 
-            {/* Stock */}
-            <div className={`p-3 sm:p-4 rounded-xl ${stockStatus.bgColor}`}>
+            <div className={`p-3 rounded-lg ${stockStatus.bgColor}`}>
               <div className="flex items-center gap-2 mb-1">
                 <Info className="w-4 h-4" />
-                <span className="text-xs sm:text-sm">Stock</span>
+                <span className="text-xs">Stock</span>
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg sm:text-xl font-bold">{reward.stock}</span>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${stockStatus.color}`}>
-                  {stockStatus.text}
-                </span>
-              </div>
+              <span className={`text-sm font-bold ${stockStatus.color}`}>
+                  {stockStatus.text} ({reward.stock})
+              </span>
             </div>
           </div>
 
-          {/* User Points */}
-          <div className={`p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 ${isDark ? "bg-indigo-900/20 border border-indigo-500/30" : "bg-indigo-50 border border-indigo-200"}`}>
-            <div className="flex items-center justify-between">
-              <span className={`text-sm ${isDark ? "text-indigo-300" : "text-indigo-600"}`}>Your Points</span>
-              <span className="text-lg sm:text-xl font-bold">{userPoints.toLocaleString()}</span>
-            </div>
+          {/* Notice */}
+          <div className={`p-3 rounded-lg flex gap-3 ${isDark ? "bg-red-900/20 border border-red-500/20" : "bg-red-50 border border-red-100"}`}>
+             <AlertCircle className={`w-5 h-5 flex-shrink-0 ${isDark ? "text-red-400" : "text-red-500"}`} />
+             <p className={`text-xs ${isDark ? "text-red-300" : "text-red-600"}`}>
+                Must be claimed onsite.
+             </p>
           </div>
+        </div>
 
-          {/* Important Notice */}
-          <div className={`p-3 sm:p-4 rounded-xl mb-4 sm:mb-6 ${isDark ? "bg-red-900/20 border border-red-500/30" : "bg-red-50 border border-red-200"}`}>
-            <div className="flex items-start gap-2 sm:gap-3">
-              <AlertCircle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isDark ? "text-red-400" : "text-red-500"}`} />
-              <div>
-                <h4 className={`font-semibold mb-1 text-sm sm:text-base ${isDark ? "text-red-300" : "text-red-700"}`}>
-                  Onsite Claim Required
-                </h4>
-                <p className={`text-xs sm:text-sm ${isDark ? "text-red-400" : "text-red-600"}`}>
-                  You must present your redemption code onsite to claim this reward physically.
-                </p>
-              </div>
-            </div>
+        {/* --- FIXED FOOTER (Action Button) --- */}
+        <div className={`flex-shrink-0 p-4 border-t ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-white"}`}>
+          <div className="flex items-center justify-between mb-3 text-sm">
+             <span className={isDark ? "text-gray-400" : "text-gray-500"}>Your Points:</span>
+             <span className={`font-bold ${userPoints < reward.cost ? "text-red-500" : (isDark ? "text-white" : "text-gray-900")}`}>
+               {userPoints.toLocaleString()}
+             </span>
           </div>
-
-          {/* Action Button */}
+          
           {canRedeem ? (
             <button
               onClick={() => onRedeem(reward)}
-              className={`w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg transition-all duration-200
-                bg-gradient-to-r from-green-500 to-emerald-600 text-white 
-                hover:from-green-600 hover:to-emerald-700 hover:shadow-lg 
-                transform hover:scale-105 active:scale-95`}
+              className="w-full py-3.5 rounded-xl font-bold text-white shadow-lg shadow-green-500/20
+                bg-gradient-to-r from-green-500 to-emerald-600 
+                active:scale-95 transition-transform"
             >
               Redeem Now
             </button>
           ) : (
             <button
               disabled
-              className="w-full py-3 sm:py-4 rounded-xl font-semibold text-base sm:text-lg cursor-not-allowed bg-gray-300 text-gray-500"
+              className={`w-full py-3.5 rounded-xl font-bold cursor-not-allowed ${
+                 isDark ? "bg-gray-700 text-gray-500" : "bg-gray-200 text-gray-400"
+              }`}
             >
               {reward.stock === 0 ? "Out of Stock" : "Insufficient Points"}
             </button>
@@ -360,6 +368,7 @@ function RewardDetailModal({ reward, visible, onClose, userPoints, onRedeem }) {
     </div>
   );
 }
+// --- REWARD DETAIL MODAL END ---
 
 function ConfirmModal({ visible, message, onConfirm, onCancel, loading }) {
   const { isDark } = useTheme();
@@ -784,7 +793,7 @@ export default function Rewards() {
         </div>
       </div>
 
-      {/* Rewards Grid - FIXED: Better spacing and padding */}
+      {/* Rewards Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
         {filteredRewards.length === 0 ? (
           <div className="text-center py-12 sm:py-16">
@@ -831,6 +840,7 @@ export default function Rewards() {
         onClose={closeDetailModal}
         userPoints={userPoints}
         onRedeem={startRedeemReward}
+        isPWA={isPWA} // <-- isPWA prop passed here
       />
 
       {/* Success Modal */}
@@ -905,11 +915,18 @@ export default function Rewards() {
               opacity: 1;
             }
           }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
           .animate-slideUp {
             animation: slideUp 0.3s ease-out;
           }
           .animate-scaleIn {
             animation: scaleIn 0.2s ease-out;
+          }
+          .animate-fadeIn {
+            animation: fadeIn 0.2s ease-out;
           }
         `}
       </style>

@@ -1,20 +1,12 @@
 /* eslint-disable no-restricted-globals */
-/* eslint-disable no-undef */
+/* global firebase, importScripts, clients */
 
-// -------------------------------------------------------------------------
-// IMPORTS (Must be at the top)
-// -------------------------------------------------------------------------
 import { clientsClaim } from 'workbox-core';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { precacheAndRoute, createHandlerBoundToURL } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate, NetworkFirst } from 'workbox-strategies';
 
-// -------------------------------------------------------------------------
-// FIREBASE MESSAGING INIT (CRITICAL for Background Notifications)
-// -------------------------------------------------------------------------
-// We use importScripts to load the standalone compat libraries for the SW.
-// These must remain here or be loaded via module imports if you upgrade Firebase SDK later.
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
@@ -33,10 +25,6 @@ if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
   firebase.initializeApp(firebaseConfig);
   const messaging = firebase.messaging();
 
-  // -----------------------------------------------------------------------
-  // BACKGROUND MESSAGE HANDLER
-  // This triggers when the browser receives a push but the app is NOT active
-  // -----------------------------------------------------------------------
   messaging.onBackgroundMessage((payload) => {
     console.log('[service-worker.js] Received background message ', payload);
     
@@ -63,12 +51,8 @@ if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
   console.log('⚠️ Firebase was already initialized in this Service Worker scope.');
 }
 
-// -------------------------------------------------------------------------
-// WORKBOX ROUTING & CACHING
-// -------------------------------------------------------------------------
-
-// 🚀 VERSION CONTROL - Increment this on each deployment
-const CACHE_VERSION = 'v1.2.14'; // Incrementing version to force update
+// VERSION CONTROL - Increment on each deployment
+const CACHE_VERSION = 'v1.2.18'; 
 
 clientsClaim();
 
