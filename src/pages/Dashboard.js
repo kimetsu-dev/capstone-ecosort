@@ -32,7 +32,7 @@ import {
   FaTrophy,
   FaFileAlt,
   FaHome,
-  FaClock,
+  //FaClock,
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaCheckCircle,
@@ -44,6 +44,7 @@ import {
   FaMedal,
   FaUsers,
   FaChartBar,
+  FaBell,
 } from "react-icons/fa";
 
 // Menu items for web version
@@ -64,7 +65,7 @@ const APP_MENU_ITEMS = [
   { id: "rewards", title: "Rewards", icon: FaGift, color: "from-amber-500 to-orange-600", bgColor: "bg-amber-500" },
   { id: "report", title: "Forum", icon: FaExclamationTriangle, color: "from-red-500 to-rose-600", bgColor: "bg-red-500" },
   { id: "transactions", title: "Transactions", icon: FaFileAlt, color: "from-slate-500 to-gray-600", bgColor: "bg-slate-500" },
-  { id: "ledger", title: "Ledger", icon: FaCubes, color: "from-indigo-500 to-purple-600", bgColor: "bg-indigo-500" }, 
+  //{ id: "ledger", title: "Ledger", icon: FaCubes, color: "from-indigo-500 to-purple-600", bgColor: "bg-indigo-500" }, 
 ];
 
 const DAY_MAP = {
@@ -555,7 +556,7 @@ export default function Dashboard() {
       const [hours, minutes] = time.split(":");
       const date = new Date();
       date.setHours(parseInt(hours), parseInt(minutes));
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit", hour12: true });
     } catch {
       return time;
     }
@@ -574,7 +575,7 @@ export default function Dashboard() {
   // PWA MODE - Mobile App Design
   if (isPWA) {
     return (
-      <div className={`min-h-screen pb-20 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
+      <div className={`min-h-screen pb-32 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
         <div className={`sticky top-0 z-50 ${isDark ? 'bg-gray-900/95' : 'bg-white/95'} border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -712,10 +713,37 @@ export default function Dashboard() {
                 </div>
               </div>
 
+              {/* UPDATED CALENDAR CARD */}
               <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-                <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'} mb-4`}>
-                  Calendar
-                </h3>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      Calendar
+                    </h3>
+                    {/* Show Today's Date */}
+                    <p className={`text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-600'} font-medium mt-1`}>
+                      Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Reminder Alert if there is an event today */}
+                {((nextCollection && isToday(nextCollection.date)) || (nextSubmission && isToday(nextSubmission.date))) && (
+                   <div className={`mb-4 p-3 rounded-2xl flex items-center gap-3 ${isDark ? 'bg-emerald-900/30 border border-emerald-800' : 'bg-emerald-50 border border-emerald-100'}`}>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isDark ? 'bg-emerald-500' : 'bg-emerald-500'}`}>
+                        <FaBell className="text-white text-xs" />
+                      </div>
+                      <div>
+                         <p className={`text-xs font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                           Happening Today!
+                         </p>
+                         <p className={`text-[10px] ${isDark ? 'text-gray-300' : 'text-gray-600'}`}>
+                           {nextCollection && isToday(nextCollection.date) ? "Waste Collection Day" : "Submission Center Open"}
+                         </p>
+                      </div>
+                   </div>
+                )}
+
                 <DashboardCalendar
                   selectedDate={selectedDate}
                   setSelectedDate={setSelectedDate}
@@ -725,78 +753,79 @@ export default function Dashboard() {
               </div>
 
               {nextCollection && (
-                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div>
-                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        Next Collection
-                      </h3>
-                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <FaClock className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Time</span>
-                      </div>
-                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {formatTime(nextCollection.schedule.startTime)}
-                      </p>
-                    </div>
-                    {nextCollection.schedule.area && (
-                      <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <FaMapMarkerAlt className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Area</span>
-                        </div>
-                        <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {nextCollection.schedule.area}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+  <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+    <div className="flex items-center gap-3 mb-4">
+      <div>
+        <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Next Collection
+        </h3>
+        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        </p>
+      </div>
+    </div>
+    {/* Added items-stretch to the parent flex container */}
+    <div className="flex items-stretch gap-3">
+      {/* Added h-full to the inner boxes */}
+      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Collection Time</span>
+        </div>
+        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {formatTime(nextCollection.schedule.startTime)}
+        </p>
+      </div>
+      {nextCollection.schedule.area && (
+        <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
+          </div>
+          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {nextCollection.schedule.area}
+            {nextCollection.schedule.barangay && `, ${nextCollection.schedule.barangay}`}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
               
               {nextSubmission && (
-                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div>
-                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        Next Submission Point
-                      </h3>
-                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <FaClock className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Time</span>
-                      </div>
-                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                        {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
-                      </p>
-                    </div>
-                    {nextSubmission.schedule.area && (
-                      <div className={`flex-1 rounded-2xl p-4 ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <FaMapMarkerAlt className={`text-sm ${isDark ? 'text-gray-400' : 'text-gray-500'}`} />
-                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Area</span>
-                        </div>
-                        <p className={`text-sm font-bold truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>
-                          {nextSubmission.schedule.area}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+  <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+    <div className="flex items-center gap-3 mb-4">
+      <div>
+        <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          Next Submission
+        </h3>
+        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+          {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        </p>
+      </div>
+    </div>
+    {/* Added items-stretch here */}
+    <div className="flex items-stretch gap-3">
+      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Operating Hours</span>
+        </div>
+        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+          {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
+        </p>
+      </div>
+      {nextSubmission.schedule.area && (
+        <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
+          </div>
+          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+            {nextSubmission.schedule.area}
+            {nextSubmission.schedule.barangay && `, ${nextSubmission.schedule.barangay}`}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
               {recentActivity.length > 0 && (
                 <div>
@@ -1416,9 +1445,7 @@ export default function Dashboard() {
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-blue-50"}`}>
-                                      <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-blue-500/20" : "bg-blue-100"} flex items-center justify-center`}>
-                                        <FaClock className={`w-5 h-5 ${isDark ? "text-blue-400" : "text-blue-600"}`} />
-                                      </div>
+                                      
                                       <div>
                                         <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                                           Collection Time
@@ -1431,9 +1458,7 @@ export default function Dashboard() {
 
                                     {(nextCollection.schedule.area || nextCollection.schedule.barangay) && (
                                       <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-blue-50"}`}>
-                                        <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-emerald-500/20" : "bg-emerald-100"} flex items-center justify-center`}>
-                                          <FaMapMarkerAlt className={`w-5 h-5 ${isDark ? "text-emerald-400" : "text-emerald-600"}`} />
-                                        </div>
+                                        
                                         <div className="flex-1 min-w-0">
                                           <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                                             Location
@@ -1462,7 +1487,7 @@ export default function Dashboard() {
                                     Next Submission
                                   </h3>
                                   <p className={`text-sm ${isDark ? "text-green-400" : "text-green-600"}`}>
-                                    Drop off your sorted waste
+                                    Drop off your recyclable and sorted waste
                                   </p>
                                 </div>
                               </div>
@@ -1494,9 +1519,7 @@ export default function Dashboard() {
 
                                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-green-50"}`}>
-                                      <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-green-500/20" : "bg-green-100"} flex items-center justify-center`}>
-                                        <FaClock className={`w-5 h-5 ${isDark ? "text-green-400" : "text-green-600"}`} />
-                                      </div>
+                                      
                                       <div>
                                         <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                                           Operating Hours
@@ -1509,9 +1532,7 @@ export default function Dashboard() {
 
                                     {(nextSubmission.schedule.area || nextSubmission.schedule.barangay) && (
                                       <div className={`flex items-center gap-3 p-4 rounded-xl ${isDark ? "bg-gray-700/50" : "bg-green-50"}`}>
-                                        <div className={`w-10 h-10 rounded-lg ${isDark ? "bg-emerald-500/20" : "bg-emerald-100"} flex items-center justify-center`}>
-                                          <FaMapMarkerAlt className={`w-5 h-5 ${isDark ? "text-emerald-400" : "text-emerald-600"}`} />
-                                        </div>
+                                        
                                         <div className="flex-1 min-w-0">
                                           <div className={`text-xs font-medium ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                                             Location
