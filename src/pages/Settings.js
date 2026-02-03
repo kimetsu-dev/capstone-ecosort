@@ -1,8 +1,9 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "../contexts/ThemeContext";
+import { useLanguage } from "../contexts/LanguageContext"; // IMPORT THIS
 
-import { FiArrowLeft, FiSettings, FiLogOut } from "react-icons/fi";
+import { FiArrowLeft, FiSettings, FiLogOut, FiGlobe } from "react-icons/fi"; // Added FiGlobe
 import { FaPalette } from "react-icons/fa";
 
 import { auth } from "../firebase";
@@ -12,6 +13,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage(); // USE THE HOOK
 
   const handleLogout = async () => {
     try {
@@ -22,40 +24,58 @@ export default function Settings() {
     }
   };
 
-  // Determine where to go back based on current path or state
   const handleBackNavigation = () => {
     const currentPath = location.pathname;
-    
-    // If this is admin settings, go back to admin profile
     if (currentPath === "/adminsettings") {
       navigate("/adminprofile");
     } else {
-      // For other cases, use the default back behavior
       navigate(-1);
     }
   };
 
-  // ⚙️ Settings Sections (only appearance)
+  // ⚙️ Settings Sections
   const settingsSections = [
     {
       id: "appearance",
-      title: "Appearance & Display",
+      title: t("settings.appearance"), // Use t() for translation
       icon: FaPalette,
       items: [
         {
           id: "theme",
-          title: "Theme Mode",
-          subtitle: "Choose Light, Dark, or follow System",
+          title: t("settings.theme"),
+          subtitle: t("settings.theme_sub"),
           type: "select",
           value: theme,
           options: [
-            { label: "Light", value: "light" },
-            { label: "Dark", value: "dark" },
-            { label: "System Default", value: "system" },
+            { label: t("opt.light"), value: "light" },
+            { label: t("opt.dark"), value: "dark" },
+            { label: t("opt.system"), value: "system" },
           ],
           onChange: (val) => setTheme(val),
           color: "from-purple-500 to-indigo-600",
           icon: FiSettings,
+        },
+      ],
+    },
+    // NEW LANGUAGE SECTION
+    {
+      id: "language",
+      title: t("settings.language"),
+      icon: FiGlobe,
+      items: [
+        {
+          id: "lang_select",
+          title: t("settings.language"),
+          subtitle: t("settings.language_sub"),
+          type: "select",
+          value: language,
+          options: [
+            { label: t("opt.english"), value: "en" },
+            { label: t("opt.tagalog"), value: "tl" },
+          ],
+          onChange: (val) => setLanguage(val),
+          color: "from-blue-500 to-cyan-600",
+          icon: FiGlobe,
         },
       ],
     },
@@ -92,7 +112,7 @@ export default function Settings() {
                 theme === "dark" ? "text-white" : "text-gray-900"
               }`}
             >
-              Settings
+              {t("settings.title")} 
             </h1>
           </div>
         </header>
@@ -205,7 +225,7 @@ export default function Settings() {
             className="w-full py-4 sm:py-5 bg-gradient-to-r from-red-500 to-pink-600 rounded-3xl shadow-2xl text-white font-bold text-lg sm:text-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-3"
           >
             <FiLogOut className="text-2xl sm:text-3xl" />
-            <span>Sign Out</span>
+            <span>{t("settings.logout")}</span>
           </button>
         </div>
       </div>

@@ -230,12 +230,12 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
     setLoading(true);
 
     try {
-      let uploadedMediaUrl = "";
-      if (mediaFile) {
-        const fileRef = storageRef(storage, `posts/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-        await uploadBytes(fileRef, mediaFile);
-        uploadedMediaUrl = await getDownloadURL(fileRef);
-      }
+    let uploadedMediaUrl = "";
+    if (mediaFile) {
+      const fileRef = storageRef(storage, `posts/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
+      await uploadBytes(fileRef, mediaFile); // This will no longer hang!
+      uploadedMediaUrl = await getDownloadURL(fileRef);
+    }
 
       let username = currentUser.email || currentUser.uid;
       // ...fetch username logic similar to existing...
@@ -253,15 +253,15 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
       });
 
       resetForm();
-      onClose();
-      showToast("Post created successfully!", "success");
-    } catch (error) {
-      console.error(error);
-      showToast("Failed to create post.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+    onClose();
+    showToast("Post created successfully!", "success");
+  } catch (error) {
+    console.error(error);
+    showToast("Failed to create post: " + error.message, "error");
+  } finally {
+    setLoading(false); 
+  }
+};
 
   if (!isOpen) return null;
 
@@ -365,17 +365,17 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!currentUser) return showToast("Please log in.", "error");
-    setLoading(true);
+  e.preventDefault();
+  if (!currentUser) return showToast("Please log in.", "error");
+  setLoading(true);
 
-    try {
-      let uploadedMediaUrl = "";
-      if (mediaFile) {
-        const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-        await uploadBytes(fileRef, mediaFile);
-        uploadedMediaUrl = await getDownloadURL(fileRef);
-      }
+  try {
+    let uploadedMediaUrl = "";
+    if (mediaFile) {
+      const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
+      await uploadBytes(fileRef, mediaFile);
+      uploadedMediaUrl = await getDownloadURL(fileRef);
+    }
 
       let usernameToSave = currentUser.email || currentUser.uid;
       // ... fetch username ...
@@ -396,15 +396,15 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
       });
 
       resetForm();
-      onClose();
-      showToast("Report submitted successfully!", "success");
-    } catch (error) {
-      console.error(error);
-      showToast("Failed to submit report.", "error");
-    } finally {
-      setLoading(false);
-    }
-  };
+    onClose();
+    showToast("Report submitted successfully!", "success");
+  } catch (error) {
+    console.error(error);
+    showToast("Failed to submit report: " + error.message, "error");
+  } finally {
+    setLoading(false); 
+  }
+};
 
   if (!isOpen) return null;
 

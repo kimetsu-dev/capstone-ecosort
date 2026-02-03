@@ -7,7 +7,9 @@ import {
 } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useTheme, ThemeProvider } from "./contexts/ThemeContext";
-import { useAuth } from "./contexts/AuthContext";
+import { useAuth, AuthProvider } from "./contexts/AuthContext"; // Ensure AuthProvider is imported if not already in index.js
+import { LanguageProvider } from "./contexts/LanguageContext"; // IMPORT LANGUAGE PROVIDER
+
 import "./index.css";
 
 import BackButtonHandler from "./BackButtonHandler";
@@ -19,6 +21,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import AdminPanel from "./pages/AdminPanel";
 import AdminProfile from "./pages/AdminProfile";
+import AdminSettings from "./pages/AdminSettings"; // Import distinct AdminSettings page
 import Dashboard from "./pages/Dashboard";
 import Forum from "./pages/Forum";
 import SubmitWaste from "./pages/SubmitWaste";
@@ -225,7 +228,6 @@ const LoadingSpinner = () => {
 const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOnly = false }) => {
   const { currentUser, isAdmin, loading, authInitialized } = useAuth();
   
-  // Show loading until auth is fully initialized
   if (loading || !authInitialized) {
     return <LoadingSpinner />;
   }
@@ -243,11 +245,13 @@ const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOn
 
   // Admin only routes
   if (adminOnly && (!currentUser || !isAdmin)) {
+    // If logged in but not admin, go to dashboard. If not logged in, go to welcome.
     const redirectPath = currentUser ? "/dashboard" : "/welcome";
     return <Navigate to={redirectPath} replace />;
   }
 
-  // User only routes (prevent admin access)
+  // User only routes (prevent admin access to user dashboard if desired, though often admins can see user views)
+  // Adjust this logic if admins SHOULD see user dashboard
   if (requireAuth && !adminOnly && currentUser && isAdmin) {
     return <Navigate to="/adminpanel" replace />;
   }
@@ -258,28 +262,23 @@ const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOn
 /* ---------------- THEMED APP WRAPPER ---------------- */
 const ThemedAppWrapper = () => {
   const { theme, systemTheme } = useTheme();
-  const { authInitialized } = useAuth();
+  const { authInitialized } = useAuth(); // Ensure AuthContext is provided above this component
   const activeTheme = theme === "system" ? systemTheme : theme;
 
   // Initialize Notification listeners
   useEffect(() => {
-    // 1. Request Permission immediately
     requestFirebaseNotificationPermission()
       .then((token) => {
         if (token) {
           console.log("🔔 Notification permission granted. Token:", token);
-          // In a real app, you would send this token to your backend/Firestore
-          // e.g., updateDoc(doc(db, 'users', userId), { fcmToken: token });
         }
       })
       .catch((err) => console.log("Notification permission error:", err));
 
-    // 2. Listen for FOREGROUND messages (while user is using the app)
     const unsubscribe = onMessageListener((payload) => {
       console.log("💬 Foreground Message Received:", payload);
       const { title, body } = payload.notification || {};
       
-      // Native notification fallback if you want to show system notification even when app is open
       if (Notification.permission === 'granted') {
          new Notification(title, { 
            body,
@@ -288,13 +287,11 @@ const ThemedAppWrapper = () => {
       }
     });
 
-    // Cleanup isn't strictly necessary for the listener wrapper but good practice
     return () => {
-      // unsubscribe if your onMessageListener returned an unsubscribe function
+      // unsubscribe logic if needed
     };
   }, []);
 
-  // Show initial loading screen until auth is initialized
   if (!authInitialized) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${
@@ -461,7 +458,7 @@ const ThemedAppWrapper = () => {
             path="/adminsettings"
             element={
               <RouteGuard requireAuth adminOnly>
-                <Settings />
+                <AdminSettings />
               </RouteGuard>
             }
           />
@@ -512,7 +509,11 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <ThemedAppWrapper />
+      <AuthProvider> 
+        <LanguageProvider> 
+          <ThemedAppWrapper />
+        </LanguageProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

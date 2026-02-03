@@ -11,6 +11,7 @@ import Forum from "./Forum";
 import Leaderboard from "./Leaderboard";
 import Transactions from "./Transactions";
 import PublicVerification from "./PublicVerification";
+import { useLanguage } from "../contexts/LanguageContext";
 
 import {
   doc,
@@ -720,10 +721,7 @@ export default function Dashboard() {
                     <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
                       Calendar
                     </h3>
-                    {/* Show Today's Date */}
-                    <p className={`text-xs ${isDark ? 'text-emerald-400' : 'text-emerald-600'} font-medium mt-1`}>
-                      Today is {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
-                    </p>
+                   
                   </div>
                 </div>
 
@@ -757,7 +755,7 @@ export default function Dashboard() {
     <div className="flex items-center gap-3 mb-4">
       <div>
         <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Next Collection
+          Garbage Collection
         </h3>
         <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -795,7 +793,7 @@ export default function Dashboard() {
     <div className="flex items-center gap-3 mb-4">
       <div>
         <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Next Submission
+          Recyclable Waste Submission
         </h3>
         <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
           {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -1390,10 +1388,10 @@ export default function Dashboard() {
                             <div className="flex items-center gap-3 mb-6">
                               <div>
                                 <h3 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-blue-200" : "text-blue-800"}`}>
-                                  Next Collection
+                                  Garbage Collection
                                 </h3>
                                 <p className={`text-sm ${isDark ? "text-blue-400" : "text-blue-600"}`}>
-                                  Don't miss your collection day
+                                  Don't miss your garbage collection day
                                 </p>
                               </div>
                             </div>
@@ -1484,7 +1482,7 @@ export default function Dashboard() {
                                 
                                 <div>
                                   <h3 className={`text-xl lg:text-2xl font-bold ${isDark ? "text-green-200" : "text-green-800"}`}>
-                                    Next Submission
+                                    Recyclable Waste Submission
                                   </h3>
                                   <p className={`text-sm ${isDark ? "text-green-400" : "text-green-600"}`}>
                                     Drop off your recyclable and sorted waste

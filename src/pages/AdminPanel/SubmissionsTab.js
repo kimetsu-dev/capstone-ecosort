@@ -11,6 +11,7 @@ import {
   orderBy 
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { Layers, ChevronDown, ChevronUp, Package } from "lucide-react";
 
 // Helper function to add notifications
 async function addNotification(userId, message, type = "submission_status") {
@@ -58,10 +59,16 @@ const SubmissionsTab = ({
   });
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [allSubmissions, setAllSubmissions] = useState([]);
+  
+  // State to track expanded items in the history view
+  const [expandedBundles, setExpandedBundles] = useState({});
+
+  const toggleBundle = (id) => {
+    setExpandedBundles(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   // Real-time stats listener
   useEffect(() => {
-    // Try with ordering first, fallback to unordered if it fails
     let submissionsQuery;
     
     try {
@@ -83,32 +90,18 @@ const SubmissionsTab = ({
             ...doc.data() 
           }));
           
-          console.log("Live submission stats update - fetched:", submissions.length);
-          console.log("Sample submissions:", submissions.slice(0, 3)); // Debug: show first 3 submissions
-
           const total = submissions.length;
           const successful = submissions.filter(s => s.status === "confirmed").length;
           const rejected = submissions.filter(s => s.status === "rejected").length;
           const pending = submissions.filter(s => s.status === "pending").length;
           const successRate = (successful + rejected) > 0 ? ((successful / (successful + rejected)) * 100) : 0;
           
-          // Calculate total points awarded (only for confirmed submissions)
           const totalPointsAwarded = submissions
             .filter(s => s.status === "confirmed")
             .reduce((sum, s) => {
-              // Try multiple possible point field names
               const points = parseFloat(s.points) || parseFloat(s.pointsAwarded) || parseFloat(s.awardedPoints) || 0;
               return sum + points;
             }, 0);
-
-          console.log("Live submission stats:", { 
-            total, 
-            successful, 
-            rejected, 
-            pending, 
-            successRate,
-            totalPointsAwarded 
-          });
 
           setLiveStats({ 
             total, 
@@ -127,51 +120,10 @@ const SubmissionsTab = ({
       },
       (error) => {
         console.error("Error with live submission stats listener:", error);
-        // Try again without ordering
-        const fallbackQuery = collection(db, "waste_submissions");
-        const fallbackUnsubscribe = onSnapshot(fallbackQuery, (snapshot) => {
-          try {
-            const submissions = snapshot.docs.map(doc => ({ 
-              id: doc.id, 
-              ...doc.data() 
-            }));
-            
-            console.log("Fallback query - fetched:", submissions.length);
-            
-            const total = submissions.length;
-            const successful = submissions.filter(s => s.status === "confirmed").length;
-            const rejected = submissions.filter(s => s.status === "rejected").length;
-            const pending = submissions.filter(s => s.status === "pending").length;
-            const successRate = (successful + rejected) > 0 ? ((successful / (successful + rejected)) * 100) : 0;
-            
-            const totalPointsAwarded = submissions
-              .filter(s => s.status === "confirmed")
-              .reduce((sum, s) => {
-                const points = parseFloat(s.points) || parseFloat(s.pointsAwarded) || parseFloat(s.awardedPoints) || 0;
-                return sum + points;
-              }, 0);
-
-            setLiveStats({ 
-              total, 
-              successful, 
-              rejected, 
-              pending,
-              successRate: isNaN(successRate) ? 0 : successRate,
-              totalPointsAwarded
-            });
-            setAllSubmissions(submissions);
-            setIsStatsLoading(false);
-          } catch (error) {
-            console.error("Error with fallback query:", error);
-            setIsStatsLoading(false);
-          }
-        });
-        
-        return fallbackUnsubscribe;
+        setIsStatsLoading(false);
       }
     );
 
-    // Cleanup listener on unmount
     return () => unsubscribe();
   }, []);
 
@@ -181,7 +133,7 @@ const SubmissionsTab = ({
     
     const name = user.displayName || user.name || user.username || user.firstName || "Unknown User";
     const email = user.email || "No email";
-    const uniqueId = userId.slice(0, 8); // First 8 characters of user ID
+    const uniqueId = userId.slice(0, 8); 
     
     return { name, email, uniqueId };
   };
@@ -213,14 +165,25 @@ const SubmissionsTab = ({
   const confirmSubmission = async (submission) => {
     setLoading(true);
     try {
-      const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
-      const awardedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
+      // Determine if this is a mixed bundle or single item
+      const isMixedBundle = submission.items && Array.isArray(submission.items) && submission.items.length > 1;
+      let awardedPoints = 0;
+
+      if (isMixedBundle) {
+        // Mixed bundle: use the calculated total
+        awardedPoints = parseFloat(submission.points) || 0;
+      } else {
+        // Single item: calculate based on type and weight
+        const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
+        awardedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
+      }
+
       const userRef = doc(db, "users", submission.userId);
 
       await createPointTransaction({
         userId: submission.userId,
         points: awardedPoints,
-        description: `Awarded points for waste submission (ID: ${submission.id})`,
+        description: `Awarded points for ${isMixedBundle ? 'mixed bundle' : submission.type} submission (ID: ${submission.id.slice(0,6)})`,
         type: "points_awarded",
       });
 
@@ -236,12 +199,13 @@ const SubmissionsTab = ({
       const submissionRef = doc(db, "waste_submissions", submission.id);
       await updateDoc(submissionRef, {
         status: "confirmed",
+        points: awardedPoints,
         confirmedAt: serverTimestamp(),
       });
 
       await addNotification(
         submission.userId,
-        `Your waste submission has been confirmed! You earned ${awardedPoints.toFixed(2)} points.`
+        `Your ${isMixedBundle ? 'mixed bundle' : 'waste'} submission has been confirmed! You earned ${awardedPoints.toFixed(2)} points.`
       );
 
       setPendingSubmissions((prev) => prev.filter((sub) => sub.id !== submission.id));
@@ -256,7 +220,6 @@ const SubmissionsTab = ({
 
   const formatDate = (timestamp) => {
     if (!timestamp) return "N/A";
-    
     let date;
     if (timestamp.toDate) {
       date = timestamp.toDate();
@@ -265,10 +228,93 @@ const SubmissionsTab = ({
     } else {
       date = new Date(timestamp);
     }
-    
     return date.toLocaleString();
   };
-  // Loading skeleton for stats
+
+  // Helper to check if submission is a mixed bundle
+  const isMixedBundle = (submission) => {
+    return submission.items && Array.isArray(submission.items) && submission.items.length > 1;
+  };
+
+  // Helper to render waste details with clear visual distinction
+  const WasteDetailsRenderer = ({ submission, compact = false, showExpanded = false }) => {
+    const isBundle = isMixedBundle(submission);
+    const isExpanded = expandedBundles[submission.id];
+    
+    if (isBundle) {
+      return (
+        <div>
+          <div className={`text-sm mt-1 font-bold flex items-center gap-2 ${isDark ? "text-green-400" : "text-green-600"}`}>
+            <Layers className="w-4 h-4" />
+            Mixed Bundle ({submission.items.length} items)
+          </div>
+          <div className={`text-xs mt-1 ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+            Total Weight: {(submission.totalWeight || submission.weight || 0).toFixed(2)} kg
+          </div>
+          
+          {showExpanded ? (
+            <>
+              <button
+                onClick={() => toggleBundle(submission.id)}
+                className={`mt-2 text-xs flex items-center gap-1 ${isDark ? "text-blue-400 hover:text-blue-300" : "text-blue-600 hover:text-blue-700"}`}
+              >
+                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                {isExpanded ? "Hide items" : "Show items"}
+              </button>
+              
+              {isExpanded && (
+                <div className={`mt-2 p-2 rounded-md ${isDark ? "bg-gray-900/50" : "bg-slate-100"} animate-slide-down`}>
+                  {submission.items.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-xs mb-1 last:mb-0">
+                      <span className={`${isDark ? "text-gray-300" : "text-slate-700"}`}>
+                        • {item.wasteType}
+                      </span>
+                      <span className={`font-mono ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                        {item.weight}kg ({item.points || 0} pts)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            // Compact view always shows items
+            <div className={`mt-2 p-2 rounded-md ${isDark ? "bg-gray-900/50" : "bg-slate-50"}`}>
+              {submission.items.map((item, idx) => (
+                <div key={idx} className="flex justify-between text-xs mb-1 last:mb-0">
+                  <span className={`${isDark ? "text-gray-400" : "text-slate-600"}`}>
+                    • {item.wasteType}
+                  </span>
+                  <span className={`font-mono ${isDark ? "text-gray-500" : "text-slate-500"}`}>
+                    {item.weight}kg
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Single Item - Cleaner, more distinct display
+    return (
+      <div>
+        <div className={`text-sm mt-1 font-bold flex items-center gap-2 ${isDark ? "text-blue-400" : "text-blue-600"}`}>
+          <Package className="w-4 h-4" />
+          {submission.type}
+        </div>
+        <div className={`text-xs ${isDark ? "text-gray-400" : "text-slate-600"}`}>
+          Weight: {(submission.weight || 0).toFixed(2)} kg
+        </div>
+        {!compact && (
+          <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
+            Rate: {pointsPerKiloMap[submission.type] ?? 0} pts/kg
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const StatsCard = ({ title, value, bgColor, isLoading, icon, subtitle }) => (
     <div className={`p-6 rounded-xl shadow-lg border transition-all duration-200 hover:shadow-xl ${bgColor}`}>
       <div className="flex items-center justify-between">
@@ -297,18 +343,17 @@ const SubmissionsTab = ({
     <div className="space-y-6">
       {/* Header */}
       <div className={`sticky top-0 z-10 ${isDark ? 'bg-gray-900/95 border-gray-700' : 'bg-white/95 border-slate-200'} backdrop-blur-md border-b`}>
-      <div className="px-4 py-2">
-        <div className="flex items-center gap-2 mb-1">
-          <h2 className={`text-2xl font-bold ${isDark ? "text-gray-100" : "text-slate-800"}`}>
-            Submission Management
-          </h2>
+        <div className="px-4 py-2">
+          <div className="flex items-center gap-2 mb-1">
+            <h2 className={`text-2xl font-bold ${isDark ? "text-gray-100" : "text-slate-800"}`}>
+              Submission Management
+            </h2>
+          </div>
         </div>
       </div>
-    </div>
 
       {/* Live Stats Dashboard */}
       <div>
-        
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <StatsCard
             title="Total Submissions"
@@ -316,8 +361,6 @@ const SubmissionsTab = ({
             bgColor={isDark ? "bg-gray-800 border-gray-700 text-white" : "bg-white border-gray-200 text-gray-900"}
             isLoading={isStatsLoading}
           />
-          
-         
           <StatsCard
             title="Eco Points Awarded"
             value={liveStats.totalPointsAwarded.toLocaleString()}
@@ -339,11 +382,7 @@ const SubmissionsTab = ({
               <div className={`text-sm ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                 Needs Review
               </div>
-              <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                Waiting for approval
-              </div>
             </div>
-            
           </div>
         </div>
         
@@ -355,9 +394,6 @@ const SubmissionsTab = ({
               <div className="text-2xl font-bold text-green-600">{liveStats.successful}</div>
               <div className={`text-sm ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                 Confirmed
-              </div>
-              <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                Successfully processed
               </div>
             </div>
           </div>
@@ -372,11 +408,7 @@ const SubmissionsTab = ({
               <div className={`text-sm ${isDark ? "text-gray-400" : "text-slate-600"}`}>
                 Rejected
               </div>
-              <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                Did not meet criteria
-              </div>
             </div>
-           
           </div>
         </div>
       </div>
@@ -384,12 +416,11 @@ const SubmissionsTab = ({
       {/* Pending Submissions Section */}
       {pendingSubmissions.length === 0 ? (
         <div className="text-center py-12">
-          
           <h3 className={`text-lg font-medium mb-2 ${isDark ? "text-gray-200" : "text-slate-900"}`}>
             All caught up!
           </h3>
           <p className={`${isDark ? "text-gray-400" : "text-slate-500"}`}>
-            No pending submissions to review. New submissions will appear here automatically.
+            No pending submissions to review.
           </p>
         </div>
       ) : (
@@ -409,20 +440,51 @@ const SubmissionsTab = ({
             <div className="space-y-3">
               {pendingSubmissions.map((submission) => {
                 const userInfo = getUserInfo(submission.userId);
-                const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
-                const estimatedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
+                const isBundle = isMixedBundle(submission);
+                
+                // Calculate estimated points
+                let estimatedPoints = 0;
+                if (isBundle) {
+                  estimatedPoints = parseFloat(submission.points) || 0;
+                } else {
+                  const rate = pointsPerKiloMap[submission.type] ?? 0;
+                  estimatedPoints = Number(submission.weight * rate) || 0;
+                }
                 
                 return (
                   <div
                     key={submission.id}
-                    className={`p-4 rounded-lg border-l-4 border-l-yellow-400 transition-all hover:shadow-md ${
+                    className={`p-4 rounded-lg border-l-4 ${
+                      isBundle ? 'border-l-green-500' : 'border-l-yellow-400'
+                    } transition-all hover:shadow-md ${
                       isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
                     }`}
                   >
                     <div className="space-y-3">
+                      {/* Type Badge */}
+                      <div className="flex items-center gap-2 mb-2">
+                        {isBundle ? (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                            isDark ? "bg-green-900/40 text-green-400 border border-green-700" : "bg-green-100 text-green-700 border border-green-300"
+                          }`}>
+                            <Layers className="w-3 h-3" />
+                            Bundle
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                            isDark ? "bg-blue-900/40 text-blue-400 border border-blue-700" : "bg-blue-100 text-blue-700 border border-blue-300"
+                          }`}>
+                            <Package className="w-3 h-3" />
+                            Single Item
+                          </span>
+                        )}
+                      </div>
+
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                            
+                            {/* User Info Column */}
                             <div>
                               <span className={`font-medium uppercase tracking-wider text-xs ${
                                 isDark ? "text-gray-400" : "text-slate-500"
@@ -439,22 +501,18 @@ const SubmissionsTab = ({
                                 ID: {userInfo.uniqueId}
                               </div>
                             </div>
+
+                            {/* Waste Details Column */}
                             <div>
                               <span className={`font-medium uppercase tracking-wider text-xs ${
                                 isDark ? "text-gray-400" : "text-slate-500"
                               }`}>
                                 Waste Details
                               </span>
-                              <div className={`text-sm mt-1 font-medium ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                                {submission.type}
-                              </div>
-                              <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                Weight: {submission.weight} kg
-                              </div>
-                              <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                                Rate: {pointsPerKiloForType}/kg
-                              </div>
+                              <WasteDetailsRenderer submission={submission} />
                             </div>
+
+                            {/* Points & Date Column */}
                             <div className="sm:col-span-2 grid grid-cols-2 gap-4">
                               <div>
                                 <span className={`font-medium uppercase tracking-wider text-xs ${
@@ -490,7 +548,6 @@ const SubmissionsTab = ({
                           className="flex-1 px-4 py-2.5 text-white bg-gradient-to-r from-green-600 to-green-700 rounded-lg hover:from-green-700 hover:to-green-800 text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                           disabled={loading}
                         >
-                         
                           <span className="text-center">Confirm & Award {estimatedPoints.toFixed(1)} pts</span>
                         </button>
                         <button
@@ -498,7 +555,6 @@ const SubmissionsTab = ({
                           className="flex-1 px-4 py-2.5 text-white bg-gradient-to-r from-red-600 to-red-700 rounded-lg hover:from-red-700 hover:to-red-800 text-sm font-medium transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
                           disabled={loading}
                         >
-                          
                           <span>Reject</span>
                         </button>
                       </div>
@@ -511,24 +567,13 @@ const SubmissionsTab = ({
         </div>
       )}
 
-      {/* All Submissions History - Now always visible */}
+      {/* All Submissions History */}
       <div>
         <h3 className={`text-lg font-semibold mb-3 ${isDark ? "text-gray-200" : "text-slate-800"}`}>
           All Submissions History
         </h3>
         
-        {allSubmissions.length === 0 ? (
-          <div className="text-center py-8">
-            <div className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
-              isDark ? "bg-gray-700" : "bg-slate-100"
-            }`}>
-              <span className="text-lg">📋</span>
-            </div>
-            <p className={`${isDark ? "text-gray-400" : "text-slate-500"}`}>
-              No submissions found. Submissions will appear here once users start submitting waste data.
-            </p>
-          </div>
-        ) : allSubmissions.filter(s => s.status === "confirmed" || s.status === "rejected").length === 0 ? (
+        {allSubmissions.filter(s => s.status === "confirmed" || s.status === "rejected").length === 0 ? (
           <div className="text-center py-8">
             <div className={`w-12 h-12 mx-auto mb-3 rounded-full flex items-center justify-center ${
               isDark ? "bg-gray-700" : "bg-slate-100"
@@ -536,7 +581,7 @@ const SubmissionsTab = ({
               <span className="text-lg">⏳</span>
             </div>
             <p className={`${isDark ? "text-gray-400" : "text-slate-500"}`}>
-              No confirmed or rejected submissions yet. Processed submissions will appear here.
+              No processed submissions yet.
             </p>
           </div>
         ) : (
@@ -545,11 +590,17 @@ const SubmissionsTab = ({
               .filter(s => s.status === "confirmed" || s.status === "rejected")
               .map((submission) => {
                 const userInfo = getUserInfo(submission.userId);
-                const pointsPerKiloForType = pointsPerKiloMap[submission.type] ?? 0;
-                const calculatedPoints = Number(submission.weight * pointsPerKiloForType) || 0;
-                // Use stored points if available, otherwise use calculated points
-                const finalPoints = parseFloat(submission.points) || parseFloat(submission.pointsAwarded) || calculatedPoints;
+                const isBundle = isMixedBundle(submission);
                 
+                // Handle points logic for display
+                let finalPoints = parseFloat(submission.points) || parseFloat(submission.pointsAwarded) || 0;
+                
+                if (finalPoints === 0 && !isBundle) {
+                  // Fallback calculation for legacy single items
+                  const rate = pointsPerKiloMap[submission.type] ?? 0;
+                  finalPoints = Number(submission.weight * rate) || 0;
+                }
+
                 const getStatusBadgeStyle = (status) => {
                   switch (status) {
                     case "confirmed":
@@ -568,9 +619,30 @@ const SubmissionsTab = ({
                       isDark ? "bg-gray-800 border border-gray-700" : "bg-white border border-slate-200"
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row justify-between items-start">
-                      <div className="flex-1">
+                    <div className="flex flex-col sm:flex-row justify-between items-start gap-3">
+                      <div className="flex-1 w-full">
+                        {/* Type Badge for History */}
+                        <div className="flex items-center gap-2 mb-3">
+                          {isBundle ? (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                              isDark ? "bg-green-900/40 text-green-400 border border-green-700" : "bg-green-100 text-green-700 border border-green-300"
+                            }`}>
+                              <Layers className="w-3 h-3" />
+                              Bundle
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                              isDark ? "bg-blue-900/40 text-blue-400 border border-blue-700" : "bg-blue-100 text-blue-700 border border-blue-300"
+                            }`}>
+                              <Package className="w-3 h-3" />
+                              Single Item
+                            </span>
+                          )}
+                        </div>
+
                         <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-4 text-sm">
+                          
+                          {/* User Info */}
                           <div>
                             <span className={`font-medium uppercase tracking-wider text-xs ${
                               isDark ? "text-gray-400" : "text-slate-500"
@@ -584,19 +656,18 @@ const SubmissionsTab = ({
                               {userInfo.email}
                             </div>
                           </div>
-                          <div>
+
+                          {/* Waste Details */}
+                          <div className="xl:col-span-2">
                             <span className={`font-medium uppercase tracking-wider text-xs ${
                               isDark ? "text-gray-400" : "text-slate-500"
                             }`}>
                               Waste Details
                             </span>
-                            <div className={`text-sm mt-1 ${isDark ? "text-gray-300" : "text-slate-900"}`}>
-                              {submission.type}
-                            </div>
-                            <div className={`text-xs ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                              {submission.weight} kg • {pointsPerKiloForType}/kg
-                            </div>
+                            <WasteDetailsRenderer submission={submission} compact={true} showExpanded={true} />
                           </div>
+
+                          {/* Points */}
                           <div>
                             <span className={`font-medium uppercase tracking-wider text-xs ${
                               isDark ? "text-gray-400" : "text-slate-500"
@@ -611,35 +682,20 @@ const SubmissionsTab = ({
                               {submission.status === "confirmed" ? `${finalPoints.toFixed(2)} pts` : "0 pts"}
                             </div>
                           </div>
-                          <div>
-                            <span className={`font-medium uppercase tracking-wider text-xs ${
-                              isDark ? "text-gray-400" : "text-slate-500"
+
+                          {/* Status Badge (Mobile view puts it here, Desktop floats right) */}
+                          <div className="flex sm:hidden mt-2">
+                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
+                              getStatusBadgeStyle(submission.status)
                             }`}>
-                              Dates
+                              {submission.status}
                             </span>
-                            <div className={`text-xs mt-1 ${isDark ? "text-gray-500" : "text-slate-500"}`}>
-                              <div>Submitted: {formatDate(submission.submittedAt)}</div>
-                              {submission.confirmedAt && (
-                                <div>Confirmed: {formatDate(submission.confirmedAt)}</div>
-                              )}
-                              {submission.rejectedAt && (
-                                <div>Rejected: {formatDate(submission.rejectedAt)}</div>
-                              )}
-                            </div>
-                          </div>
-                          <div>
-                            <span className={`font-medium uppercase tracking-wider text-xs ${
-                              isDark ? "text-gray-400" : "text-slate-500"
-                            }`}>
-                              ID
-                            </span>
-                            <div className={`text-xs font-mono mt-1 ${isDark ? "text-gray-400" : "text-gray-600"}`}>
-                              {submission.id.slice(0, 8)}
-                            </div>
                           </div>
                         </div>
                       </div>
-                      <div className="flex-shrink-0 mt-3 sm:mt-0 sm:ml-4">
+
+                      {/* Status Badge (Desktop) */}
+                      <div className="hidden sm:block flex-shrink-0 ml-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${
                           getStatusBadgeStyle(submission.status)
                         }`}>
@@ -653,6 +709,15 @@ const SubmissionsTab = ({
           </div>
         )}
       </div>
+
+      {/* Animation styles */}
+      <style>{`
+        @keyframes slide-down {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-slide-down { animation: slide-down 0.3s ease-out forwards; }
+      `}</style>
     </div>
   );
 };
