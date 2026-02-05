@@ -14,16 +14,14 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db, auth } from "../firebase";
+import { db, auth, storage } from "../firebase"; // <--- Add 'storage' here
 import {
-  getStorage,
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
 } from "firebase/storage";
 import { ThumbsUp } from "lucide-react";
 
-// --- SVG Icon Components ---
 
 const MapPinIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -92,9 +90,14 @@ const ShieldIcon = (props) => (
   </svg>
 );
 
-const storage = getStorage();
 
-// --- Utility Functions ---
+const uploadWithTimeout = (ref, file, timeoutMs = 20000) =>
+  Promise.race([
+    uploadBytes(ref, file),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Upload timed out")), timeoutMs)
+    ),
+  ]);
 
 const formatTimeAgo = (timestamp) => {
   if (!timestamp) return "N/A";
@@ -233,7 +236,7 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
     let uploadedMediaUrl = "";
     if (mediaFile) {
       const fileRef = storageRef(storage, `posts/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-      await uploadBytes(fileRef, mediaFile); // This will no longer hang!
+      await uploadWithTimeout(fileRef, mediaFile);
       uploadedMediaUrl = await getDownloadURL(fileRef);
     }
 
@@ -373,7 +376,7 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
     let uploadedMediaUrl = "";
     if (mediaFile) {
       const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-      await uploadBytes(fileRef, mediaFile);
+      await uploadWithTimeout(fileRef, mediaFile);
       uploadedMediaUrl = await getDownloadURL(fileRef);
     }
 
