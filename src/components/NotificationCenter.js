@@ -13,7 +13,16 @@ import {
   FiChevronLeft,
 } from "react-icons/fi";
 
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, writeBatch } from "firebase/firestore";
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  writeBatch, 
+  deleteDoc 
+} from "firebase/firestore";
 import { db } from "../firebase";
 
 export default function NotificationCenter({ userId = "demo-user" }) {
@@ -131,6 +140,7 @@ export default function NotificationCenter({ userId = "demo-user" }) {
   // Mark single notification as read and persist in Firestore
   const markAsRead = async (notificationId) => {
     try {
+      // Optimistic update
       setNotifications((prev) =>
         prev.map((notif) =>
           notif.id === notificationId ? { ...notif, read: true } : notif
@@ -148,13 +158,17 @@ export default function NotificationCenter({ userId = "demo-user" }) {
   // Mark all notifications as read and persist in Firestore batch
   const markAllRead = async () => {
     try {
+      // Optimistic update
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
       if (!userId) return;
+      
       const batch = writeBatch(db);
-      notifications
-        .filter((notif) => !notif.read)
-        .forEach((notif) => {
+      const unreadNotifications = notifications.filter((notif) => !notif.read);
+      
+      if (unreadNotifications.length === 0) return;
+
+      unreadNotifications.forEach((notif) => {
           const notifRef = doc(db, "notifications", userId, "userNotifications", notif.id);
           batch.update(notifRef, { read: true });
         });
@@ -165,25 +179,45 @@ export default function NotificationCenter({ userId = "demo-user" }) {
     }
   };
 
-  // Clear all notifications locally (optionally add Firestore deletion)
+  // Clear all notifications persistently
   const clearAll = async () => {
+    if (!notifications.length) return;
+    
     try {
+      // Optimistic update
+      const notificationsToDelete = [...notifications];
       setNotifications([]);
       setSelectedNotif(null);
-      // Optionally delete notifications from Firestore here
+
+      if (!userId) return;
+
+      // Firestore Batch Delete
+      const batch = writeBatch(db);
+      notificationsToDelete.forEach((notif) => {
+        const notifRef = doc(db, "notifications", userId, "userNotifications", notif.id);
+        batch.delete(notifRef);
+      });
+
+      await batch.commit();
     } catch (err) {
       console.error("Failed to clear all notifications:", err);
+      // Ideally, re-fetch or revert state here on error
     }
   };
 
-  // Delete single notification locally (optionally add Firestore deletion)
+  // Delete single notification persistently
   const deleteNotification = async (notificationId) => {
     try {
+      // Optimistic update
       setNotifications((prev) =>
         prev.filter((notif) => notif.id !== notificationId)
       );
       if (selectedNotif?.id === notificationId) setSelectedNotif(null);
-      // Optionally delete from Firestore here
+
+      if (!userId) return;
+      
+      const notifRef = doc(db, "notifications", userId, "userNotifications", notificationId);
+      await deleteDoc(notifRef);
     } catch (err) {
       console.error("Failed to delete notification:", err);
     }
@@ -342,7 +376,6 @@ export default function NotificationCenter({ userId = "demo-user" }) {
         aria-haspopup="true"
         aria-expanded={isOpen}
         aria-label={`Notifications (${unreadCount} unread)`}
-        // ⬇️ MODIFIED: Cleaner styling for the bell button
         className={`relative p-2.5 rounded-xl 
                    text-gray-500 dark:text-gray-400 
                    hover:text-gray-800 dark:hover:text-white 
@@ -355,7 +388,6 @@ export default function NotificationCenter({ userId = "demo-user" }) {
         <FiBell className="w-5 h-5" />
         
         {unreadCount > 0 && (
-          // ⬇️ MODIFIED: Cleaner, more modern badge
           <div 
             className="absolute -top-1.5 -right-1.5 h-[18px] min-w-[18px] px-1 
                        flex items-center justify-center 
@@ -385,7 +417,6 @@ export default function NotificationCenter({ userId = "demo-user" }) {
                 ? "fixed top-4 left-4 right-4 bottom-4 z-[9999] flex flex-col"
                 : screenSize === "tablet"
                 ? "fixed top-16 left-4 right-4 bottom-20 z-[9999] flex flex-col"
-                // This class is from the previous fix and is correct
                 : "absolute right-0 mt-2 w-screen max-w-lg lg:max-w-xl max-h-[70vh] flex flex-col z-[9999]"
             }`}
             role="region"

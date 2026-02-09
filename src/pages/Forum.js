@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { doc, getDoc, deleteDoc } from "firebase/firestore"; 
 import { useTheme } from "../contexts/ThemeContext";
 import { onAuthStateChanged } from "firebase/auth";
 import {
@@ -14,25 +13,20 @@ import {
   arrayUnion,
   arrayRemove,
 } from "firebase/firestore";
-import { db, auth, storage } from "../firebase"; // <--- Add 'storage' here
+import { db, auth, storage } from "../firebase";
 import {
   ref as storageRef,
   uploadBytes,
   getDownloadURL,
+  deleteObject
 } from "firebase/storage";
 import { ThumbsUp } from "lucide-react";
 
-
+// --- Icons ---
 const MapPinIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-);
-
-const ClockIcon = (props) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
@@ -54,12 +48,6 @@ const AlertTriangleIcon = (props) => (
   </svg>
 );
 
-const PlusIcon = (props) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-  </svg>
-);
-
 const XIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -69,12 +57,6 @@ const XIcon = (props) => (
 const SearchIcon = (props) => (
   <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-const FilterIcon = (props) => (
-  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
   </svg>
 );
 
@@ -90,6 +72,17 @@ const ShieldIcon = (props) => (
   </svg>
 );
 
+const TrashIcon = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+  </svg>
+);
+
+const MoreHorizontalIcon = (props) => (
+  <svg {...props} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+  </svg>
+);
 
 const uploadWithTimeout = (ref, file, timeoutMs = 20000) =>
   Promise.race([
@@ -172,6 +165,57 @@ function Toast({ visible, message, type }) {
   );
 }
 
+// --- Delete Confirmation Modal ---
+function DeleteConfirmationModal({ isOpen, onClose, onConfirm, isDark, isDeleting }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-fade-in">
+      <div 
+        className={`rounded-2xl shadow-2xl w-full max-w-sm p-6 transform transition-all scale-100 ${isDark ? "bg-gray-800 text-white" : "bg-white text-gray-900"}`}
+        role="dialog"
+        aria-modal="true"
+      >
+        <div className="text-center">
+          <div className={`mx-auto flex items-center justify-center h-14 w-14 rounded-full mb-5 ${isDark ? "bg-red-900/30" : "bg-red-100"}`}>
+            {isDeleting ? (
+              <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin"></div>
+            ) : (
+              <TrashIcon className={`h-7 w-7 ${isDark ? "text-red-400" : "text-red-600"}`} />
+            )}
+          </div>
+          
+          <h3 className="text-xl font-bold mb-2">Delete this Post?</h3>
+          <p className={`text-sm mb-8 leading-relaxed ${isDark ? "text-gray-400" : "text-gray-500"}`}>
+            Are you sure you want to permanently remove this content? This action cannot be undone.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={onClose}
+              disabled={isDeleting}
+              className={`px-5 py-2.5 rounded-xl font-semibold transition-colors w-full sm:w-auto ${
+                isDark ? "bg-gray-700 hover:bg-gray-600 text-gray-300" : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+              } ${isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isDeleting}
+              className={`px-5 py-2.5 rounded-xl font-semibold bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transition-all w-full sm:w-auto ${
+                isDeleting ? "opacity-70 cursor-not-allowed" : ""
+              }`}
+            >
+              {isDeleting ? "Deleting..." : "Yes, Delete It"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- Comment List Component ---
 function CommentList({ comments = [], isDark }) {
   return (
@@ -184,9 +228,21 @@ function CommentList({ comments = [], isDark }) {
       ) : (
         comments.map((comment, idx) => (
           <div key={idx} className="flex gap-3 animate-fade-in">
-            <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold select-none flex-shrink-0">
-              {comment.user?.charAt(0).toUpperCase() || "U"}
+            {/* User Avatar */}
+            <div className="flex-shrink-0">
+               {comment.userProfileUrl ? (
+                  <img 
+                    src={comment.userProfileUrl} 
+                    alt={comment.user} 
+                    className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+                  />
+               ) : (
+                  <div className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-green-500 rounded-full flex items-center justify-center text-white text-sm font-bold select-none">
+                    {comment.user?.charAt(0).toUpperCase() || "U"}
+                  </div>
+               )}
             </div>
+            
             <div className={`flex-1 rounded-xl p-3 shadow-sm ${isDark ? "bg-gray-700" : "bg-white"}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className={`font-semibold text-sm ${isDark ? "text-gray-200" : "text-slate-800"}`}>
@@ -207,12 +263,9 @@ function CommentList({ comments = [], isDark }) {
   );
 }
 
-// --- Post Form Modal (For General Discussions) ---
+// --- Post Form Modal ---
 function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    description: "",
-  });
+  const [formData, setFormData] = useState({ title: "", description: "" });
   const [mediaFile, setMediaFile] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -222,9 +275,7 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
   };
 
   const handleFileChange = (e) => {
-    if (e.target.files.length > 0) {
-      setMediaFile(e.target.files[0]);
-    }
+    if (e.target.files.length > 0) setMediaFile(e.target.files[0]);
   };
 
   const handleSubmit = async (e) => {
@@ -233,38 +284,43 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
     setLoading(true);
 
     try {
-    let uploadedMediaUrl = "";
-    if (mediaFile) {
-      const fileRef = storageRef(storage, `posts/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-      await uploadWithTimeout(fileRef, mediaFile);
-      uploadedMediaUrl = await getDownloadURL(fileRef);
-    }
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+      
+      const username = userData.username || currentUser.displayName || currentUser.email.split('@')[0];
+      const photoUrl = userData.profileUrl || currentUser.photoURL || "";
 
-      let username = currentUser.email || currentUser.uid;
-      // ...fetch username logic similar to existing...
+      let uploadedMediaUrl = "";
+      if (mediaFile) {
+        const fileRef = storageRef(storage, `posts/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
+        await uploadWithTimeout(fileRef, mediaFile);
+        uploadedMediaUrl = await getDownloadURL(fileRef);
+      }
 
       await addDoc(collection(db, "violation_reports"), {
-        type: 'post', // Important discriminator
+        type: 'post', 
         title: formData.title,
-        description: formData.description, // Main text content
+        description: formData.description, 
         mediaUrl: uploadedMediaUrl,
         submittedAt: serverTimestamp(),
         likes: [],
         comments: [],
         authorId: currentUser.uid,
-        authorUsername: username,
+        authorUsername: username, 
+        authorPhotoUrl: photoUrl, 
       });
 
       resetForm();
-    onClose();
-    showToast("Post created successfully!", "success");
-  } catch (error) {
-    console.error(error);
-    showToast("Failed to create post: " + error.message, "error");
-  } finally {
-    setLoading(false); 
-  }
-};
+      onClose();
+      showToast("Post created successfully!", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to create post: " + error.message, "error");
+    } finally {
+      setLoading(false); 
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -313,7 +369,7 @@ function PostFormModal({ isOpen, onClose, isDark, currentUser, showToast }) {
   );
 }
 
-// --- Report Form Modal (Strictly for Violations) ---
+// --- Report Form Modal ---
 function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, currentUser, showToast }) {
   const [formData, setFormData] = useState({
     location: "",
@@ -327,25 +383,13 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
 
   const reportCategories = useMemo(() => categories.filter(cat => cat.id !== 'all'), [categories]);
 
-  const resetForm = useCallback(() => {
-    setFormData({
-      location: "",
-      description: "",
-      severity: "medium",
-      category: reportCategories[0]?.id || "",
-    });
-    setMediaFile(null);
-  }, [reportCategories]);
-
   useEffect(() => {
     if (reportCategories.length > 0 && !formData.category) {
       setFormData(prev => ({ ...prev, category: reportCategories[0].id }));
     }
   }, [reportCategories, formData.category]);
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  const handleInputChange = (field, value) => setFormData(prev => ({ ...prev, [field]: value }));
 
   const useMyLocation = () => {
     if (!navigator.geolocation) return showToast("Geolocation not supported", "error");
@@ -368,23 +412,27 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  if (!currentUser) return showToast("Please log in.", "error");
-  setLoading(true);
+    e.preventDefault();
+    if (!currentUser) return showToast("Please log in.", "error");
+    setLoading(true);
 
-  try {
-    let uploadedMediaUrl = "";
-    if (mediaFile) {
-      const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
-      await uploadWithTimeout(fileRef, mediaFile);
-      uploadedMediaUrl = await getDownloadURL(fileRef);
-    }
+    try {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+      
+      const username = userData.username || currentUser.displayName || currentUser.email.split('@')[0];
+      const photoUrl = userData.profileUrl || currentUser.photoURL || "";
 
-      let usernameToSave = currentUser.email || currentUser.uid;
-      // ... fetch username ...
+      let uploadedMediaUrl = "";
+      if (mediaFile) {
+        const fileRef = storageRef(storage, `reports/${currentUser.uid}/${Date.now()}_${mediaFile.name}`);
+        await uploadWithTimeout(fileRef, mediaFile);
+        uploadedMediaUrl = await getDownloadURL(fileRef);
+      }
 
       await addDoc(collection(db, "violation_reports"), {
-        type: 'report', // Important discriminator
+        type: 'report',
         location: formData.location.trim(),
         description: formData.description.trim(),
         severity: formData.severity,
@@ -394,20 +442,27 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
         likes: [],
         comments: [],
         authorId: currentUser.uid,
-        authorUsername: usernameToSave,
+        authorUsername: username,
+        authorPhotoUrl: photoUrl,
         status: 'pending',
       });
 
-      resetForm();
-    onClose();
-    showToast("Report submitted successfully!", "success");
-  } catch (error) {
-    console.error(error);
-    showToast("Failed to submit report: " + error.message, "error");
-  } finally {
-    setLoading(false); 
-  }
-};
+      setFormData({
+        location: "",
+        description: "",
+        severity: "medium",
+        category: reportCategories[0]?.id || "",
+      });
+      setMediaFile(null);
+      onClose();
+      showToast("Report submitted successfully!", "success");
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to submit report: " + error.message, "error");
+    } finally {
+      setLoading(false); 
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -490,6 +545,60 @@ function ReportFormModal({ isOpen, onClose, categories, severityLevels, isDark, 
   );
 }
 
+// --- Action Menu Component (The "Three Dots" Menu) ---
+function ActionMenu({ isDark, onDelete }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button 
+        onClick={(e) => { e.stopPropagation(); setIsOpen(!isOpen); }}
+        className={`p-1.5 rounded-full transition-colors ${
+          isDark 
+            ? "text-gray-400 hover:bg-gray-700 hover:text-white" 
+            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+        }`}
+        aria-label="More options"
+      >
+        <MoreHorizontalIcon className="h-5 w-5" />
+      </button>
+
+      {isOpen && (
+        <div className={`absolute right-0 mt-2 w-48 rounded-xl shadow-xl border z-20 overflow-hidden animate-fade-in ${
+          isDark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100"
+        }`}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(false);
+              onDelete();
+            }}
+            className={`w-full text-left px-4 py-3 flex items-center gap-2 text-sm font-medium transition-colors ${
+              isDark 
+                ? "text-red-400 hover:bg-red-900/20" 
+                : "text-red-600 hover:bg-red-50"
+            }`}
+          >
+            <TrashIcon className="h-4 w-4" />
+            Delete Post
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // --- Combined Item Component (Handles both Posts and Reports) ---
 function FeedItem({ 
   item, 
@@ -499,14 +608,18 @@ function FeedItem({
   commentSubmit, 
   toggleComments, 
   isCommentsExpanded, 
-  handleLike, 
+  handleLike,
+  triggerDelete, 
   isDark, 
   submittingComment 
 }) {
-  const isReport = item.type === 'report' || !item.type; // Backward compatibility: treat undefined as report
+  const isReport = item.type === 'report' || !item.type;
   const likeCount = item.likes?.length || 0;
   const isLiked = item.likes?.includes(currentUser?.uid);
   const commentCount = item.comments?.length || 0;
+  
+  // Check if current user is the author
+  const isAuthor = currentUser && item.authorId === currentUser.uid;
 
   // Dynamic Styles based on Type
   const borderColor = isReport 
@@ -518,23 +631,33 @@ function FeedItem({
     : (isDark ? "bg-blue-900/10" : "bg-blue-50");
 
   return (
-    <article className={`rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden border-2 ${borderColor} ${
+    <article className={`rounded-2xl shadow-sm hover:shadow-lg transition-all duration-300 overflow-visible border-2 ${borderColor} ${
         isDark ? "bg-gray-800" : "bg-white"
-      } animate-fade-in relative`}>
+      } animate-fade-in relative group`}>
       
       {/* Type Indicator Stripe */}
-      <div className={`absolute top-0 left-0 w-1.5 h-full ${isReport ? "bg-red-500" : "bg-blue-500"}`}></div>
+      <div className={`absolute top-0 left-0 w-1.5 h-full rounded-l-2xl ${isReport ? "bg-red-500" : "bg-blue-500"}`}></div>
 
-      <div className="p-4 sm:p-6 pl-6 sm:pl-8"> {/* Added padding-left for stripe */}
+      <div className="p-4 sm:p-6 pl-6 sm:pl-8">
         
         {/* Header Section */}
         <div className="flex items-start justify-between mb-4 gap-3">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold select-none ${
-              isReport ? "bg-gradient-to-br from-red-500 to-orange-600" : "bg-gradient-to-br from-blue-500 to-indigo-600"
-            }`}>
-              {isReport ? "!" : (item.authorUsername?.charAt(0) || "U").toUpperCase()}
-            </div>
+            {/* User Avatar */}
+            {item.authorPhotoUrl ? (
+               <img 
+                 src={item.authorPhotoUrl} 
+                 alt={item.authorUsername} 
+                 className="w-10 h-10 rounded-full object-cover border border-gray-200 dark:border-gray-600"
+               />
+            ) : (
+               <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white text-lg font-bold select-none ${
+                 isReport ? "bg-gradient-to-br from-red-500 to-orange-600" : "bg-gradient-to-br from-blue-500 to-indigo-600"
+               }`}>
+                 {isReport ? "!" : (item.authorUsername?.charAt(0) || "U").toUpperCase()}
+               </div>
+            )}
+            
             <div>
               <div className="flex items-center gap-2">
                 <span className={`font-semibold ${isDark ? "text-gray-100" : "text-gray-900"}`}>
@@ -555,15 +678,27 @@ function FeedItem({
             </div>
           </div>
 
-          {/* Report Specific Status Badges */}
-          {isReport && (
-             <div className="flex flex-col items-end gap-1">
-                {getStatusBadge(item.status, isDark)}
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getSeverityColor(item.severity, isDark)}`}>
-                  {item.severity?.toUpperCase()}
-                </span>
-             </div>
-          )}
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+                {/* Report Badges */}
+                {isReport && (
+                  <div className="flex flex-col items-end gap-1">
+                      {getStatusBadge(item.status, isDark)}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getSeverityColor(item.severity, isDark)}`}>
+                        {item.severity?.toUpperCase()}
+                      </span>
+                  </div>
+                )}
+
+                {/* Dropdown Menu (Only for Author) */}
+                {isAuthor && (
+                  <ActionMenu 
+                    isDark={isDark} 
+                    onDelete={() => triggerDelete(item)} 
+                  />
+                )}
+            </div>
+          </div>
         </div>
 
         {/* Content Section */}
@@ -641,16 +776,26 @@ function FeedItem({
 
 // --- Main Forum Component ---
 export default function Forum() {
-  const [reports, setReports] = useState([]);
-  const [activeTab, setActiveTab] = useState("posts"); // 'posts' or 'reports'
+  const [items, setItems] = useState([]); 
+  const [activeTab, setActiveTab] = useState("posts");
   const [commentText, setCommentText] = useState({});
   const [expandedComments, setExpandedComments] = useState({});
-  const [filterType, setFilterType] = useState("all"); // For categories within tabs
+  const [filterType, setFilterType] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  
+  // Modals
   const [showPostModal, setShowPostModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  
+  // Deletion State
+  const [deleteModal, setDeleteModal] = useState({ 
+    isOpen: false, 
+    itemToDelete: null, 
+    isDeleting: false 
+  });
+
   const [submittingComment, setSubmittingComment] = useState(null);
   const [toast, setToast] = useState({ visible: false, message: "", type: "info" });
   
@@ -670,7 +815,7 @@ export default function Forum() {
     setTimeout(() => setToast({ visible: false, message: "", type: "info" }), 4000);
   }, []);
 
-  // Auth & Config Loading (Same as before)
+  // Auth & Config Loading
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, setCurrentUser);
     return () => unsubscribe();
@@ -678,7 +823,6 @@ export default function Forum() {
 
   useEffect(() => {
     const loadConfig = async () => {
-      // ... logic to load categories from firestore (kept same as original)
        try {
         const categoriesDoc = await getDoc(doc(db, "report_categories", "categories"));
         if (categoriesDoc.exists()) {
@@ -700,20 +844,19 @@ export default function Forum() {
         id: doc.id,
         ...doc.data(),
         submittedAt: doc.data().submittedAt?.toDate() || new Date(),
-        // Normalizing data for old records
         type: doc.data().type || 'report', 
       }));
-      setReports(fetched);
+      setItems(fetched);
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Handlers (Like, Comment - same as before)
+  // Handlers
   const handleLike = async (id) => {
     if (!currentUser) return showToast("Login required", "info");
     const docRef = doc(db, "violation_reports", id);
-    const item = reports.find(r => r.id === id);
+    const item = items.find(r => r.id === id);
     if (!item) return;
     const isLiked = item.likes?.includes(currentUser.uid);
     await updateDoc(docRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
@@ -725,54 +868,99 @@ export default function Forum() {
     if (!text) return;
     setSubmittingComment(id);
     try {
-      let user = currentUser.email; 
-      // fetch username logic...
+      const userDocRef = doc(db, "users", currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      const userData = userDocSnap.exists() ? userDocSnap.data() : {};
+      
+      const username = userData.username || currentUser.displayName || currentUser.email.split('@')[0];
+      const photoUrl = userData.profileUrl || currentUser.photoURL || "";
+
       await updateDoc(doc(db, "violation_reports", id), {
-        comments: arrayUnion({ text, user, timestamp: new Date() })
+        comments: arrayUnion({ 
+          text, 
+          user: username, 
+          userProfileUrl: photoUrl,
+          timestamp: new Date() 
+        })
       });
       setCommentText(prev => ({...prev, [id]: ""}));
       showToast("Comment added", "success");
-    } catch(e) { showToast("Error adding comment", "error"); }
+    } catch(e) { 
+      console.error(e);
+      showToast("Error adding comment", "error"); 
+    }
     finally { setSubmittingComment(null); }
+  };
+
+  // --- Deletion Handlers ---
+  const triggerDelete = (item) => {
+    setDeleteModal({ isOpen: true, itemToDelete: item, isDeleting: false });
+  };
+
+  const confirmDelete = async () => {
+    const { itemToDelete } = deleteModal;
+    if (!itemToDelete) return;
+    
+    setDeleteModal(prev => ({ ...prev, isDeleting: true }));
+
+    try {
+      // 1. Delete associated media from Storage if it exists
+      if (itemToDelete.mediaUrl) {
+        try {
+          const fileRef = storageRef(storage, itemToDelete.mediaUrl);
+          await deleteObject(fileRef);
+        } catch (storageError) {
+          console.warn("Media deletion failed (might already be gone):", storageError);
+          // Continue to delete the document even if storage fails
+        }
+      }
+
+      // 2. Delete the document from Firestore
+      await deleteDoc(doc(db, "violation_reports", itemToDelete.id));
+      showToast("Post deleted successfully", "success");
+
+    } catch (error) {
+      console.error("Error deleting document: ", error);
+      showToast("Failed to delete. Please try again.", "error");
+    } finally {
+      setDeleteModal({ isOpen: false, itemToDelete: null, isDeleting: false });
+    }
   };
 
   const toggleComments = (id) => setExpandedComments(prev => ({...prev, [id]: !prev[id]}));
 
   // Filtering Logic
   const filteredItems = useMemo(() => {
-    // 1. Filter by Tab (Post vs Report)
-    let items = reports.filter(item => {
+    let filtered = items.filter(item => {
       if (activeTab === 'posts') return item.type === 'post';
-      if (activeTab === 'reports') return item.type === 'report' || !item.type; // Backward compat
+      if (activeTab === 'reports') return item.type === 'report' || !item.type;
       return true;
     });
 
-    // 2. Filter by Category (only applies to reports usually, or posts if categorized)
-    if (filterType !== 'all') {
-      items = items.filter(item => item.category === filterType);
+    if (filterType !== 'all' && activeTab === 'reports') {
+      filtered = filtered.filter(item => item.category === filterType);
     }
 
-    // 3. Search
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      items = items.filter(item => 
+      filtered = filtered.filter(item => 
         (item.title && item.title.toLowerCase().includes(q)) ||
         (item.location && item.location.toLowerCase().includes(q)) ||
         (item.description && item.description.toLowerCase().includes(q))
       );
     }
 
-    return items;
-  }, [reports, activeTab, filterType, searchQuery]);
+    return filtered;
+  }, [items, activeTab, filterType, searchQuery]);
 
   return (
     <div className={`min-h-screen ${isDark ? "bg-gray-900 text-white" : "bg-gray-50 text-slate-900"}`}>
       
       {/* --- HEADER --- */}
-      <header className={`sticky top-0 z-40 backdrop-blur-md border-b ${isDark ? "bg-gray-900/90 border-gray-700" : "bg-white/90 border-slate-200"}`}>
+      <header className={`sticky top-0 z-40 backdrop-blur-xl border-b shadow-sm ${isDark ? "bg-gray-900/90 border-gray-700" : "bg-white/90 border-slate-200"}`}>
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold flex items-center gap-2">
+            <h1 className="text-2xl font-bold flex items-center gap-2 tracking-tight">
               Community Forum
             </h1>
 
@@ -780,7 +968,7 @@ export default function Forum() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setShowPostModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-blue-500/30"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30 transform hover:scale-[1.02]"
               >
                 <FileTextIcon className="h-5 w-5" />
                 <span>New Post</span>
@@ -788,7 +976,7 @@ export default function Forum() {
 
               <button
                 onClick={() => setShowReportModal(true)}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-medium transition-all bg-red-600 hover:bg-red-700 text-white shadow-lg hover:shadow-red-500/30"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full font-semibold transition-all bg-red-600 hover:bg-red-700 text-white shadow-lg shadow-red-500/30 transform hover:scale-[1.02]"
               >
                 <AlertTriangleIcon className="h-5 w-5" />
                 <span className="hidden sm:inline">Report Violation</span>
@@ -797,57 +985,67 @@ export default function Forum() {
             </div>
           </div>
 
-          {/* Tab Switcher */}
-          <div className="flex mt-6 gap-6 border-b border-gray-200 dark:border-gray-700">
+          {/* Improved Tab Switcher */}
+          <div className="flex mt-6 gap-8">
             <button
               onClick={() => setActiveTab("posts")}
-              className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 transition-colors border-b-2 ${
+              className={`pb-3 px-1 text-sm font-bold flex items-center gap-2 transition-all relative ${
                 activeTab === "posts"
-                  ? "border-blue-500 text-blue-600 dark:text-blue-400"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  ? "text-blue-600 dark:text-blue-400"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
               }`}
             >
               <FileTextIcon className="h-4 w-4" /> User Discussions
+              {activeTab === "posts" && (
+                <span className="absolute bottom-0 left-0 w-full h-1 bg-blue-600 dark:bg-blue-400 rounded-t-full"></span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("reports")}
-              className={`pb-3 px-2 text-sm font-bold flex items-center gap-2 transition-colors border-b-2 ${
+              className={`pb-3 px-1 text-sm font-bold flex items-center gap-2 transition-all relative ${
                 activeTab === "reports"
-                  ? "border-red-500 text-red-600 dark:text-red-400"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-gray-500 hover:text-gray-700 dark:text-gray-400"
               }`}
             >
               <ShieldIcon className="h-4 w-4" /> Violation Reports
+              {activeTab === "reports" && (
+                <span className="absolute bottom-0 left-0 w-full h-1 bg-red-600 dark:bg-red-400 rounded-t-full"></span>
+              )}
             </button>
           </div>
         </div>
       </header>
 
       {/* --- MAIN CONTENT --- */}
-      <main className="max-w-6xl mx-auto px-4 py-6">
+      <main className="max-w-6xl mx-auto px-4 py-8">
         
         {/* Search & Filters */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <SearchIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+        <div className="mb-8 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1 group">
+            <SearchIcon className={`absolute left-4 top-3.5 h-5 w-5 transition-colors ${isDark ? "text-gray-500 group-focus-within:text-blue-400" : "text-gray-400 group-focus-within:text-blue-500"}`} />
             <input
               type="text"
               placeholder={`Search ${activeTab === 'posts' ? 'discussions' : 'reports'}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
-                isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200'
+              className={`w-full pl-11 pr-4 py-3 rounded-2xl border transition-all shadow-sm focus:ring-2 focus:ring-offset-2 ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-blue-500 focus:ring-offset-gray-900' 
+                  : 'bg-white border-gray-200 focus:ring-blue-500'
               }`}
             />
           </div>
           
-          {/* Only show Category filters for Reports (or if posts have categories) */}
+          {/* Only show Category filters for Reports */}
           {activeTab === 'reports' && (
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className={`p-3 rounded-xl border min-w-[150px] ${
-                isDark ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200'
+              className={`p-3 rounded-2xl border min-w-[180px] shadow-sm cursor-pointer outline-none focus:ring-2 ${
+                isDark 
+                  ? 'bg-gray-800 border-gray-700 text-white focus:ring-red-500' 
+                  : 'bg-white border-gray-200 focus:ring-red-500'
               }`}
             >
               {categories.map(cat => <option key={cat.id} value={cat.id}>{cat.label}</option>)}
@@ -858,15 +1056,20 @@ export default function Forum() {
         {/* Feed Grid */}
         <div className="space-y-6">
           {loading ? (
-             <div className="text-center py-10 opacity-60">Loading...</div>
+             <div className="flex flex-col items-center justify-center py-20 opacity-60">
+                <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p>Loading community feed...</p>
+             </div>
           ) : filteredItems.length === 0 ? (
-            <div className={`text-center py-16 rounded-2xl border-2 border-dashed ${isDark ? "border-gray-700 text-gray-500" : "border-gray-200 text-gray-400"}`}>
-              <div className="text-4xl mb-2">{activeTab === 'posts' ? '💬' : '✅'}</div>
-              <h3 className="text-lg font-medium">No {activeTab} found</h3>
-              <p className="text-sm mt-1">
+            <div className={`text-center py-20 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center ${isDark ? "border-gray-700 bg-gray-800/30 text-gray-400" : "border-gray-200 bg-gray-50/50 text-gray-400"}`}>
+              <div className={`p-4 rounded-full mb-4 ${isDark ? "bg-gray-800" : "bg-white shadow-sm"}`}>
+                 {activeTab === 'posts' ? <MessageCircleIcon className="h-8 w-8 opacity-50"/> : <ShieldIcon className="h-8 w-8 opacity-50"/>}
+              </div>
+              <h3 className="text-xl font-bold mb-1">No {activeTab} found</h3>
+              <p className="max-w-xs mx-auto">
                 {activeTab === 'posts' 
-                  ? "Start a conversation by creating a new post." 
-                  : "No violations reported yet. Good news!"}
+                  ? "Be the first to start a conversation in the community." 
+                  : "No violations match your current filters."}
               </p>
             </div>
           ) : (
@@ -881,6 +1084,7 @@ export default function Forum() {
                 toggleComments={toggleComments}
                 isCommentsExpanded={expandedComments[item.id]}
                 handleLike={handleLike}
+                triggerDelete={triggerDelete}
                 isDark={isDark}
                 submittingComment={submittingComment === item.id}
               />
@@ -906,6 +1110,15 @@ export default function Forum() {
         isDark={isDark}
         currentUser={currentUser}
         showToast={showToast}
+      />
+
+      {/* Confirmation Modal */}
+      <DeleteConfirmationModal 
+        isOpen={deleteModal.isOpen}
+        onClose={() => setDeleteModal({ isOpen: false, itemToDelete: null, isDeleting: false })}
+        onConfirm={confirmDelete}
+        isDark={isDark}
+        isDeleting={deleteModal.isDeleting} 
       />
 
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />

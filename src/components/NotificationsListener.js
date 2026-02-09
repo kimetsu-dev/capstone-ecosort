@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
-import { collection, query, where, orderBy, onSnapshot, updateDoc } from "firebase/firestore";
+import { collection, query, where, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 
 function useUserNotifications(userId) {
@@ -16,7 +16,7 @@ function useUserNotifications(userId) {
     );
 
     const unsubscribe = onSnapshot(notifQuery, (snapshot) => {
-      snapshot.docChanges().forEach(async (change) => {
+      snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
           const notification = change.doc.data();
 
@@ -28,12 +28,9 @@ function useUserNotifications(userId) {
             pauseOnHover: true,
           });
 
-          // Mark notification as read so it won't show again
-          try {
-            await updateDoc(change.doc.ref, { read: true });
-          } catch (err) {
-            console.error("Failed to mark notification as read:", err);
-          }
+          // NOTE: We do NOT automatically mark as read here anymore.
+          // This ensures the notification stays "unread" (bold) in the NotificationCenter
+          // until the user explicitly interacts with it there.
         }
       });
     });

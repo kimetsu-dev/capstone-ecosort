@@ -17,7 +17,7 @@ import {
   FiAlertTriangle, 
   FiTrash,
   FiCalendar,
-  FiLink // Imported for Blockchain Ledger Icon
+  FiLink 
 } from "react-icons/fi";
 import {
   doc,
@@ -262,8 +262,8 @@ export default function AdminPanel() {
     description: "Reward redemptions",
   },
     {
-    id: "reports",
-    label: "Reports",
+    id: "forum", // Changed from "reports"
+    label: "Forum", // Changed from "Reports"
     icon: FiAlertTriangle,
     badge: reports.filter((r) => r.status === "pending").length,
     description: "Violation reports",
@@ -582,7 +582,7 @@ export default function AdminPanel() {
                         </button>
 
                         <button
-                          onClick={() => setActiveTab("reports")}
+                          onClick={() => setActiveTab("forum")} // Changed from "reports"
                           className={`p-5 rounded-xl text-left transition-all transform hover:scale-105 ${
                             reportsPendingCount > 0
                               ? "bg-gradient-to-br from-red-50 to-rose-50 border-2 border-red-300 shadow-lg hover:shadow-xl"
@@ -603,7 +603,7 @@ export default function AdminPanel() {
                             {reportsPendingCount}
                           </div>
                           <div className={`text-sm font-medium ${reportsPendingCount > 0 ? "text-red-700" : isDark ? "text-gray-500" : "text-gray-500"}`}>
-                            Pending Reports
+                            Pending Forum Reports 
                           </div>
                         </button>
                       </div>
@@ -799,7 +799,7 @@ export default function AdminPanel() {
                   />
                 )}
 
-                {activeTab === "reports" && (
+                {activeTab === "forum" && ( // Changed from "reports"
                   <ReportsTab
                     reports={reports}
                     setReports={setReports}

@@ -23,4 +23,4 @@ yarn-debug.log*
 yarn-error.log*
 service-account.json
 serviceAccountKey.json
-*.json.json
+*.json.jsonfirebase-admin-tools/serviceAccountKey.json.json
