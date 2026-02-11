@@ -7,13 +7,12 @@ import {
 } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { useTheme, ThemeProvider } from "./contexts/ThemeContext";
-import { useAuth, AuthProvider } from "./contexts/AuthContext"; // Ensure AuthProvider is imported if not already in index.js
-import { LanguageProvider } from "./contexts/LanguageContext"; // IMPORT LANGUAGE PROVIDER
+import { useAuth, AuthProvider } from "./contexts/AuthContext"; 
+import { LanguageProvider } from "./contexts/LanguageContext"; 
 
 import "./index.css";
 
 import BackButtonHandler from "./BackButtonHandler";
-import { requestFirebaseNotificationPermission, onMessageListener } from "./firebase-messaging";
 
 /* Pages */
 import Welcome from "./pages/Welcome";
@@ -21,7 +20,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import AdminPanel from "./pages/AdminPanel";
 import AdminProfile from "./pages/AdminProfile";
-import AdminSettings from "./pages/AdminSettings"; // Import distinct AdminSettings page
+import AdminSettings from "./pages/AdminSettings"; 
 import Dashboard from "./pages/Dashboard";
 import Forum from "./pages/Forum";
 import SubmitWaste from "./pages/SubmitWaste";
@@ -34,10 +33,62 @@ import MyRedemptions from "./pages/MyRedemptions";
 import Settings from "./pages/Settings";
 import PublicVerification from "./pages/PublicVerification";
 
+// Install prompt icon component
+const DownloadIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+);
+
 /* ---------------- MOBILE WELCOME ---------------- */
 const MobileWelcome = () => {
   const { isDark } = useTheme();
   const navigate = useNavigate();
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+  useEffect(() => {
+    // Check if already installed
+    const isInstalled = window.matchMedia('(display-mode: standalone)').matches || 
+                       window.navigator.standalone === true;
+    
+    if (!isInstalled) {
+      setShowInstallPrompt(true);
+    }
+
+    // Listen for install prompt
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+
+    window.addEventListener("beforeinstallprompt", handler);
+    
+    return () => window.removeEventListener("beforeinstallprompt", handler);
+  }, []);
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) {
+      // For browsers that don't support beforeinstallprompt, redirect to welcome page
+      // which has detailed instructions
+      navigate('/welcome');
+      return;
+    }
+
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        setShowInstallPrompt(false);
+      }
+      
+      setDeferredPrompt(null);
+    } catch (error) {
+      console.error('Install error:', error);
+    }
+  };
 
   const textPrimary = isDark ? "text-white" : "text-gray-900";
   const textSecondary = isDark ? "text-white/90" : "text-gray-700";
@@ -90,6 +141,33 @@ const MobileWelcome = () => {
           </button>
         </div>
       </div>
+
+      {/* Install Prompt Banner - Only show if not installed */}
+      {showInstallPrompt && (
+        <div className={`mx-4 mt-2 ${bgCard} backdrop-blur-md rounded-xl p-3 shadow-lg`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                <DownloadIcon className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`text-sm font-semibold ${textPrimary} truncate`}>
+                  Install ECOSORT App
+                </p>
+                <p className={`text-xs ${textSecondary} truncate`}>
+                  Get the full experience!
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleInstall}
+              className="flex-shrink-0 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold text-xs px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all"
+            >
+              Install
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <div className="flex-1 flex flex-col justify-center px-6 pb-8">
@@ -251,7 +329,6 @@ const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOn
   }
 
   // User only routes (prevent admin access to user dashboard if desired, though often admins can see user views)
-  // Adjust this logic if admins SHOULD see user dashboard
   if (requireAuth && !adminOnly && currentUser && isAdmin) {
     return <Navigate to="/adminpanel" replace />;
   }
@@ -262,35 +339,8 @@ const RouteGuard = ({ children, requireAuth = false, adminOnly = false, publicOn
 /* ---------------- THEMED APP WRAPPER ---------------- */
 const ThemedAppWrapper = () => {
   const { theme, systemTheme } = useTheme();
-  const { authInitialized } = useAuth(); // Ensure AuthContext is provided above this component
+  const { authInitialized } = useAuth(); 
   const activeTheme = theme === "system" ? systemTheme : theme;
-
-  // Initialize Notification listeners
-  useEffect(() => {
-    requestFirebaseNotificationPermission()
-      .then((token) => {
-        if (token) {
-          console.log("🔔 Notification permission granted. Token:", token);
-        }
-      })
-      .catch((err) => console.log("Notification permission error:", err));
-
-    const unsubscribe = onMessageListener((payload) => {
-      console.log("💬 Foreground Message Received:", payload);
-      const { title, body } = payload.notification || {};
-      
-      if (Notification.permission === 'granted') {
-         new Notification(title, { 
-           body,
-           icon: '/logo192.png'
-         });
-      }
-    });
-
-    return () => {
-      // unsubscribe logic if needed
-    };
-  }, []);
 
   if (!authInitialized) {
     return (
@@ -504,6 +554,21 @@ export default function App() {
 
         images.forEach((img) => img.classList.remove("no-save"));
       };
+    }
+  }, []);
+
+  // Register service worker for PWA functionality
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js')
+          .then(registration => {
+            console.log('SW registered: ', registration);
+          })
+          .catch(registrationError => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
     }
   }, []);
 

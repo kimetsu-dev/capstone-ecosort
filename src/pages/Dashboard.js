@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { FiUser, FiMenu, FiX, FiLogOut, FiChevronLeft, FiBell } from "react-icons/fi";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext"; // Using existing AuthContext for stability
 import { DashboardCalendar } from "../components/DashboardCalendar";
 import NotificationCenter from "../components/NotificationCenter";
+import NotificationsListener from "../components/NotificationsListener"; // ✅ Added Listener
 import UpdateBanner from '../components/UpdateBanner';
 import SubmitWaste from "./SubmitWaste";
 import Rewards from "./Rewards";
@@ -12,6 +14,7 @@ import Leaderboard from "./Leaderboard";
 import Transactions from "./Transactions";
 import PublicVerification from "./PublicVerification";
 import { useLanguage } from "../contexts/LanguageContext";
+import usePushNotifications from "../hooks/usePushNotifications"; // ✅ Added Hook
 
 import {
   doc,
@@ -33,7 +36,6 @@ import {
   FaTrophy,
   FaFileAlt,
   FaHome,
-  //FaClock,
   FaCalendarAlt,
   FaMapMarkerAlt,
   FaCheckCircle,
@@ -59,14 +61,13 @@ const WEB_MENU_ITEMS = [
   { id: "ledger", title: "Public Ledger", icon: FaCubes, color: "from-indigo-500 to-purple-600", bgColor: "bg-indigo-500" }, 
 ];
 
-// Menu items for app version - changed "Public Ledger" to "Ledger"
+// Menu items for app version
 const APP_MENU_ITEMS = [
   { id: "overview", title: "Home", icon: FaHome, color: "from-blue-500 to-indigo-600", bgColor: "bg-blue-500" },
   { id: "submit", title: "Submit", icon: FaRecycle, color: "from-emerald-500 to-teal-600", bgColor: "bg-emerald-500" },
   { id: "rewards", title: "Rewards", icon: FaGift, color: "from-amber-500 to-orange-600", bgColor: "bg-amber-500" },
   { id: "report", title: "Forum", icon: FaExclamationTriangle, color: "from-red-500 to-rose-600", bgColor: "bg-red-500" },
   { id: "transactions", title: "Transactions", icon: FaFileAlt, color: "from-slate-500 to-gray-600", bgColor: "bg-slate-500" },
-  //{ id: "ledger", title: "Ledger", icon: FaCubes, color: "from-indigo-500 to-purple-600", bgColor: "bg-indigo-500" }, 
 ];
 
 const DAY_MAP = {
@@ -81,6 +82,7 @@ const DAY_MAP = {
 
 export default function Dashboard() {
   const themeContext = useTheme();
+  const { currentUser } = useAuth(); // Using existing Auth Context
   const [userName, setUserName] = useState(null);
   const [points, setPoints] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -105,7 +107,10 @@ export default function Dashboard() {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
-  
+
+  // ✅ Initialize Push Notifications Hook
+  // This handles permission requests and saves the FCM token to Firestore
+  usePushNotifications(currentUser);
 
   useEffect(() => {
     const checkPWA = () => {
@@ -181,7 +186,7 @@ export default function Dashboard() {
           rank: index + 1,
           username: doc.data().username || "Anonymous",
           points: doc.data().totalPoints || 0,
-          isCurrentUser: doc.id === auth.currentUser?.uid
+          isCurrentUser: doc.id === currentUser?.uid
         }));
         
         setLeaderboardData(leaderboard);
@@ -193,13 +198,12 @@ export default function Dashboard() {
     };
 
     fetchLeaderboardData();
-  }, []);
+  }, [currentUser]);
 
   // Fetch user submission data
   useEffect(() => {
     const fetchSubmissionData = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!currentUser) return;
 
       try {
         // Get current date and dates for month and week calculations
@@ -211,7 +215,7 @@ export default function Dashboard() {
         // Fetch all waste submissions for the user
         const wasteQuery = query(
           collection(db, "wasteSubmissions"),
-          where("userId", "==", user.uid)
+          where("userId", "==", currentUser.uid)
         );
         const wasteSnapshot = await getDocs(wasteQuery);
         
@@ -239,18 +243,18 @@ export default function Dashboard() {
       }
     };
 
-    if (auth.currentUser) {
+    if (currentUser) {
       fetchSubmissionData();
     }
-  }, []);
+  }, [currentUser]);
 
-  // Generate achievements based on points (UPDATED ICONS)
+  // Generate achievements based on points
   const generateAchievements = (points) => {
     const allAchievements = [
       { name: "First Steps", icon: "🌱", description: "Earned your first 100 points", requiredPoints: 100, unlocked: points >= 100 },
       { name: "Eco Advocate", icon: "🌿", description: "Reached 500 points milestone", requiredPoints: 500, unlocked: points >= 500 },
-      { name: "Eco Hero", icon: "🏆", description: "Achieved 1000 points!", requiredPoints: 1000, unlocked: points >= 1000 },
-      { name: "Green Champion", icon: "👑", description: "Outstanding 2000+ points", requiredPoints: 2000, unlocked: points >= 2000 },
+      { name: "Eco Hero", icon: "🦸", description: "Achieved 1000 points!", requiredPoints: 1000, unlocked: points >= 1000 },
+      { name: "Green Champion", icon: "🏆", description: "Outstanding 2000+ points", requiredPoints: 2000, unlocked: points >= 2000 },
     ];
     return allAchievements;
   };
@@ -392,13 +396,12 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) {
+    if (!currentUser) {
       setLoadingUser(false);
       setError("No authenticated user");
       return;
     }
-    const userRef = doc(db, "users", user.uid);
+    const userRef = doc(db, "users", currentUser.uid);
     const unsubscribeUser = onSnapshot(
       userRef,
       (docSnap) => {
@@ -422,12 +425,11 @@ export default function Dashboard() {
     return () => {
       unsubscribeUser();
     };
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     const fetchRecentActivity = async () => {
-      const user = auth.currentUser;
-      if (!user) return;
+      if (!currentUser) return;
 
       try {
         setLoadingActivity(true);
@@ -450,7 +452,7 @@ export default function Dashboard() {
         
         wasteSnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.userId === user.uid) {
+          if (data.userId === currentUser.uid) {
             activities.push({
               id: doc.id,
               type: "waste_submission",
@@ -465,7 +467,7 @@ export default function Dashboard() {
 
         transactionsSnapshot.forEach((doc) => {
           const data = doc.data();
-          if (data.userId === user.uid) {
+          if (data.userId === currentUser.uid) {
             activities.push({
               id: doc.id,
               type: data.type === "redemption" ? "reward_redemption" : "points_earned",
@@ -490,10 +492,10 @@ export default function Dashboard() {
       }
     };
 
-    if (auth.currentUser) {
+    if (currentUser) {
       fetchRecentActivity();
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -506,9 +508,6 @@ export default function Dashboard() {
   }
 
   const { styles, isDark } = themeContext;
-
-  const getThemeClass = (styleKey, fallback = "") =>
-    styles?.[styleKey] || fallback;
 
   const getGreeting = () => {
     const hour = currentTime.getHours();
@@ -577,6 +576,9 @@ export default function Dashboard() {
   if (isPWA) {
     return (
       <div className={`min-h-screen pb-32 ${isDark ? 'bg-gray-950' : 'bg-gray-50'}`}>
+        {/* ✅ Foreground Toast Listener */}
+        <NotificationsListener userId={currentUser?.uid} />
+
         <div className={`sticky top-0 z-50 ${isDark ? 'bg-gray-900/95' : 'bg-white/95'} border-b ${isDark ? 'border-gray-800' : 'border-gray-200'}`}>
           <div className="px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -593,7 +595,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <NotificationCenter userId={auth.currentUser?.uid} />
+              <NotificationCenter userId={currentUser?.uid} />
               <button
                 onClick={() => navigate("/profile")}
                 className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
@@ -751,79 +753,76 @@ export default function Dashboard() {
               </div>
 
               {nextCollection && (
-  <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-    <div className="flex items-center gap-3 mb-4">
-      <div>
-        <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Garbage Collection
-        </h3>
-        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </p>
-      </div>
-    </div>
-    {/* Added items-stretch to the parent flex container */}
-    <div className="flex items-stretch gap-3">
-      {/* Added h-full to the inner boxes */}
-      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Collection Time</span>
-        </div>
-        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {formatTime(nextCollection.schedule.startTime)}
-        </p>
-      </div>
-      {nextCollection.schedule.area && (
-        <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
-          </div>
-          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {nextCollection.schedule.area}
-            {nextCollection.schedule.barangay && `, ${nextCollection.schedule.barangay}`}
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div>
+                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Garbage Collection
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {isToday(nextCollection.date) ? 'Today' : nextCollection.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-stretch gap-3">
+                    <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Collection Time</span>
+                      </div>
+                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatTime(nextCollection.schedule.startTime)}
+                      </p>
+                    </div>
+                    {nextCollection.schedule.area && (
+                      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
+                        </div>
+                        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {nextCollection.schedule.area}
+                          {nextCollection.schedule.barangay && `, ${nextCollection.schedule.barangay}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
               
               {nextSubmission && (
-  <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
-    <div className="flex items-center gap-3 mb-4">
-      <div>
-        <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Recyclable Waste Submission
-        </h3>
-        <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
-          {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </p>
-      </div>
-    </div>
-    {/* Added items-stretch here */}
-    <div className="flex items-stretch gap-3">
-      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-        <div className="flex items-center gap-2 mb-1">
-          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Operating Hours</span>
-        </div>
-        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
-        </p>
-      </div>
-      {nextSubmission.schedule.area && (
-        <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
-          </div>
-          <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-            {nextSubmission.schedule.area}
-            {nextSubmission.schedule.barangay && `, ${nextSubmission.schedule.barangay}`}
-          </p>
-        </div>
-      )}
-    </div>
-  </div>
-)}
+                <div className={`rounded-3xl p-5 ${isDark ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-200'} shadow-lg`}>
+                  <div className="flex items-center gap-3 mb-4">
+                    <div>
+                      <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        Recyclable Waste Submission
+                      </h3>
+                      <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>
+                        {isToday(nextSubmission.date) ? 'Today' : nextSubmission.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-stretch gap-3">
+                    <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Operating Hours</span>
+                      </div>
+                      <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                        {formatTimeRange(nextSubmission.schedule.startTime, nextSubmission.schedule.endTime)}
+                      </p>
+                    </div>
+                    {nextSubmission.schedule.area && (
+                      <div className={`flex-1 rounded-2xl p-4 h-full ${isDark ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className={`text-xs font-medium ${isDark ? 'text-gray-400' : 'text-gray-500'}`}>Location</span>
+                        </div>
+                        <p className={`text-sm font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                          {nextSubmission.schedule.area}
+                          {nextSubmission.schedule.barangay && `, ${nextSubmission.schedule.barangay}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {recentActivity.length > 0 && (
                 <div>
@@ -1100,6 +1099,9 @@ export default function Dashboard() {
           : "bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 text-gray-900"
       }`}
     >
+      {/* ✅ Foreground Toast Listener */}
+      <NotificationsListener userId={currentUser?.uid} />
+
      <header
         className={`lg:hidden sticky top-0 z-30 border-b ${
           isDark
@@ -1132,7 +1134,7 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <NotificationCenter userId={auth.currentUser?.uid} />
+              <NotificationCenter userId={currentUser?.uid} />
               <div
                 className="flex items-center space-x-2 cursor-pointer group"
                 onClick={() => navigate("/profile")}
@@ -1225,7 +1227,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{userName || "User"}</p>
-                  <p className={`text-xs truncate ${isDark ? "text-gray-400" : "text-slate-500"}`}>{auth.currentUser?.email}</p>
+                  <p className={`text-xs truncate ${isDark ? "text-gray-400" : "text-slate-500"}`}>{currentUser?.email}</p>
                 </div>
               </div>
             )}
@@ -1256,7 +1258,7 @@ export default function Dashboard() {
           
           <header className="hidden lg:flex items-center justify-end h-20 px-6 lg:px-8">
             <div className="flex-shrink-0 z-50">
-              <NotificationCenter userId={auth.currentUser?.uid} />
+              <NotificationCenter userId={currentUser?.uid} />
             </div>
           </header>
           

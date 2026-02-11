@@ -52,7 +52,7 @@ if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
 }
 
 // VERSION CONTROL - Increment on each deployment
-const CACHE_VERSION = 'v1.2.32'; 
+const CACHE_VERSION = 'v1.2.33'; 
 
 clientsClaim();
 

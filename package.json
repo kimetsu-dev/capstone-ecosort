@@ -8,7 +8,7 @@
     "browser-image-compression": "^2.0.2",
     "cra-template-pwa": "2.0.0",
     "crypto-js": "^4.2.0",
-    "firebase": "^12.2.1",
+    "firebase": "^12.5.0",
     "leaflet": "^1.9.4",
     "lottie-react": "^2.4.1",
     "lucide-react": "^0.534.0",
@@ -22,7 +22,7 @@
     "react-leaflet": "^4.2.1",
     "react-rewards": "^2.1.0",
     "react-router-dom": "^7.6.3",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "react-toastify": "^11.0.5"
   },
   "scripts": {

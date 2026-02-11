@@ -729,7 +729,7 @@ function FeedItem({
         {/* Actions */}
         <div className={`flex items-center gap-4 pt-3 border-t ${isDark ? 'border-gray-700' : 'border-gray-200'}`}>
           <button
-            onClick={() => handleLike(item.id)}
+            onClick={() => handleLike(item.id, item.authorId)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
               isLiked ? "text-blue-500 bg-blue-50 dark:bg-blue-900/20" : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
             }`}
@@ -753,7 +753,7 @@ function FeedItem({
         <section className={`border-t ${isDark ? "border-gray-700" : "border-gray-100"} animate-slide-down`}>
           <CommentList comments={item.comments} isDark={isDark} />
           <div className={`p-4 border-t ${isDark ? "border-gray-700 bg-gray-800" : "border-gray-100 bg-gray-50"}`}>
-            <form onSubmit={(e) => { e.preventDefault(); commentSubmit(item.id); }} className="flex gap-2">
+            <form onSubmit={(e) => { e.preventDefault(); commentSubmit(item.id, item.authorId); }} className="flex gap-2">
               <input
                 type="text"
                 placeholder="Write a comment..."
@@ -852,17 +852,43 @@ export default function Forum() {
     return () => unsubscribe();
   }, []);
 
+  // --- Notification Helper ---
+  const sendNotification = async (recipientId, message, type) => {
+    // Don't notify if sending to self or if currentUser isn't loaded
+    if (!recipientId || !currentUser || recipientId === currentUser.uid) return;
+    
+    try {
+      await addDoc(collection(db, "notifications", recipientId, "userNotifications"), {
+        message,
+        type, // 'like', 'comment', etc.
+        createdAt: serverTimestamp(),
+        read: false,
+        fromName: currentUser.displayName || currentUser.email?.split('@')[0] || "User",
+        fromPhoto: currentUser.photoURL || "",
+        linkId: "" // Optional: Could link to specific post ID
+      });
+    } catch (err) {
+      console.error("Error creating notification:", err);
+    }
+  };
+
   // Handlers
-  const handleLike = async (id) => {
+  const handleLike = async (id, authorId) => {
     if (!currentUser) return showToast("Login required", "info");
     const docRef = doc(db, "violation_reports", id);
     const item = items.find(r => r.id === id);
     if (!item) return;
+    
     const isLiked = item.likes?.includes(currentUser.uid);
     await updateDoc(docRef, { likes: isLiked ? arrayRemove(currentUser.uid) : arrayUnion(currentUser.uid) });
+
+    // Send Notification only on Like (not Unlike)
+    if (!isLiked && authorId) {
+      await sendNotification(authorId, `${currentUser.displayName || "A user"} liked your post`, 'like');
+    }
   };
 
-  const commentSubmit = async (id) => {
+  const commentSubmit = async (id, authorId) => {
     if (!currentUser) return showToast("Login required", "info");
     const text = commentText[id]?.trim();
     if (!text) return;
@@ -883,6 +909,12 @@ export default function Forum() {
           timestamp: new Date() 
         })
       });
+
+      // Send Notification
+      if (authorId) {
+        await sendNotification(authorId, `${username} commented on your post`, 'comment');
+      }
+
       setCommentText(prev => ({...prev, [id]: ""}));
       showToast("Comment added", "success");
     } catch(e) { 

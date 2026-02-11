@@ -1,4 +1,6 @@
 import React from "react";
+import { db } from "../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
 /**
  * Returns a styled badge component based on the status string.
@@ -66,3 +68,23 @@ export function formatTimestamp(timestamp) {
   // Customize formatting as you like:
   return date.toLocaleString();
 }
+
+/**
+ * Global helper to trigger a notification
+ * @param {string} userId - The ID of the user receiving the notification
+ * @param {string} message - The text to display
+ * @param {string} type - Category (reward, violation, forum, system)
+ */
+export const triggerNotification = async (userId, message, type = "system") => {
+  if (!userId) return;
+  try {
+    await addDoc(collection(db, "notifications", userId, "userNotifications"), {
+      message,
+      type,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error("Notification Trigger Error:", error);
+  }
+};

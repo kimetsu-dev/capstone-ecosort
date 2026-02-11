@@ -49,51 +49,351 @@ const SparkleIcon = ({ className = "w-4 h-4" }) => (
   </svg>
 );
 
+const DownloadIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+  </svg>
+);
+
+const CloseIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
+
+const InfoIcon = ({ className = "w-5 h-5" }) => (
+  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+
+// Installation Instructions Modal
+function InstallInstructionsModal({ isOpen, onClose }) {
+  const { isDark } = useTheme();
+  const [selectedOS, setSelectedOS] = useState('auto');
+
+  useEffect(() => {
+    const detectOS = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      if (/iphone|ipad|ipod/.test(userAgent)) return 'ios';
+      if (/android/.test(userAgent)) return 'android';
+      if (/windows/.test(userAgent)) return 'windows';
+      if (/mac/.test(userAgent)) return 'mac';
+      return 'windows';
+    };
+    
+    if (selectedOS === 'auto') {
+      setSelectedOS(detectOS());
+    }
+  }, [selectedOS]);
+
+  if (!isOpen) return null;
+
+  const instructions = {
+    android: {
+      browser: 'Chrome',
+      steps: [
+        'Open ECOSORT in Chrome browser',
+        'Tap the menu (three dots) in the top right corner',
+        'Select "Add to Home screen" or "Install app"',
+        'Tap "Add" or "Install" to confirm',
+        'The app will be added to your home screen',
+        'Open ECOSORT from your home screen to use it like a native app'
+      ],
+      note: 'For other Android browsers like Firefox or Samsung Internet, look for "Add to Home screen" in the browser menu.'
+    },
+    ios: {
+      browser: 'Safari',
+      steps: [
+        'Open ECOSORT in Safari browser',
+        'Tap the Share button (square with arrow pointing up) at the bottom',
+        'Scroll down and tap "Add to Home Screen"',
+        'Edit the name if desired, then tap "Add"',
+        'The app icon will appear on your home screen',
+        'Open ECOSORT from your home screen for the full app experience'
+      ],
+      note: 'Installation only works in Safari on iOS. Other browsers like Chrome will not show the install option.'
+    },
+    windows: {
+      browser: 'Chrome / Edge',
+      steps: [
+        'Open ECOSORT in Chrome or Edge browser',
+        'Look for the install icon (⊕ or computer icon) in the address bar',
+        'Click the install icon or go to menu → "Install ECOSORT"',
+        'Click "Install" in the popup dialog',
+        'The app will open in its own window',
+        'Access ECOSORT from your Start Menu or Desktop shortcut'
+      ],
+      note: 'The installed app works offline and provides push notifications for waste collection schedules.'
+    },
+    mac: {
+      browser: 'Chrome / Safari',
+      steps: [
+        'Open ECOSORT in Chrome or Safari',
+        'In Chrome: Click the install icon in the address bar',
+        'In Safari: Go to File → "Add to Dock"',
+        'Click "Install" to confirm',
+        'The app will appear in your Applications folder',
+        'Open ECOSORT from your Dock or Applications for quick access'
+      ],
+      note: 'Safari support may vary. Chrome provides the most reliable installation experience on macOS.'
+    }
+  };
+
+  const currentInstructions = instructions[selectedOS] || instructions.windows;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div 
+        className={`relative max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl ${
+          isDark ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className={`sticky top-0 z-10 px-6 py-4 border-b ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center">
+                <DownloadIcon className="w-6 h-6 text-white" />
+              </div>
+              <h2 className="text-2xl font-bold">Install ECOSORT</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className={`p-2 rounded-lg transition-colors ${
+                isDark ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+              }`}
+            >
+              <CloseIcon className="w-6 h-6" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="px-6 py-6 space-y-6">
+          {/* OS Selector */}
+          <div>
+            <label className={`block text-sm font-semibold mb-3 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+              Select Your Operating System
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { id: 'android', label: '🤖 Android', icon: '📱' },
+                { id: 'ios', label: '🍎 iOS', icon: '📱' },
+                { id: 'windows', label: '🪟 Windows', icon: '💻' },
+                { id: 'mac', label: '🍎 macOS', icon: '💻' }
+              ].map((os) => (
+                <button
+                  key={os.id}
+                  onClick={() => setSelectedOS(os.id)}
+                  className={`p-3 rounded-xl font-medium transition-all ${
+                    selectedOS === os.id
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
+                      : isDark
+                      ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">{os.icon}</div>
+                  <div className="text-xs">{os.label.replace(/[🤖🍎🪟]/g, '')}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className={`p-5 rounded-xl ${isDark ? 'bg-gray-700/50' : 'bg-gray-50'}`}>
+            <div className="flex items-center gap-2 mb-4">
+              <InfoIcon className="w-5 h-5 text-emerald-500" />
+              <h3 className="font-bold text-lg">Browser: {currentInstructions.browser}</h3>
+            </div>
+            
+            <ol className="space-y-3">
+              {currentInstructions.steps.map((step, index) => (
+                <li key={index} className="flex gap-3">
+                  <span className="flex-shrink-0 w-7 h-7 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-full flex items-center justify-center font-bold text-sm">
+                    {index + 1}
+                  </span>
+                  <span className={`flex-1 pt-1 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {step}
+                  </span>
+                </li>
+              ))}
+            </ol>
+
+            {currentInstructions.note && (
+              <div className={`mt-4 p-3 rounded-lg border ${
+                isDark ? 'bg-blue-900/20 border-blue-700' : 'bg-blue-50 border-blue-200'
+              }`}>
+                <p className={`text-sm ${isDark ? 'text-blue-300' : 'text-blue-800'}`}>
+                  <strong>Note:</strong> {currentInstructions.note}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Benefits */}
+          <div className={`p-5 rounded-xl ${isDark ? 'bg-emerald-900/20' : 'bg-emerald-50'}`}>
+            <h3 className="font-bold mb-3 text-emerald-600 dark:text-emerald-400">
+              Benefits of Installing
+            </h3>
+            <ul className="space-y-2">
+              {[
+                'Works offline - access features without internet',
+                'Faster loading times and smoother performance',
+                'Push notifications for waste collection schedules',
+                'Takes up less space than a regular app',
+                'Quick access from your home screen or desktop'
+              ].map((benefit, index) => (
+                <li key={index} className="flex items-start gap-2">
+                  <CheckIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 flex-shrink-0 mt-0.5" />
+                  <span className={`text-sm ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
+                    {benefit}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Troubleshooting */}
+          <div className={`p-4 rounded-xl border ${
+            isDark ? 'bg-gray-700/30 border-gray-600' : 'bg-gray-50 border-gray-200'
+          }`}>
+            <h4 className="font-bold mb-2 text-sm">Troubleshooting</h4>
+            <p className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+              If you don't see the install option, try: (1) Make sure you're using the recommended browser, 
+              (2) Check if you're already running the app in standalone mode, (3) Try refreshing the page, 
+              (4) Ensure you're using HTTPS connection.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className={`sticky bottom-0 px-6 py-4 border-t ${
+          isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        }`}>
+          <button
+            onClick={onClose}
+            className="w-full px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
+          >
+            Got it!
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // PWA Install Component
 function InstallPWAButton() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
 
   useEffect(() => {
+    // Check if already installed
+    const checkInstalled = () => {
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isIOSStandalone = window.navigator.standalone === true;
+      setIsInstalled(isStandalone || isIOSStandalone);
+    };
+
+    checkInstalled();
+
+    // Listen for install prompt
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setIsVisible(true);
     };
 
+    // Listen for successful installation
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setIsVisible(false);
+      setDeferredPrompt(null);
+    };
+
     window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    setIsVisible(false);
-    setDeferredPrompt(null);
+    if (!deferredPrompt) {
+      // For iOS or browsers that don't support beforeinstallprompt
+      setShowInstructions(true);
+      return;
+    }
+
+    try {
+      await deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      
+      if (outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+      }
+      
+      setDeferredPrompt(null);
+      setIsVisible(false);
+    } catch (error) {
+      console.error('Install prompt error:', error);
+      setShowInstructions(true);
+    }
   };
 
-  if (!isVisible) return null;
+  const handleShowInstructions = () => {
+    setShowInstructions(true);
+  };
 
+  // Don't show if already installed
+  if (isInstalled) return null;
+
+  // Always show the install prompt prominently
   return (
-    <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-green-500/10 backdrop-blur-xl border border-emerald-200/30 rounded-3xl p-4 sm:p-6 mt-6 sm:mt-8 max-w-md mx-auto">
-      <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-teal-50/50 to-green-50/50"></div>
-      <div className="relative text-center space-y-3 sm:space-y-4">
-        <div className="flex items-center justify-center gap-2 mb-2 sm:mb-3">
-          <SparkleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-          <span className="font-bold text-emerald-800 text-sm sm:text-base">Install ECOSORT</span>
-          <SparkleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+    <>
+      <div className="relative overflow-hidden bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-green-500/10 backdrop-blur-xl border border-emerald-200/30 dark:border-emerald-700/30 rounded-3xl p-4 sm:p-6 mt-6 sm:mt-8 max-w-md mx-auto">
+        <div className="absolute inset-0 bg-gradient-to-r from-emerald-50/50 via-teal-50/50 to-green-50/50 dark:from-emerald-900/20 dark:via-teal-900/20 dark:to-green-900/20"></div>
+        <div className="relative text-center space-y-3 sm:space-y-4">
+          <div className="flex items-center justify-center gap-2 mb-2 sm:mb-3">
+            <SparkleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+            <span className="font-bold text-emerald-800 dark:text-emerald-300 text-sm sm:text-base">Install ECOSORT App</span>
+            <SparkleIcon className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-300 leading-relaxed px-2">
+            Get the full experience! Install ECOSORT on your device for offline access, faster performance, and notifications.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <button
+              onClick={handleInstallClick}
+              className="flex-1 px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl sm:rounded-2xl font-medium hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-xs sm:text-sm flex items-center justify-center gap-2"
+            >
+              <DownloadIcon className="w-4 h-4" />
+              Install Now
+            </button>
+            <button
+              onClick={handleShowInstructions}
+              className="px-4 sm:px-6 py-2 sm:py-2.5 bg-white dark:bg-gray-700 text-emerald-700 dark:text-emerald-300 rounded-xl sm:rounded-2xl font-medium hover:shadow-md transition-all duration-200 text-xs sm:text-sm border border-emerald-200 dark:border-emerald-600"
+            >
+              How to Install
+            </button>
+          </div>
         </div>
-        <p className="text-xs sm:text-sm text-gray-700 leading-relaxed px-2">
-          Access waste management tools directly from your home screen
-        </p>
-        <button
-          onClick={handleInstallClick}
-          className="px-4 sm:px-6 py-2 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl sm:rounded-2xl font-medium hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 text-xs sm:text-sm"
-        >
-          Install App
-        </button>
       </div>
-    </div>
+
+      <InstallInstructionsModal 
+        isOpen={showInstructions} 
+        onClose={() => setShowInstructions(false)} 
+      />
+    </>
   );
 }
 
@@ -188,11 +488,11 @@ export default function Welcome() {
                 onClick={() => navigate('/login')}
                 className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl font-medium border transition-all duration-200 text-xs sm:text-sm whitespace-nowrap ${
                   isDark 
-                    ? 'border-gray-600 text-gray-300 bg-slate-800 hover:bg-slate-700 hover:shadow-md' 
-                    : 'border-gray-300 text-gray-700 bg-white hover:bg-gray-50 hover:shadow-md'
+                    ? 'text-white border-white/30 hover:bg-white/10' 
+                    : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
                 }`}
               >
-                Sign In
+                Login
               </button>
             </div>
           </div>
@@ -200,88 +500,97 @@ export default function Welcome() {
       </nav>
 
       {/* Hero Section */}
-      <section className={`relative z-10 px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20 transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex justify-center items-center">
-            <div className="space-y-6 sm:space-y-8 lg:space-y-10 text-center max-w-4xl">
-              <div className="space-y-4 sm:space-y-6">
-                <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black leading-tight ${styles.text.primary}`}>
-                  <span className="block bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
-                    ECOSORT
-                  </span>
-                  <span className="block mt-1 sm:mt-2 text-2xl sm:text-3xl md:text-4xl lg:text-5xl">
-                  
-                  </span>
-                </h1>
-                <p className={`text-sm sm:text-base lg:text-lg xl:text-xl leading-relaxed max-w-2xl mx-auto ${styles.text.secondary}`}>
-                  Transforming communities.
-                  <span className="font-semibold text-emerald-700"> Recycle for rewards</span>, 
-                  <span className="font-semibold text-red-600"> report issues</span>, and 
-                  <span className="font-semibold text-blue-600"> connect with your community for a cleaner, sustainable future.</span> 
-                </p>
-              </div>
-                    
-              
-              <InstallPWAButton />
+      <section className="relative z-10 pt-12 sm:pt-16 lg:pt-24 pb-8 sm:pb-12 lg:pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className={`text-center transition-all duration-1000 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
+            <div className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 mb-4 sm:mb-6">
+              <SparkleIcon className="w-3 h-3 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-xs sm:text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                Sustainable Waste Management Platform
+              </span>
+            </div>
+
+            <h1 className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black mb-4 sm:mb-6 lg:mb-8 ${
+              isDark ? 'text-white' : 'text-gray-900'
+            }`}>
+              Transform Your Waste
+              <br />
+              <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-green-700 bg-clip-text text-transparent">
+                Into Rewards
+              </span>
+            </h1>
+
+            <p className={`text-base sm:text-lg lg:text-xl max-w-3xl mx-auto mb-6 sm:mb-8 lg:mb-10 leading-relaxed px-4 ${
+              isDark ? 'text-gray-300' : 'text-gray-600'
+            }`}>
+              Join ECOSORT and earn points for every recyclable item you properly segregate. 
+              Redeem rewards, report violations, and connect with your community for a cleaner, 
+              sustainable future.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4">
+              <button
+                onClick={() => navigate('/signup')}
+                className="group w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                Get Started Free
+                <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 group-hover:translate-x-1 transition-transform" />
+              </button>
             </div>
           </div>
+
+          {/* Install PWA Button - Now prominently displayed */}
+          <InstallPWAButton />
         </div>
       </section>
 
       {/* Features Section */}
-      <section className={`relative z-10 py-12 sm:py-16 lg:py-24 backdrop-blur-sm ${
-        isDark ? 'bg-slate-800/20' : 'bg-gradient-to-br from-white/80 via-emerald-50/60 to-teal-50/40'
-      }`} data-section="features">
+      <section className="relative z-10 py-12 sm:py-16 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8 sm:mb-12 lg:mb-20">
-            <div className={`inline-flex items-center gap-2 rounded-full px-4 sm:px-6 py-2 sm:py-3 font-medium shadow-lg mb-4 sm:mb-6 lg:mb-8 backdrop-blur-xl text-xs sm:text-sm ${
-              isDark 
-                ? 'bg-slate-800/70 border border-emerald-500/30 text-emerald-300' 
-                : 'bg-white/70 border border-emerald-200/30 text-emerald-800'
+          <div className="text-center mb-8 sm:mb-12 lg:mb-16">
+            <h2 className={`text-2xl sm:text-3xl lg:text-4xl font-black mb-3 sm:mb-4 ${
+              isDark ? 'text-white' : 'text-gray-900'
             }`}>
-              <SparkleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span>Platform Features</span>
-              <SparkleIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-            </div>
-            <h2 className={`text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black mb-3 sm:mb-4 lg:mb-6 ${styles.text.primary}`}>
-              
+              Everything You Need for
+              <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent"> Sustainable Living</span>
             </h2>
-            <p className={`text-sm sm:text-base lg:text-lg xl:text-xl max-w-3xl mx-auto leading-relaxed px-4 ${styles.text.secondary}`}>
-              ECOSORT combines recycling rewards, community reporting, and social engagement to create sustainable waste management in your neighborhood.
+            <p className={`text-sm sm:text-base lg:text-lg max-w-2xl mx-auto ${
+              isDark ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Comprehensive tools to manage waste, earn rewards, and make a positive environmental impact
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {features.map((feature, index) => {
-              const IconComponent = feature.icon;
-              const isActive = activeFeature === index;
-
+              const Icon = feature.icon;
               return (
                 <div
                   key={index}
-                  className={`group relative overflow-hidden rounded-xl sm:rounded-2xl lg:rounded-3xl transition-all duration-700 transform px-4 sm:px-6 py-6 sm:py-8 lg:py-10 ${
-                    isActive
-                      ? `${isDark ? 'bg-slate-800/90 border-2 border-emerald-400/50' : 'bg-white/90 border-2 border-emerald-200/50'} shadow-2xl scale-105`
-                      : `${isDark ? 'bg-slate-800/70 border border-slate-600/30' : 'bg-white/70 border border-white/20'} shadow-xl hover:shadow-2xl hover:scale-102`
-                  }`}
+                  className={`group relative overflow-hidden rounded-2xl sm:rounded-3xl p-6 sm:p-8 transition-all duration-500 hover:scale-102 ${
+                    isDark 
+                      ? 'bg-white/5 hover:bg-white/10 border border-white/10' 
+                      : 'bg-white hover:bg-gray-50 border border-gray-100 shadow-lg hover:shadow-xl'
+                  } ${activeFeature === index ? 'ring-2 ring-emerald-500' : ''}`}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-5 group-hover:opacity-10 transition-opacity duration-500`}></div>
-
-                  <div className="relative text-center space-y-3 sm:space-y-4 lg:space-y-6">
-                    <div className={`relative w-12 h-12 sm:w-16 sm:h-16 lg:w-20 lg:h-20 bg-gradient-to-br ${feature.gradient} rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center justify-center mx-auto shadow-lg transition-transform duration-500 ${isActive ? 'scale-110 shadow-xl' : 'group-hover:scale-105'}`}>
-                      <IconComponent className="w-6 h-6 sm:w-8 sm:h-8 lg:w-10 lg:h-10 text-white" />
+                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+                  
+                  <div className="relative">
+                    <div className={`w-12 h-12 sm:w-16 sm:h-16 mb-4 sm:mb-6 rounded-xl sm:rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center shadow-lg group-hover:shadow-xl transition-shadow`}>
+                      <Icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
                     </div>
 
-                    <div className="space-y-2 sm:space-y-3 lg:space-y-4">
-                      <h3 className={`text-base sm:text-lg lg:text-xl xl:text-2xl font-bold ${styles.text.primary}`}>{feature.title}</h3>
-                      <p className={`text-xs sm:text-sm lg:text-base leading-relaxed px-2 ${styles.text.secondary}`}>{feature.description}</p>
-                    </div>
-
-                    <div className={`absolute -top-1 -right-1 sm:-top-2 sm:-right-2 w-5 h-5 sm:w-6 sm:h-6 lg:w-8 lg:h-8 rounded-full flex items-center justify-center text-xs font-bold text-white transition-all duration-300 shadow-lg ${
-                      isActive ? `bg-gradient-to-r ${feature.gradient} scale-110` : 'bg-gray-400'
+                    <h3 className={`text-lg sm:text-xl font-bold mb-2 sm:mb-3 ${
+                      isDark ? 'text-white' : 'text-gray-900'
                     }`}>
-                      {index + 1}
-                    </div>
+                      {feature.title}
+                    </h3>
+
+                    <p className={`text-xs sm:text-sm leading-relaxed ${
+                      isDark ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                      {feature.description}
+                    </p>
                   </div>
                 </div>
               );
@@ -290,61 +599,75 @@ export default function Welcome() {
         </div>
       </section>
 
-     
+      {/* Benefits Section */}
+      <section className="relative z-10 py-12 sm:py-16 lg:py-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className={`rounded-2xl sm:rounded-3xl p-6 sm:p-8 lg:p-12 ${
+            isDark 
+              ? 'bg-gradient-to-br from-emerald-900/30 to-teal-900/30 border border-emerald-700/30' 
+              : 'bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-100'
+          }`}>
+            <div className="text-center mb-6 sm:mb-8">
+              <h2 className={`text-2xl sm:text-3xl font-black mb-3 sm:mb-4 ${
+                isDark ? 'text-white' : 'text-gray-900'
+              }`}>
+                Why Choose ECOSORT?
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              {benefits.map((benefit, index) => (
+                <div
+                  key={index}
+                  className={`flex items-start gap-3 p-3 sm:p-4 rounded-xl ${
+                    isDark ? 'bg-white/5' : 'bg-white/70'
+                  }`}
+                >
+                  <div className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <CheckIcon className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
+                  </div>
+                  <span className={`text-sm sm:text-base ${
+                    isDark ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
+                    {benefit}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section */}
-      <section className={`relative z-10 py-12 sm:py-16 lg:py-24 overflow-hidden ${
+      <section className={`relative z-10 py-12 sm:py-16 lg:py-20 ${
         isDark 
-          ? 'bg-gradient-to-br from-slate-800 via-gray-800 to-emerald-800' 
-          : 'bg-gradient-to-br from-emerald-600 via-teal-600 to-green-700'
+          ? 'bg-gradient-to-br from-emerald-900 via-teal-900 to-green-900' 
+          : 'bg-gradient-to-br from-emerald-600 via-teal-600 to-green-600'
       }`}>
-        <div className="absolute inset-0">
-          <div className={`absolute top-20 left-20 w-32 h-32 sm:w-64 sm:h-64 rounded-full blur-3xl animate-pulse ${
-            isDark ? 'bg-emerald-400/10' : 'bg-white/5'
-          }`}></div>
-          <div className={`absolute bottom-20 right-20 w-48 h-48 sm:w-96 sm:h-96 rounded-full blur-3xl animate-pulse delay-1000 ${
-            isDark ? 'bg-teal-400/5' : 'bg-white/3'
-          }`}></div>
-        </div>
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="mb-6 sm:mb-8">
+            <CoinsIcon className="w-16 h-16 sm:w-20 sm:h-20 mx-auto text-white opacity-90 mb-4 sm:mb-6" />
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white mb-3 sm:mb-4">
+              Ready to Make a Difference?
+            </h2>
+            <p className={`text-sm sm:text-base lg:text-lg max-w-2xl mx-auto ${
+              isDark ? 'text-gray-200' : 'text-emerald-100'
+            }`}>
+              Join ECOSORT today and start making meaningful impact in your community's waste management. Every action counts toward a cleaner, sustainable future.
+            </p>
+          </div>
 
-        <div className="relative max-w-6xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-          <div className="space-y-6 sm:space-y-8 lg:space-y-10">
-            <div className="space-y-3 sm:space-y-4 lg:space-y-6">
-              <div className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl animate-bounce">🌍</div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-black text-white leading-tight">
-                Ready to Transform
-                <span className={`block bg-gradient-to-r bg-clip-text text-transparent ${
-                  isDark 
-                    ? 'from-emerald-300 via-teal-300 to-green-300' 
-                    : 'from-yellow-300 via-amber-300 to-orange-300'
-                }`}>
-                  Your Community?
-                </span>
-              </h2>
-              <p className={`text-sm sm:text-base lg:text-lg xl:text-xl max-w-3xl mx-auto leading-relaxed ${
-                isDark ? 'text-gray-200' : 'text-emerald-100'
-              }`}>
-                Join ECOSORT today and start making meaningful impact in your community's waste management. Every action counts toward a cleaner, sustainable future.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-lg mx-auto">
-              <button
-                onClick={() => navigate('/signup')}
-                className={`group px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-bold text-sm sm:text-base transition-all duration-200 transform hover:-translate-y-1 shadow-lg flex-1 ${
-                  isDark 
-                    ? 'bg-emerald-500 text-white hover:bg-emerald-400' 
-                    : 'bg-white text-emerald-600 hover:bg-emerald-50'
-                }`}
-              >
-                Start Your Journey
-              </button>
-
-              
-            </div>
-
-            
-            
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-lg mx-auto">
+            <button
+              onClick={() => navigate('/signup')}
+              className={`group px-6 py-3 sm:px-8 sm:py-4 rounded-lg font-bold text-sm sm:text-base transition-all duration-200 transform hover:-translate-y-1 shadow-lg flex-1 ${
+                isDark 
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-400' 
+                  : 'bg-white text-emerald-600 hover:bg-emerald-50'
+              }`}
+            >
+              Start Your Journey
+            </button>
           </div>
         </div>
       </section>
@@ -402,7 +725,6 @@ export default function Welcome() {
                   <span className="text-green-400">📱</span>
                   <span>Mobile app available</span>
                 </div>
-                
               </div>
             </div>
           </div>

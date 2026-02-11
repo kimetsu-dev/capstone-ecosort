@@ -329,11 +329,26 @@ export default function ReportsTab({ reports, setReports, showToast, isDark }) {
     } catch (e) { showToast("Delete failed", "error"); }
   };
 
-  const handleStatusUpdate = async (id, newStatus) => {
+  // Updated to include notification logic
+  const handleStatusUpdate = async (id, newStatus, authorId) => {
     try {
       await updateDoc(doc(db, "violation_reports", id), { status: newStatus, updatedAt: new Date() });
+      
+      // Notify the user of the resolution/status update
+      if (authorId) {
+        await addDoc(collection(db, "notifications", authorId, "userNotifications"), {
+          message: `Your report status has been updated to: ${newStatus.charAt(0).toUpperCase() + newStatus.slice(1)}`,
+          type: "report_status",
+          createdAt: serverTimestamp(),
+          read: false,
+        });
+      }
+
       showToast(`Status updated to ${newStatus}`, "success");
-    } catch (e) { showToast("Status update failed", "error"); }
+    } catch (e) { 
+      console.error(e);
+      showToast("Status update failed", "error"); 
+    }
   };
 
   // --- Filtering Logic ---
@@ -503,7 +518,7 @@ export default function ReportsTab({ reports, setReports, showToast, isDark }) {
              <div className={`flex flex-wrap items-center gap-3 p-3 rounded-xl mb-4 ${isDark ? "bg-gray-700/30" : "bg-gray-50 border border-gray-100"}`}>
                 <span className="text-xs font-semibold uppercase opacity-50">Admin Actions:</span>
                 <button 
-                   onClick={() => handleStatusUpdate(item.id, 'in review')}
+                   onClick={() => handleStatusUpdate(item.id, 'in review', item.authorId)}
                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
                      item.status === 'in review' 
                       ? 'bg-blue-600 text-white shadow-md' 
@@ -513,7 +528,7 @@ export default function ReportsTab({ reports, setReports, showToast, isDark }) {
                   Mark In Review
                 </button>
                 <button 
-                   onClick={() => handleStatusUpdate(item.id, 'resolved')}
+                   onClick={() => handleStatusUpdate(item.id, 'resolved', item.authorId)}
                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all ${
                      item.status === 'resolved' 
                       ? 'bg-emerald-600 text-white shadow-md' 
